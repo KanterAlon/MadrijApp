@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useUser, SignInButton, SignOutButton } from "@clerk/nextjs";
 import { Home, Notebook, Calendar, FileText, Users, Bot } from "lucide-react";
 
 const links = [
@@ -18,9 +19,10 @@ const links = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { user, isSignedIn } = useUser();
 
   return (
-    <aside className="w-64 min-h-screen bg-white border-r p-4 hidden md:block">
+    <aside className="w-64 min-h-screen bg-white border-r p-4 hidden md:flex flex-col justify-between">
       <nav className="space-y-2">
         {links.map(({ href, label, icon }) => (
           <Link
@@ -35,6 +37,28 @@ export default function Sidebar() {
           </Link>
         ))}
       </nav>
+
+      <div className="mt-6 border-t pt-4 text-sm text-gray-700">
+        {!isSignedIn ? (
+          <div className="space-y-2">
+            <p className="text-gray-500">¿Sos madrij?</p>
+            <SignInButton mode="modal">
+              <button className="w-full text-left bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition">
+                Iniciar sesión / Crear cuenta
+              </button>
+            </SignInButton>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p>
+              👋 Hola, <span className="font-semibold">{user.firstName}</span>
+            </p>
+            <SignOutButton>
+              <button className="text-sm text-red-600 hover:underline">Cerrar sesión</button>
+            </SignOutButton>
+          </div>
+        )}
+      </div>
     </aside>
   );
 }
