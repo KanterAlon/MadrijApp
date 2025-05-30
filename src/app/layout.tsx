@@ -1,11 +1,11 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { ClerkProvider} from "@clerk/nextjs";
+import { ClerkProvider } from "@clerk/nextjs";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import Sidebar from "@/components/ui/sidebar";
 import MobileMenu from "@/components/ui/mobile-menu";
-
+import ClientBootstrap from "@/components/client-bootstrap"; 
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -26,8 +26,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <ClerkProvider>
       <html lang="es">
         <body className={`min-h-screen bg-gray-50 text-gray-800 ${geistSans.variable} ${geistMono.variable} antialiased`}>
-          
-          {/* Layout de contenido con Sidebar y MobileMenu */}
+          {/* Hook de sincronización Clerk ↔ Supabase */}
+          <ClientBootstrap />
+
+          {/* Layout general */}
           <div className="md:flex">
             <Sidebar />
             <div className="flex-1">
