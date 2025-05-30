@@ -17,7 +17,7 @@ console.log("Insertando madrij:", {
   nombre: user.firstName,
 });
 
-const { data, error } = await supabase
+const { error } = await supabase
   .from("madrijim")
   .upsert(
     {
@@ -28,7 +28,9 @@ const { data, error } = await supabase
     { onConflict: "clerk_id" }
   );
 
-      if (error) console.error("Error registrando madrij:", error);
+if (error) {
+  console.error("Error inserting madrij:", error);
+}
     };
 
     syncMadrij();
