@@ -1,3 +1,5 @@
+"use client";
+
 import Sidebar from "@/components/ui/sidebar";
 import MobileMenu from "@/components/ui/mobile-menu";
 
