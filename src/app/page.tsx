@@ -13,7 +13,7 @@ export default function HomePage() {
     if (isSignedIn) {
       router.push("/dashboard");
     }
-  }, [isSignedIn]);
+  }, [isSignedIn, router]);
 
   return (
     <main className="min-h-screen flex flex-col justify-center items-center text-center p-6">

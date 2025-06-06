@@ -5,14 +5,20 @@ import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { getProyectosParaUsuario } from "@/lib/supabase/projects";
 
+type Proyecto = {
+  id: string;
+  nombre: string;
+};
+
 export default function DashboardPage() {
   const { user } = useUser();
-  const [proyectos, setProyectos] = useState<any[]>([]);
+  const [proyectos, setProyectos] = useState<Proyecto[]>([]);
 
   useEffect(() => {
     if (!user) return;
+
     getProyectosParaUsuario(user.id)
-      .then(setProyectos)
+      .then((data) => setProyectos(data.flat()))
       .catch((err) => console.error("Error cargando proyectos", err));
   }, [user]);
 
