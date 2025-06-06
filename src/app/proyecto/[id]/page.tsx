@@ -4,14 +4,20 @@ import { supabase } from "@/lib/supabase";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
-export default async function ProyectoHome({ params }: { params: { id: string } }) {
+type ProyectoPageProps = {
+  params: {
+    id: string;
+  };
+};
+
+
+export default async function ProyectoHome({ params }: ProyectoPageProps) {
   const { userId } = await auth();
   const proyectoId = params.id;
 
   if (!userId) {
     redirect("/");
   }
-
   const { data: relacion, error: errorRelacion } = await supabase
     .from("madrijim_proyectos")
     .select("*")
