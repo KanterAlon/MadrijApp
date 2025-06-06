@@ -4,13 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
-type ProyectoPageParams = {
-  params: {
-    id: string;
-  };
-};
-
-export default async function ProyectoHome({ params }: ProyectoPageParams) {
+export default async function ProyectoHome({ params }: { params: { id: string } }) {
   const { userId } = await auth();
   const proyectoId = params.id;
 
