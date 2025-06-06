@@ -1,23 +1,24 @@
-// src/app/proyecto/[id]/page.tsx
-
-import { supabase } from "@/lib/supabase";
+import { Metadata } from "next";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { type NextPage } from "next";
 
-type ProyectoPageProps = {
+// ✅ Tipo correcto para páginas dinámicas
+interface PageProps {
   params: {
     id: string;
   };
-};
+}
 
-
-export default async function ProyectoHome({ params }: ProyectoPageProps) {
+export default async function ProyectoHome({ params }: PageProps) {
   const { userId } = await auth();
   const proyectoId = params.id;
 
   if (!userId) {
     redirect("/");
   }
+
   const { data: relacion, error: errorRelacion } = await supabase
     .from("madrijim_proyectos")
     .select("*")
