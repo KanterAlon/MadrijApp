@@ -2,7 +2,12 @@ import { supabase } from "@/lib/supabase";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
-export default async function ProyectoHome({ params }: { params: { id: string } }) {
+// Define the params type inline for the dynamic route
+type ProyectoHomeProps = {
+  params: { id: string }
+};
+
+export default async function ProyectoHome({ params }: ProyectoHomeProps) {
   const { userId } = await auth();
   const proyectoId = params.id;
 
