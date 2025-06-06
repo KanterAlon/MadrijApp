@@ -2,12 +2,8 @@ import { supabase } from "@/lib/supabase";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
-// Define the params type inline for the dynamic route
-type ProyectoHomeProps = {
-  params: { id: string }
-};
-
-export default async function ProyectoHome({ params }: ProyectoHomeProps) {
+// Next.js espera Page props con una función async y un objeto plano como `params`
+export default async function ProyectoHome({ params }: { params: { id: string } }) {
   const { userId } = await auth();
   const proyectoId = params.id;
 
@@ -15,7 +11,6 @@ export default async function ProyectoHome({ params }: ProyectoHomeProps) {
     redirect("/");
   }
 
-  // Verificar acceso del usuario al proyecto
   const { data: relacion, error: errorRelacion } = await supabase
     .from("madrijim_proyectos")
     .select("*")
@@ -27,7 +22,6 @@ export default async function ProyectoHome({ params }: ProyectoHomeProps) {
     redirect("/dashboard");
   }
 
-  // Obtener nombre del proyecto
   const { data: proyecto, error: errorProyecto } = await supabase
     .from("proyectos")
     .select("nombre")
