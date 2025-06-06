@@ -1,9 +1,16 @@
+// src/app/proyecto/[id]/page.tsx
+
 import { supabase } from "@/lib/supabase";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
-// Next.js espera Page props con una función async y un objeto plano como `params`
-export default async function ProyectoHome({ params }: { params: { id: string } }) {
+type ProyectoPageParams = {
+  params: {
+    id: string;
+  };
+};
+
+export default async function ProyectoHome({ params }: ProyectoPageParams) {
   const { userId } = await auth();
   const proyectoId = params.id;
 
