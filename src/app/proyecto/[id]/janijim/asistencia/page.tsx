@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import Loader from "@/components/ui/loader";
 import {
@@ -19,6 +19,7 @@ export default function AsistenciaPage() {
   const params = useSearchParams();
   const sesionId = params.get("sesion") || "";
   const { user } = useUser();
+  const router = useRouter();
 
   const [janijim, setJanijim] = useState<{ id: string; nombre: string }[]>([]);
   const [estado, setEstado] = useState<Record<string, boolean>>({});
@@ -63,6 +64,7 @@ export default function AsistenciaPage() {
 
   const finalizar = async () => {
     await finalizarSesion(sesionId);
+    router.push(`/proyecto/${proyectoId}/janijim`);
   };
 
   if (loading) {
@@ -78,19 +80,25 @@ export default function AsistenciaPage() {
       <h2 className="text-xl font-semibold">{sesion?.nombre}</h2>
       <ul className="space-y-2">
         {janijim.map((j) => (
-          <li key={j.id} className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={!!estado[j.id]}
-              onChange={() => toggle(j.id)}
-            />
-            <span>{j.nombre}</span>
+          <li
+            key={j.id}
+            className="flex items-center justify-between bg-white shadow p-4 rounded-lg"
+          >
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={!!estado[j.id]}
+                onChange={() => toggle(j.id)}
+              />
+              <span>{j.nombre}</span>
+            </label>
           </li>
         ))}
       </ul>
       <button
         onClick={finalizar}
-        className="px-4 py-2 bg-green-600 text-white rounded"
+        className="px-4 py-2 bg-green-600 text-white rounded-lg w-full"
       >
         Finalizar asistencia
       </button>
