@@ -67,7 +67,7 @@ export default function AsistenciaPage() {
   };
 
   const importColumn = async () => {
-    const names = rows.map((r) => r[columnIndex]).filter(Boolean);
+    const names = rows.slice(1).map((r) => r[columnIndex]).filter(Boolean);
     const enriched = await Promise.all(
       names.map(async (nombre, i) => ({
         id: String(i + 1),
