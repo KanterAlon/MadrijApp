@@ -1,11 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
-  output: 'standalone',
-  experimental: {
-    // Enable Node.js runtime support for middleware
-    nodeMiddleware: true,
-  },
+  // otras configuraciones
+  // experimental: {
+  //   nodeMiddleware: true, // <- esta línea fuera
+  // },
 };
 
 module.exports = nextConfig;
