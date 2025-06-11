@@ -15,20 +15,7 @@ type Janij = {
   id: string;
   nombre: string;
   estado: "presente" | "ausente";
-  embedding?: number[];
 };
-
-function cosineSimilarity(a: number[], b: number[]) {
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < a.length && i < b.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
-}
 
 export default function AsistenciaPage() {
   const fileInput = useRef<HTMLInputElement>(null);
@@ -40,8 +27,8 @@ export default function AsistenciaPage() {
   const [search, setSearch] = useState("");
   const [showResults, setShowResults] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
-  const [queryVec, setQueryVec] = useState<number[] | null>(null);
 
+  const [aiResults, setAiResults] = useState<string[]>([]);
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -54,17 +41,6 @@ export default function AsistenciaPage() {
     setRows(lines.slice(1));
     setOpen(true);
   };
-
-  const getEmbedding = async (text: string) => {
-    const res = await fetch("/api/embedding", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
-    const data = await res.json();
-    return data.embedding as number[] | undefined;
-  };
-
   const importColumn = async () => {
     const names = rows.map((r) => r[columnIndex]).filter(Boolean);
     const enriched = await Promise.all(
@@ -72,7 +48,7 @@ export default function AsistenciaPage() {
         id: String(i + 1),
         nombre,
         estado: "ausente" as const,
-        embedding: await getEmbedding(nombre),
+
       }))
     );
     setJanijim(enriched);
@@ -93,37 +69,39 @@ export default function AsistenciaPage() {
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
     setTimeout(() => setHighlightId(null), 2000);
   };
-
   useEffect(() => {
     if (!search.trim()) {
-      setQueryVec(null);
+      setAiResults([]);
       return;
     }
-    getEmbedding(search).then(setQueryVec).catch(() => setQueryVec(null));
-  }, [search]);
+    const controller = new AbortController();
+    fetch("/api/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: search, names: janijim.map((j) => j.nombre) }),
+      signal: controller.signal,
+    })
+      .then((res) => res.json())
+      .then((d) => setAiResults(d.matches || []))
+      .catch(() => setAiResults([]));
+    return () => controller.abort();
+  }, [search, janijim]);
+
 
   const resultados = useMemo(() => {
     if (!search.trim()) return [];
     const q = search.toLowerCase().trim();
     const exact = janijim
       .filter((j) => j.nombre.toLowerCase().includes(q))
-      .map((j) => ({ ...j, ai: false, score: 1 }));
+      .map((j) => ({ ...j, ai: false }));
 
-    const aiMatches: (Janij & { ai: boolean; score: number })[] = [];
-    if (queryVec) {
-      janijim.forEach((j) => {
-        if (!j.embedding) return;
-        if (j.nombre.toLowerCase().includes(q)) return;
-        const score = cosineSimilarity(queryVec, j.embedding);
-        if (score > 0.75) {
-          aiMatches.push({ ...j, ai: true, score });
-        }
-      });
-      aiMatches.sort((a, b) => b.score - a.score);
-    }
+    const aiMatches = aiResults
+      .map((name) => janijim.find((j) => j.nombre === name))
+      .filter((j) => j && !exact.some((e) => e.id === j.id))
+      .map((j) => ({ ...(j as Janij), ai: true }));
 
     return [...exact, ...aiMatches].slice(0, 5);
-  }, [search, janijim, queryVec]);
+  }, [search, janijim, aiResults]);
 
   return (
     <div className="max-w-2xl mx-auto mt-12 space-y-4">
