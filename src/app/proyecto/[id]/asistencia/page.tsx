@@ -37,50 +37,33 @@ export default function AsistenciaPage() {
     seleccionar(id);
   };
 
-      setAiLoading(false);
-      return;
-    }
-    const q = search.toLowerCase().trim();
-    const exact = janijim.filter((j) => j.nombre.toLowerCase().includes(q));
-    if (exact.length > 0) {
-      setAiResults([]);
-      setAiLoading(false);
-    setAiLoading(true);
-      .then((d) => {
-        setAiResults(d.matches || []);
-        setAiLoading(false);
-      })
-      .catch(() => {
-        setAiResults([]);
-        setAiLoading(false);
-      });
-  const exactMatches = useMemo(() => {
-    const q = search.toLowerCase().trim();
-    if (!q) return [] as Janij[];
-    return janijim.filter((j) => j.nombre.toLowerCase().includes(q));
-  }, [search, janijim]);
+  const seleccionar = (id: string) => {
+    setShowResults(false);
+    setSearch("");
+    setHighlightId(id);
+    const el = document.getElementById(`janij-${id}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => setHighlightId(null), 2000);
+  };
 
-    if (exactMatches.length > 0) {
-      return exactMatches.map((j) => ({ ...j, ai: false })).slice(0, 5);
-    }
-      .filter((j): j is Janij => !!j)
-      .map((j) => ({ ...j, ai: true }));
+  const marcar = (id: string, nuevoEstado: "presente" | "ausente") => {
+    setJanijim((prev) =>
+      prev.map((j) => (j.id === id ? { ...j, estado: nuevoEstado } : j))
+    );
+  };
 
-    return aiMatches.slice(0, 5);
-  }, [search, janijim, aiResults, exactMatches]);
-  const aiMode = search.trim() !== "" && exactMatches.length === 0;
-        {showResults && (resultados.length > 0 || aiMode) && (
-            {aiLoading && (
-              <li className="p-2 text-sm text-gray-500">Buscando con IA...</li>
-            )}
-            {aiMode && !aiLoading && (
-              <li
-                onMouseDown={() => agregar(search.trim())}
-                className="p-2 cursor-pointer hover:bg-gray-100"
-              >
-                Agregar &quot;{search.trim()}&quot;
-              </li>
-            )}
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      const lines = text.split("\n").map((line) => line.split(","));
+      setRows(lines);
+      setColumns(lines[0]);
+      setOpen(true);
+    };
+    reader.readAsText(file);
   };
 
   const importColumn = async () => {
@@ -96,27 +79,15 @@ export default function AsistenciaPage() {
     setOpen(false);
   };
 
-  const marcar = (id: string, nuevoEstado: "presente" | "ausente") => {
-    setJanijim((prev) =>
-      prev.map((j) => (j.id === id ? { ...j, estado: nuevoEstado } : j))
-    );
-  };
-
-  const seleccionar = (id: string) => {
-    setShowResults(false);
-    setSearch("");
-    setHighlightId(id);
-    const el = document.getElementById(`janij-${id}`);
-    el?.scrollIntoView({ behavior: "smooth", block: "center" });
-    setTimeout(() => setHighlightId(null), 2000);
-  };
-
   useEffect(() => {
     if (!search.trim()) {
       setAiResults([]);
       return;
     }
+
     const controller = new AbortController();
+    setAiLoading(true);
+
     fetch("/api/search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -124,13 +95,21 @@ export default function AsistenciaPage() {
       signal: controller.signal,
     })
       .then((res) => res.json())
-      .then((d) => setAiResults(d.matches || []))
-      .catch(() => setAiResults([]));
+      .then((d) => {
+        setAiResults(d.matches || []);
+        setAiLoading(false);
+      })
+      .catch(() => {
+        setAiResults([]);
+        setAiLoading(false);
+      });
+
     return () => controller.abort();
   }, [search, janijim]);
 
   const resultados = useMemo(() => {
     if (!search.trim()) return [];
+
     const q = search.toLowerCase().trim();
     const exact = janijim
       .filter((j) => j.nombre.toLowerCase().includes(q))
@@ -138,11 +117,15 @@ export default function AsistenciaPage() {
 
     const aiMatches = aiResults
       .map((name) => janijim.find((j) => j.nombre === name))
-      .filter((j) => j && !exact.some((e) => e.id === j.id))
-      .map((j) => ({ ...(j as Janij), ai: true }));
+      .filter((j): j is Janij => !!j && !exact.some((e) => e.id === j.id))
+      .map((j) => ({ ...j, ai: true }));
 
-    return [...exact, ...aiMatches].slice(0, 5);
+    return [...exact, ...aiMatches];
   }, [search, janijim, aiResults]);
+
+  const yaExiste = janijim.some(
+    (j) => j.nombre.toLowerCase() === search.trim().toLowerCase()
+  );
 
   return (
     <div className="max-w-2xl mx-auto mt-12 space-y-4">
@@ -159,24 +142,72 @@ export default function AsistenciaPage() {
           placeholder="Buscar janij..."
           className="w-full border rounded-lg p-2"
         />
-        {showResults && resultados.length > 0 && (
-          <ul className="absolute z-10 left-0 top-full mt-1 w-full bg-white border rounded shadow">
-            {resultados.map((r) => (
-              <li
-                key={r.id}
-                onMouseDown={() => seleccionar(r.id)}
-                className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
-              >
-                <span>{r.nombre}</span>
-                {r.ai && (
-                  <span className="bg-fuchsia-100 text-fuchsia-700 text-xs px-1 rounded">
-                    IA
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
+
+        {showResults && search.trim() !== "" && (
+  <ul className="absolute z-10 left-0 top-full mt-1 w-full bg-white border rounded shadow max-h-60 overflow-auto">
+    {/* 1. Coincidencias normales */}
+    {resultados.filter((r) => !r.ai).map((r) => (
+      <li
+        key={r.id}
+        onMouseDown={() => seleccionar(r.id)}
+        className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
+      >
+        <span>{r.nombre}</span>
+      </li>
+    ))}
+
+    {/* 2. Loader de IA */}
+    {aiLoading && (
+      <li className="p-2 text-sm text-gray-500">Buscando con IA...</li>
+    )}
+
+    {/* 3. Ningún resultado de IA */}
+    {!aiLoading && aiResults.length === 0 && (
+      <li className="p-2 text-sm text-gray-500">
+        No se encontraron resultados con la IA.
+      </li>
+    )}
+
+    {/* 4. Resultados de IA */}
+    {!aiLoading && resultados.filter((r) => r.ai).length > 0 && (
+      <>
+        <li className="px-2 text-xs text-gray-400">Sugerencias con IA</li>
+        {resultados
+          .filter((r) => r.ai)
+          .map((r) => (
+            <li
+              key={r.id}
+              onMouseDown={() => seleccionar(r.id)}
+              className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
+            >
+              <span>{r.nombre}</span>
+              <span className="bg-fuchsia-100 text-fuchsia-700 text-xs px-1 rounded">
+                IA
+              </span>
+            </li>
+          ))}
+      </>
+    )}
+
+    {/* 5. Opción para agregar un nuevo nombre */}
+    {search.trim() !== "" &&
+      !janijim.some(
+        (j) => j.nombre.toLowerCase() === search.trim().toLowerCase()
+      ) &&
+      !resultados.some(
+        (r) => r.nombre.toLowerCase() === search.trim().toLowerCase()
+      ) && (
+        <li
+          onMouseDown={() => agregar(search.trim())}
+          className="p-2 cursor-pointer hover:bg-gray-100"
+        >
+          Agregar &quot;{search.trim()}&quot;
+        </li>
+      )}
+  </ul>
+)}
+
+
         <button
           onClick={() => fileInput.current?.click()}
           className="px-3 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-1"
