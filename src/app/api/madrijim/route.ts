@@ -1,4 +1,20 @@
 import { NextResponse } from "next/server";
+import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-server";
+
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+  if (!id) {
+    return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  }
+  try {
+    const data = await getMadrijimPorProyecto(id);
+    return NextResponse.json(data);
+  } catch (err) {
+    console.error("Error fetching madrijim", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}
 
 export async function POST(req: Request) {
   const { query, names } = await req.json();
