@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 const links = [
-  { href: "asistencia", label: "Asistencia", icon: ClipboardList },
+  { href: "janijim", label: "Janijim", icon: ClipboardList },
   { href: "notas", label: "Notas", icon: Book },
   { href: "calendario", label: "Calendario", icon: Calendar },
   { href: "tareas", label: "Tareas", icon: CheckSquare },
