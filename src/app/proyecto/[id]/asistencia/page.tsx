@@ -27,8 +27,8 @@ export default function AsistenciaPage() {
   const [search, setSearch] = useState("");
   const [showResults, setShowResults] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
-
   const [aiResults, setAiResults] = useState<string[]>([]);
+
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -41,6 +41,7 @@ export default function AsistenciaPage() {
     setRows(lines.slice(1));
     setOpen(true);
   };
+
   const importColumn = async () => {
     const names = rows.map((r) => r[columnIndex]).filter(Boolean);
     const enriched = await Promise.all(
@@ -48,7 +49,6 @@ export default function AsistenciaPage() {
         id: String(i + 1),
         nombre,
         estado: "ausente" as const,
-
       }))
     );
     setJanijim(enriched);
@@ -69,6 +69,7 @@ export default function AsistenciaPage() {
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
     setTimeout(() => setHighlightId(null), 2000);
   };
+
   useEffect(() => {
     if (!search.trim()) {
       setAiResults([]);
@@ -86,7 +87,6 @@ export default function AsistenciaPage() {
       .catch(() => setAiResults([]));
     return () => controller.abort();
   }, [search, janijim]);
-
 
   const resultados = useMemo(() => {
     if (!search.trim()) return [];
@@ -112,8 +112,8 @@ export default function AsistenciaPage() {
           onFocus={() => setShowResults(true)}
           onBlur={() => setTimeout(() => setShowResults(false), 100)}
           onChange={(e) => {
-            setSearch(e.target.value)
-            setShowResults(true)
+            setSearch(e.target.value);
+            setShowResults(true);
           }}
           placeholder="Buscar janij..."
           className="w-full border rounded-lg p-2"
@@ -128,7 +128,9 @@ export default function AsistenciaPage() {
               >
                 <span>{r.nombre}</span>
                 {r.ai && (
-                  <span className="bg-fuchsia-100 text-fuchsia-700 text-xs px-1 rounded">IA</span>
+                  <span className="bg-fuchsia-100 text-fuchsia-700 text-xs px-1 rounded">
+                    IA
+                  </span>
                 )}
               </li>
             ))}
@@ -206,4 +208,3 @@ export default function AsistenciaPage() {
     </div>
   );
 }
-
