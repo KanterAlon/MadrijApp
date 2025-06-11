@@ -4,6 +4,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import useHighlightScroll from "@/hooks/useHighlightScroll";
 import {
   Sheet,
   SheetContent,
@@ -44,7 +45,7 @@ export default function JanijimPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showResults, setShowResults] = useState(false);
-  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const { highlightId, scrollTo } = useHighlightScroll({ prefix: "janij-" });
   const [aiResults, setAiResults] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [uniqueNames, setUniqueNames] = useState<string[]>([]);
@@ -103,10 +104,7 @@ export default function JanijimPage() {
   const seleccionar = (id: string) => {
     setShowResults(false);
     setSearch("");
-    setHighlightId(id);
-    const el = document.getElementById(`janij-${id}`);
-    el?.scrollIntoView({ behavior: "smooth", block: "center" });
-    setTimeout(() => setHighlightId(null), 2000);
+    scrollTo(id);
   };
 
 
@@ -415,7 +413,9 @@ export default function JanijimPage() {
             id={`janij-${janij.id}`}
             key={janij.id}
             className={`flex items-center justify-between bg-white shadow p-4 rounded-lg ${
-              highlightId === janij.id ? "ring-2 ring-blue-500" : ""
+              highlightId === janij.id
+                ? "ring-2 ring-blue-500 animate-pulse"
+                : ""
             }`}
           >
             <span>{janij.nombre}</span>
