@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
+import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-server";
 
 
 // ✅ Tipo correcto para páginas dinámicas
