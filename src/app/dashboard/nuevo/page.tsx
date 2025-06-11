@@ -4,14 +4,17 @@ import { useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import Loader from "@/components/ui/loader";
 
 export default function NuevoProyectoPage() {
   const { user } = useUser();
   const router = useRouter();
   const [nombre, setNombre] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const handleCrear = async () => {
-    if (!user) return;
+    if (!user || creating) return;
+    setCreating(true);
     // Use the imported supabase client directly
 
     // 1. Crear proyecto
@@ -28,9 +31,14 @@ export default function NuevoProyectoPage() {
       .from("madrijim_proyectos")
       .insert({ proyecto_id: proyecto.id, madrij_id: user.id, rol: "creador", invitado: false });
 
-    if (e2) return alert("Error asignando proyecto");
+    if (e2) {
+      alert("Error asignando proyecto");
+      setCreating(false);
+      return;
+    }
 
     router.push(`/proyecto/${proyecto.id}`);
+    setCreating(false);
   };
 
   return (
@@ -45,9 +53,11 @@ export default function NuevoProyectoPage() {
       />
       <button
         onClick={handleCrear}
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        disabled={creating}
+        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-75 flex items-center justify-center gap-2"
       >
-        Crear
+        {creating && <Loader className="h-4 w-4" />}
+        <span>Crear</span>
       </button>
     </div>
   );
