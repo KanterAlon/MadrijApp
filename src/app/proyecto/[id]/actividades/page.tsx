@@ -1,5 +1,5 @@
 import WorkInProgress from "@/components/wip-card";
 
-export default function AsistenciaPage() {
-  return <WorkInProgress title="Asistencia" />;
+export default function ActividadesPage() {
+  return <WorkInProgress title="Actividades" />;
 }
