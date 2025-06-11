@@ -10,10 +10,12 @@ import {
   CheckSquare,
   PencilRuler,
   PartyPopper,
-  Bot
+  Bot,
+  Home
 } from "lucide-react";
 
 const links = [
+  { href: "", label: "Inicio", icon: Home },
   { href: "janijim", label: "Janijim", icon: ClipboardList },
   { href: "notas", label: "Notas", icon: Book },
   { href: "calendario", label: "Calendario", icon: Calendar },
@@ -30,8 +32,10 @@ export default function Sidebar({ proyectoId }: { proyectoId: string }) {
     <aside className="hidden md:block w-64 bg-white border-r p-4">
       <nav className="space-y-2">
         {links.map(({ href, label, icon: Icon }) => {
-          const fullPath = `/proyecto/${proyectoId}/${href}`;
-          const isActive = pathname === fullPath;
+          const fullPath = href
+            ? `/proyecto/${proyectoId}/${href}`
+            : `/proyecto/${proyectoId}`;
+          const isActive = pathname === fullPath || pathname === fullPath + "/";
 
           return (
             <Link
