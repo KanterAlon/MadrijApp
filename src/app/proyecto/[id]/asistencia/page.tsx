@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import * as XLSX from "xlsx";
 import { useParams } from "next/navigation";
 import {
   Sheet,
@@ -32,6 +33,7 @@ export default function AsistenciaPage() {
   const [columnIndex, setColumnIndex] = useState<number>(0);
   const [columnOpen, setColumnOpen] = useState(false);
   const [dupOpen, setDupOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [janijim, setJanijim] = useState<Janij[]>([]);
   const [search, setSearch] = useState("");
   const [showResults, setShowResults] = useState(false);
@@ -41,6 +43,7 @@ export default function AsistenciaPage() {
   const [uniqueNames, setUniqueNames] = useState<string[]>([]);
   const [duplicateNames, setDuplicateNames] = useState<string[]>([]);
   const [selectedDupes, setSelectedDupes] = useState<string[]>([]);
+  const [importText, setImportText] = useState("");
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -109,15 +112,32 @@ export default function AsistenciaPage() {
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      const lines = text.split("\n").map((line) => line.split(","));
-      setRows(lines);
-      setColumns(lines[0]);
-      setColumnOpen(true);
-    };
-    reader.readAsText(file);
+
+    if (file.name.endsWith(".csv")) {
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        const lines = text.split("\n").map((line) => line.split(","));
+        setRows(lines);
+        setColumns(lines[0]);
+        setImportOpen(false);
+        setColumnOpen(true);
+      };
+      reader.readAsText(file);
+    } else {
+      reader.onload = (event) => {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: "array" });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as string[][];
+        setRows(json);
+        setColumns(json[0]);
+        setImportOpen(false);
+        setColumnOpen(true);
+      };
+      reader.readAsArrayBuffer(file);
+    }
   };
 
   const importColumn = () => {
@@ -145,6 +165,33 @@ export default function AsistenciaPage() {
     setDuplicateNames(dups);
     setSelectedDupes([]);
     setColumnOpen(false);
+    setDupOpen(true);
+  };
+
+  const importFromText = () => {
+    const names = importText
+      .split("\n")
+      .map((n) => n.trim())
+      .filter((n) => n !== "");
+
+    const existing = janijim.map((j) => j.nombre.toLowerCase());
+    const uniqs: string[] = [];
+    const dups: string[] = [];
+
+    names.forEach((n) => {
+      const lower = n.toLowerCase();
+      if (existing.includes(lower)) {
+        if (!dups.some((d) => d.toLowerCase() === lower)) dups.push(n);
+      } else if (!uniqs.some((u) => u.toLowerCase() === lower)) {
+        uniqs.push(n);
+      }
+    });
+
+    setUniqueNames(uniqs);
+    setDuplicateNames(dups);
+    setSelectedDupes([]);
+    setImportText("");
+    setImportOpen(false);
     setDupOpen(true);
   };
 
@@ -293,7 +340,7 @@ export default function AsistenciaPage() {
 
 
         <button
-          onClick={() => fileInput.current?.click()}
+          onClick={() => setImportOpen(true)}
           className="px-3 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-1"
         >
           <FileUp size={16} /> Importar
@@ -301,7 +348,7 @@ export default function AsistenciaPage() {
         <input
           ref={fileInput}
           type="file"
-          accept=".csv"
+          accept=".csv,.xlsx,.xls"
           onChange={handleFile}
           className="hidden"
         />
@@ -360,6 +407,40 @@ export default function AsistenciaPage() {
           </li>
         ))}
       </ul>
+
+      <Sheet open={importOpen} onOpenChange={setImportOpen}>
+        <SheetContent side="bottom" className="w-full">
+          <SheetHeader>
+            <SheetTitle>Importar janijim</SheetTitle>
+            <SheetDescription>
+              Seleccioná un archivo CSV/Excel o escribí los nombres separados por
+              línea.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="p-4 space-y-4">
+            <button
+              onClick={() => fileInput.current?.click()}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg"
+            >
+              Seleccionar archivo
+            </button>
+            <textarea
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              placeholder="Un nombre por línea"
+              className="w-full border rounded-lg p-2 min-h-32"
+            />
+          </div>
+          <SheetFooter>
+            <button
+              onClick={importFromText}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+            >
+              Importar
+            </button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <Sheet open={columnOpen} onOpenChange={setColumnOpen}>
         <SheetContent side="bottom" className="w-full">
