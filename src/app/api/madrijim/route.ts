@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
+import { NextResponse } from "next/server";
+import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
 
 
 export async function GET(req: Request) {
