@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import { useParams } from "next/navigation";
 import {
   Sheet,
   SheetContent,
@@ -9,7 +10,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { FileUp } from "lucide-react";
+import { FileUp, EllipsisVertical } from "lucide-react";
+import {
+  getJanijim,
+  addJanijim,
+  updateJanij,
+  removeJanij,
+} from "@/lib/supabase/janijim";
 
 type Janij = {
   id: string;
@@ -18,23 +25,47 @@ type Janij = {
 };
 
 export default function AsistenciaPage() {
+  const { id: proyectoId } = useParams<{ id: string }>();
   const fileInput = useRef<HTMLInputElement>(null);
   const [columns, setColumns] = useState<string[]>([]);
   const [rows, setRows] = useState<string[][]>([]);
   const [columnIndex, setColumnIndex] = useState<number>(0);
-  const [open, setOpen] = useState(false);
+  const [columnOpen, setColumnOpen] = useState(false);
+  const [dupOpen, setDupOpen] = useState(false);
   const [janijim, setJanijim] = useState<Janij[]>([]);
   const [search, setSearch] = useState("");
   const [showResults, setShowResults] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [aiResults, setAiResults] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [uniqueNames, setUniqueNames] = useState<string[]>([]);
+  const [duplicateNames, setDuplicateNames] = useState<string[]>([]);
+  const [selectedDupes, setSelectedDupes] = useState<string[]>([]);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 
-  const agregar = (nombre: string) => {
-    const id = String(janijim.length + 1);
-    const nuevo = { id, nombre, estado: "ausente" as const };
-    setJanijim((prev) => [...prev, nuevo]);
-    seleccionar(id);
+  useEffect(() => {
+    getJanijim(proyectoId)
+      .then((data) =>
+        setJanijim(
+          data.map((j) => ({ ...j, estado: "ausente" as const }))
+        )
+      )
+      .catch((err) => console.error("Error cargando janijim", err));
+  }, [proyectoId]);
+
+  const agregar = async (nombre: string) => {
+    try {
+      const inserted = await addJanijim(proyectoId, [nombre]);
+      const nuevo = {
+        id: inserted[0].id,
+        nombre: inserted[0].nombre,
+        estado: "ausente" as const,
+      };
+      setJanijim((prev) => [...prev, nuevo]);
+      seleccionar(inserted[0].id);
+    } catch {
+      alert("Error agregando janij");
+    }
   };
 
   const seleccionar = (id: string) => {
@@ -52,6 +83,29 @@ export default function AsistenciaPage() {
     );
   };
 
+  const renameJanij = async (id: string) => {
+    const nuevo = prompt("Nuevo nombre?");
+    if (!nuevo) return;
+    try {
+      await updateJanij(id, nuevo);
+      setJanijim((prev) =>
+        prev.map((j) => (j.id === id ? { ...j, nombre: nuevo } : j))
+      );
+    } catch {
+      alert("Error renombrando janij");
+    }
+  };
+
+  const deleteJanij = async (id: string) => {
+    if (!confirm("¿Eliminar janij?")) return;
+    try {
+      await removeJanij(id);
+      setJanijim((prev) => prev.filter((j) => j.id !== id));
+    } catch {
+      alert("Error eliminando janij");
+    }
+  };
+
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -61,22 +115,55 @@ export default function AsistenciaPage() {
       const lines = text.split("\n").map((line) => line.split(","));
       setRows(lines);
       setColumns(lines[0]);
-      setOpen(true);
+      setColumnOpen(true);
     };
     reader.readAsText(file);
   };
 
-  const importColumn = async () => {
-    const names = rows.slice(1).map((r) => r[columnIndex]).filter(Boolean);
-    const enriched = await Promise.all(
-      names.map(async (nombre, i) => ({
-        id: String(i + 1),
-        nombre,
-        estado: "ausente" as const,
-      }))
-    );
-    setJanijim(enriched);
-    setOpen(false);
+  const importColumn = () => {
+    const names = rows
+      .slice(1)
+      .map((r) => r[columnIndex])
+      .filter(Boolean)
+      .map((n) => n.trim())
+      .filter((n) => n !== "");
+
+    const existing = janijim.map((j) => j.nombre.toLowerCase());
+    const uniqs: string[] = [];
+    const dups: string[] = [];
+
+    names.forEach((n) => {
+      const lower = n.toLowerCase();
+      if (existing.includes(lower)) {
+        if (!dups.some((d) => d.toLowerCase() === lower)) dups.push(n);
+      } else if (!uniqs.some((u) => u.toLowerCase() === lower)) {
+        uniqs.push(n);
+      }
+    });
+
+    setUniqueNames(uniqs);
+    setDuplicateNames(dups);
+    setSelectedDupes([]);
+    setColumnOpen(false);
+    setDupOpen(true);
+  };
+
+  const confirmImport = async () => {
+    const namesToAdd = [...uniqueNames, ...selectedDupes];
+    if (namesToAdd.length === 0) {
+      setDupOpen(false);
+      return;
+    }
+    try {
+      const inserted = await addJanijim(proyectoId, namesToAdd);
+      setJanijim((prev) => [
+        ...prev,
+        ...inserted.map((j) => ({ ...j, estado: "ausente" as const })),
+      ]);
+    } catch {
+      alert("Error importando janijim");
+    }
+    setDupOpen(false);
   };
 
   useEffect(() => {
@@ -239,11 +326,42 @@ export default function AsistenciaPage() {
               />
               <span>{janij.nombre}</span>
             </label>
+            <div className="relative">
+              <button
+                onClick={() =>
+                  setMenuOpenId(menuOpenId === janij.id ? null : janij.id)
+                }
+              >
+                <EllipsisVertical size={16} />
+              </button>
+              {menuOpenId === janij.id && (
+                <div className="absolute right-0 mt-2 bg-white border rounded shadow z-10">
+                  <button
+                    onClick={() => {
+                      setMenuOpenId(null);
+                      renameJanij(janij.id);
+                    }}
+                    className="block px-3 py-1 w-full text-left hover:bg-gray-100"
+                  >
+                    Renombrar
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMenuOpenId(null);
+                      deleteJanij(janij.id);
+                    }}
+                    className="block px-3 py-1 w-full text-left hover:bg-gray-100 text-red-600"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              )}
+            </div>
           </li>
         ))}
       </ul>
 
-      <Sheet open={open} onOpenChange={setOpen}>
+      <Sheet open={columnOpen} onOpenChange={setColumnOpen}>
         <SheetContent side="bottom" className="w-full">
           <SheetHeader>
             <SheetTitle>Elegí la columna con los nombres</SheetTitle>
@@ -267,6 +385,47 @@ export default function AsistenciaPage() {
           <SheetFooter>
             <button
               onClick={importColumn}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+            >
+              Importar
+            </button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={dupOpen} onOpenChange={setDupOpen}>
+        <SheetContent side="bottom" className="w-full">
+          <SheetHeader>
+            <SheetTitle>Confirmar importación</SheetTitle>
+            <SheetDescription>
+              Se agregarán {uniqueNames.length} janijim nuevos.
+              {duplicateNames.length > 0 &&
+                " Seleccioná los repetidos que quieras importar."}
+            </SheetDescription>
+          </SheetHeader>
+          {duplicateNames.length > 0 && (
+            <div className="p-4 space-y-2 max-h-64 overflow-auto">
+              {duplicateNames.map((n) => (
+                <label key={n} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedDupes.includes(n)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedDupes([...selectedDupes, n]);
+                      } else {
+                        setSelectedDupes(selectedDupes.filter((d) => d !== n));
+                      }
+                    }}
+                  />
+                  {n}
+                </label>
+              ))}
+            </div>
+          )}
+          <SheetFooter>
+            <button
+              onClick={confirmImport}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg"
             >
               Importar
