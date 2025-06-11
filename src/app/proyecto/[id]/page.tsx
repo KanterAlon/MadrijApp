@@ -4,14 +4,14 @@ import { supabase } from "@/lib/supabase";
 
 // ✅ Tipo correcto para páginas dinámicas
 interface PageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>
 }
 
 export default async function ProyectoHome({ params }: PageProps) {
   const { userId } = await auth();
-  const proyectoId = params.id;
+  const { id: proyectoId } = await params;
 
   if (!userId) {
     redirect("/");

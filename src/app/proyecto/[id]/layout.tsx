@@ -1,14 +1,14 @@
 import Sidebar from "@/components/ui/sidebar";
 import MobileMenu from "@/components/ui/mobile-menu";
 
-export default function ProyectoLayout({
+export default async function ProyectoLayout({
   children,
   params,
 }: {
-  children: React.ReactNode;
-  params: { id: string };
+  children: React.ReactNode
+  params: Promise<{ id: string }>
 }) {
-  const proyectoId = params.id;
+  const { id: proyectoId } = await params
 
   return (
     <div className="min-h-screen md:flex">
