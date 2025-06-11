@@ -17,7 +17,7 @@ type MobileMenuProps = {
 };
 
 const links = [
-  { href: "asistencia", label: "Asistencia" },
+  { href: "janijim", label: "Janijim" },
   { href: "notas", label: "Notas" },
   { href: "calendario", label: "Calendario" },
   { href: "tareas", label: "Tareas" },
