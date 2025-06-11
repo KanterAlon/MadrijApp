@@ -12,6 +12,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { FileUp, EllipsisVertical } from "lucide-react";
+import Loader from "@/components/ui/loader";
 import {
   getJanijim,
   addJanijim,
@@ -35,6 +36,7 @@ export default function AsistenciaPage() {
   const [dupOpen, setDupOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [janijim, setJanijim] = useState<Janij[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showResults, setShowResults] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
@@ -47,13 +49,15 @@ export default function AsistenciaPage() {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 
   useEffect(() => {
+    setLoading(true);
     getJanijim(proyectoId)
       .then((data) =>
         setJanijim(
           data.map((j) => ({ ...j, estado: "ausente" as const }))
         )
       )
-      .catch((err) => console.error("Error cargando janijim", err));
+      .catch((err) => console.error("Error cargando janijim", err))
+      .finally(() => setLoading(false));
   }, [proyectoId]);
 
   const agregar = async (nombre: string) => {
@@ -256,6 +260,14 @@ export default function AsistenciaPage() {
 
     return [...exact, ...aiMatches];
   }, [search, janijim, aiResults]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-8">
+        <Loader className="h-6 w-6" />
+      </div>
+    );
+  }
 
 
   return (

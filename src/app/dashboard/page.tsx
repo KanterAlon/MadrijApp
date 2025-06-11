@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { getProyectosParaUsuario } from "@/lib/supabase/projects";
+import Loader from "@/components/ui/loader";
 
 type Proyecto = {
   id: string;
@@ -13,13 +14,16 @@ type Proyecto = {
 export default function DashboardPage() {
   const { user } = useUser();
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
 
+    setLoading(true);
     getProyectosParaUsuario(user.id)
       .then((data) => setProyectos(data.flat()))
-      .catch((err) => console.error("Error cargando proyectos", err));
+      .catch((err) => console.error("Error cargando proyectos", err))
+      .finally(() => setLoading(false));
   }, [user]);
 
   return (
@@ -27,15 +31,21 @@ export default function DashboardPage() {
       <h1 className="text-2xl font-bold mb-4">Tus Proyectos</h1>
 
       <div className="space-y-4">
-        {proyectos.map((p) => (
-          <Link
-            key={p.id}
-            href={`/proyecto/${p.id}`}
-            className="block p-4 border rounded-lg hover:bg-gray-100 transition"
-          >
-            {p.nombre}
-          </Link>
-        ))}
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <Loader className="h-6 w-6" />
+          </div>
+        ) : (
+          proyectos.map((p) => (
+            <Link
+              key={p.id}
+              href={`/proyecto/${p.id}`}
+              className="block p-4 border rounded-lg hover:bg-gray-100 transition"
+            >
+              {p.nombre}
+            </Link>
+          ))
+        )}
 
         <Link
           href="/dashboard/nuevo"
