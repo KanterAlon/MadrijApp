@@ -19,7 +19,6 @@ type MobileMenuProps = {
 const links = [
   { href: "asistencia", label: "Asistencia" },
   { href: "notas", label: "Notas" },
-  { href: "excel", label: "Excel" },
   { href: "calendario", label: "Calendario" },
   { href: "tareas", label: "Tareas" },
   { href: "planificaciones", label: "Planificaciones" },

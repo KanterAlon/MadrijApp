@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import {
   ClipboardList,
   Book,
-  FileSpreadsheet,
   Calendar,
   CheckSquare,
   PencilRuler,
@@ -17,7 +16,6 @@ import {
 const links = [
   { href: "asistencia", label: "Asistencia", icon: ClipboardList },
   { href: "notas", label: "Notas", icon: Book },
-  { href: "excel", label: "Excel", icon: FileSpreadsheet },
   { href: "calendario", label: "Calendario", icon: Calendar },
   { href: "tareas", label: "Tareas", icon: CheckSquare },
   { href: "planificaciones", label: "Planificaciones", icon: PencilRuler },
