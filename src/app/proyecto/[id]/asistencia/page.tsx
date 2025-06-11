@@ -28,18 +28,59 @@ export default function AsistenciaPage() {
   const [showResults, setShowResults] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [aiResults, setAiResults] = useState<string[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const text = await file.text();
-    const lines = text
-      .trim()
-      .split(/\r?\n/)
-      .map((l) => l.split(/,|\t/));
-    setColumns(lines[0]);
-    setRows(lines.slice(1));
-    setOpen(true);
+  const agregar = (nombre: string) => {
+    const id = String(janijim.length + 1);
+    const nuevo = { id, nombre, estado: "ausente" as const };
+    setJanijim((prev) => [...prev, nuevo]);
+    seleccionar(id);
+  };
+
+      setAiLoading(false);
+      return;
+    }
+    const q = search.toLowerCase().trim();
+    const exact = janijim.filter((j) => j.nombre.toLowerCase().includes(q));
+    if (exact.length > 0) {
+      setAiResults([]);
+      setAiLoading(false);
+    setAiLoading(true);
+      .then((d) => {
+        setAiResults(d.matches || []);
+        setAiLoading(false);
+      })
+      .catch(() => {
+        setAiResults([]);
+        setAiLoading(false);
+      });
+  const exactMatches = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return [] as Janij[];
+    return janijim.filter((j) => j.nombre.toLowerCase().includes(q));
+  }, [search, janijim]);
+
+    if (exactMatches.length > 0) {
+      return exactMatches.map((j) => ({ ...j, ai: false })).slice(0, 5);
+    }
+      .filter((j): j is Janij => !!j)
+      .map((j) => ({ ...j, ai: true }));
+
+    return aiMatches.slice(0, 5);
+  }, [search, janijim, aiResults, exactMatches]);
+  const aiMode = search.trim() !== "" && exactMatches.length === 0;
+        {showResults && (resultados.length > 0 || aiMode) && (
+            {aiLoading && (
+              <li className="p-2 text-sm text-gray-500">Buscando con IA...</li>
+            )}
+            {aiMode && !aiLoading && (
+              <li
+                onMouseDown={() => agregar(search.trim())}
+                className="p-2 cursor-pointer hover:bg-gray-100"
+              >
+                Agregar &quot;{search.trim()}&quot;
+              </li>
+            )}
   };
 
   const importColumn = async () => {
