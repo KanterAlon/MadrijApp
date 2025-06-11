@@ -123,9 +123,6 @@ export default function AsistenciaPage() {
     return [...exact, ...aiMatches];
   }, [search, janijim, aiResults]);
 
-  const yaExiste = janijim.some(
-    (j) => j.nombre.toLowerCase() === search.trim().toLowerCase()
-  );
 
   return (
     <div className="max-w-2xl mx-auto mt-12 space-y-4">
