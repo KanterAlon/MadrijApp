@@ -11,26 +11,18 @@ export default function useEnsureMadrij() {
     if (!user || !isSignedIn) return;
 
     const syncMadrij = async () => {
-console.log("Insertando madrij:", {
-  clerk_id: user.id,
-  email: user.primaryEmailAddress?.emailAddress,
-  nombre: user.firstName,
-});
+      const { error } = await supabase.from("madrijim").upsert(
+        {
+          clerk_id: user.id,
+          email: user.primaryEmailAddress?.emailAddress || "",
+          nombre: user.firstName || "",
+        },
+        { onConflict: "clerk_id" }
+      );
 
-const { error } = await supabase
-  .from("madrijim")
-  .upsert(
-    {
-      clerk_id: user.id,
-      email: user.primaryEmailAddress?.emailAddress || "",
-      nombre: user.firstName || "",
-    },
-    { onConflict: "clerk_id" }
-  );
-
-if (error) {
-  console.error("Error inserting madrij:", error);
-}
+      if (error) {
+        console.error("Error inserting madrij:", error);
+      }
     };
 
     syncMadrij();

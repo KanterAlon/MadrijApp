@@ -21,7 +21,8 @@ import {
   updateJanij,
   removeJanij,
 } from "@/lib/supabase/janijim";
-import { crearSesion } from "@/lib/supabase/asistencias";import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
+import { crearSesion } from "@/lib/supabase/asistencias";
+import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
 
 
 type Janij = {
