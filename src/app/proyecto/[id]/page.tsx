@@ -29,13 +29,24 @@ export default async function ProyectoHome({ params }: PageProps) {
     redirect("/dashboard");
   }
 
-  const { data: proyecto, error: errorProyecto } = await supabase
+  let { data: proyecto, error: errorProyecto } = await supabase
     .from("proyectos")
     .select("nombre, codigo_invite")
     .eq("id", proyectoId)
     .single();
 
+  if (errorProyecto && errorProyecto.code === "42703") {
+    const res = await supabase
+      .from("proyectos")
+      .select("nombre")
+      .eq("id", proyectoId)
+      .single();
+    proyecto = res.data ? { ...res.data, codigo_invite: null } : null;
+    errorProyecto = res.error;
+  }
+
   if (!proyecto || errorProyecto) {
+    console.error("Error cargando el proyecto", errorProyecto);
     return <div className="p-6">Error cargando el proyecto</div>;
   }
 
