@@ -1,8 +1,6 @@
-import { Metadata } from "next";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { type NextPage } from "next";
 
 // ✅ Tipo correcto para páginas dinámicas
 interface PageProps {
