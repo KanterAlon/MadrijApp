@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import * as XLSX from "xlsx";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import useHighlightScroll from "@/hooks/useHighlightScroll";
 import Loader from "@/components/ui/loader";
 import {
   getJanijim,
@@ -31,7 +32,7 @@ export default function AsistenciaPage() {
   const [showResults, setShowResults] = useState(false);
   const [aiResults, setAiResults] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
-  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const { highlightId, scrollTo } = useHighlightScroll({ prefix: "janij-" });
 
   useEffect(() => {
     if (!sesionId) return;
@@ -99,10 +100,7 @@ export default function AsistenciaPage() {
   const seleccionar = (id: string) => {
     setShowResults(false);
     setSearch("");
-    setHighlightId(id);
-    const el = document.getElementById(`janij-${id}`);
-    el?.scrollIntoView({ behavior: "smooth", block: "center" });
-    setTimeout(() => setHighlightId(null), 2000);
+    scrollTo(id);
   };
 
   const toggle = async (janijId: string) => {
@@ -243,7 +241,9 @@ export default function AsistenciaPage() {
             id={`janij-${j.id}`}
             key={j.id}
             className={`flex items-center justify-between bg-white shadow p-4 rounded-lg ${
-              highlightId === j.id ? "ring-2 ring-blue-500" : ""
+              highlightId === j.id
+                ? "ring-2 ring-blue-500 animate-pulse"
+                : ""
             }`}
           >
             <label className="flex items-center gap-2">
