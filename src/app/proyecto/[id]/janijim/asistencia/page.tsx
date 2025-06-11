@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import * as XLSX from "xlsx";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import Loader from "@/components/ui/loader";
@@ -25,6 +26,12 @@ export default function AsistenciaPage() {
   const [estado, setEstado] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [sesion, setSesion] = useState<{ nombre: string } | null>(null);
+  const [finalizado, setFinalizado] = useState(false);
+  const [search, setSearch] = useState("");
+  const [showResults, setShowResults] = useState(false);
+  const [aiResults, setAiResults] = useState<string[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!sesionId) return;
@@ -45,6 +52,59 @@ export default function AsistenciaPage() {
       .finally(() => setLoading(false));
   }, [sesionId, proyectoId]);
 
+  useEffect(() => {
+    if (!search.trim()) {
+      setAiResults([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    setAiLoading(true);
+
+    fetch("/api/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: search, names: janijim.map((j) => j.nombre) }),
+      signal: controller.signal,
+    })
+      .then((res) => res.json())
+      .then((d) => {
+        setAiResults(d.matches || []);
+        setAiLoading(false);
+      })
+      .catch(() => {
+        setAiResults([]);
+        setAiLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [search, janijim]);
+
+  const resultados = useMemo(() => {
+    if (!search.trim()) return [];
+
+    const q = search.toLowerCase().trim();
+    const exact = janijim
+      .filter((j) => j.nombre.toLowerCase().includes(q))
+      .map((j) => ({ ...j, ai: false }));
+
+    const aiMatches = aiResults
+      .map((name) => janijim.find((j) => j.nombre === name))
+      .filter((j): j is { id: string; nombre: string } => !!j && !exact.some((e) => e.id === j.id))
+      .map((j) => ({ ...j, ai: true }));
+
+    return [...exact, ...aiMatches];
+  }, [search, janijim, aiResults]);
+
+  const seleccionar = (id: string) => {
+    setShowResults(false);
+    setSearch("");
+    setHighlightId(id);
+    const el = document.getElementById(`janij-${id}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => setHighlightId(null), 2000);
+  };
+
   const toggle = async (janijId: string) => {
     if (!user || !sesionId) return;
     const nuevo = !estado[janijId];
@@ -64,7 +124,7 @@ export default function AsistenciaPage() {
 
   const finalizar = async () => {
     await finalizarSesion(sesionId);
-    router.push(`/proyecto/${proyectoId}/janijim`);
+    setFinalizado(true);
   };
 
   if (loading) {
@@ -75,14 +135,116 @@ export default function AsistenciaPage() {
     );
   }
 
+  if (finalizado) {
+    const presentes = janijim.filter((j) => estado[j.id]);
+    const ausentes = janijim.filter((j) => !estado[j.id]);
+
+    const exportar = () => {
+      const data = janijim.map((j) => ({
+        nombre: j.nombre,
+        presente: estado[j.id] ? "Si" : "No",
+      }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Asistencia");
+      const blob = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const url = URL.createObjectURL(new Blob([blob]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `asistencia-${sesion?.nombre || "sesion"}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    return (
+      <div className="max-w-2xl mx-auto mt-12 space-y-4">
+        <h2 className="text-xl font-semibold">Resumen de {sesion?.nombre}</h2>
+        <div className="bg-white p-4 rounded shadow">
+          <p>Presentes: {presentes.length}</p>
+          <p>Ausentes: {ausentes.length}</p>
+        </div>
+        <button
+          onClick={exportar}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg w-full"
+        >
+          Descargar Excel
+        </button>
+        <button
+          onClick={() => router.push(`/proyecto/${proyectoId}/janijim`)}
+          className="px-4 py-2 bg-green-600 text-white rounded-lg w-full"
+        >
+          Volver al menú
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto mt-12 space-y-4">
       <h2 className="text-xl font-semibold">{sesion?.nombre}</h2>
+      <div className="relative flex items-center gap-2">
+        <input
+          type="text"
+          value={search}
+          onFocus={() => setShowResults(true)}
+          onBlur={() => setTimeout(() => setShowResults(false), 100)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setShowResults(true);
+          }}
+          placeholder="Buscar janij..."
+          className="w-full border rounded-lg p-2"
+        />
+
+        {showResults && search.trim() !== "" && (
+          <ul className="absolute z-10 left-0 top-full mt-1 w-full bg-white border rounded shadow max-h-60 overflow-auto">
+            {resultados.filter((r) => !r.ai).map((r) => (
+              <li
+                key={r.id}
+                onMouseDown={() => seleccionar(r.id)}
+                className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
+              >
+                <span>{r.nombre}</span>
+              </li>
+            ))}
+            {aiLoading && (
+              <li className="p-2 text-sm text-gray-500">Buscando con IA...</li>
+            )}
+            {!aiLoading && aiResults.length === 0 && (
+              <li className="p-2 text-sm text-gray-500">
+                No se encontraron resultados con la IA.
+              </li>
+            )}
+            {!aiLoading && resultados.filter((r) => r.ai).length > 0 && (
+              <>
+                <li className="px-2 text-xs text-gray-400">Sugerencias con IA</li>
+                {resultados
+                  .filter((r) => r.ai)
+                  .map((r) => (
+                    <li
+                      key={r.id}
+                      onMouseDown={() => seleccionar(r.id)}
+                      className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
+                    >
+                      <span>{r.nombre}</span>
+                      <span className="bg-fuchsia-100 text-fuchsia-700 text-xs px-1 rounded">
+                        IA
+                      </span>
+                    </li>
+                  ))}
+              </>
+            )}
+          </ul>
+        )}
+      </div>
       <ul className="space-y-2">
         {janijim.map((j) => (
           <li
+            id={`janij-${j.id}`}
             key={j.id}
-            className="flex items-center justify-between bg-white shadow p-4 rounded-lg"
+            className={`flex items-center justify-between bg-white shadow p-4 rounded-lg ${
+              highlightId === j.id ? "ring-2 ring-blue-500" : ""
+            }`}
           >
             <label className="flex items-center gap-2">
               <input

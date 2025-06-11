@@ -4,7 +4,8 @@ export async function getMadrijimPorProyecto(proyectoId: string) {
   const { data: relaciones, error } = await supabase
     .from("madrijim_proyectos")
     .select("madrij_id")
-    .eq("proyecto_id", proyectoId);
+    .eq("proyecto_id", proyectoId)
+    .eq("invitado", false);
   if (error) throw error;
   const ids = relaciones.map((r) => r.madrij_id);
   if (ids.length === 0) return [];
