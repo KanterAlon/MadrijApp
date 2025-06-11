@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   }
 
   // ⚠️ Limitar la lista de nombres si es muy grande (para evitar superar tokens)
-  const MAX_NAMES = 500;
+  const MAX_NAMES = 1000;
   const trimmedNames = names.slice(0, MAX_NAMES);
 
   const system = `
@@ -29,7 +29,7 @@ No expliques nada más. Solo respondé con el JSON.
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "gpt-3.5-turbo-0125",
+      model: "gpt-3.5-turbo",
       messages: [
         { role: "system", content: system },
         { role: "user", content: userPrompt },
