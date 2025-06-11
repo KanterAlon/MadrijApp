@@ -45,4 +45,8 @@ Push the repository to [Vercel](https://vercel.com) and select **Next.js** as th
 
 Create a new **Web Service** on [Render](https://render.com) using this repository. Set the build command to `npm run build` and the start command to `npm run start`. Make sure the required environment variables are configured in the dashboard.
 
+## Database
+
+Run the SQL scripts under `sql/migrations` on your Supabase instance to keep the schema up to date. The file `20240411_add_activo_to_janijim.sql` adds a column used for soft deleting janijim.
+
 
