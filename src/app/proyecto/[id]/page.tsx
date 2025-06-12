@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-server";
 import ActiveSesionCard from "@/components/active-sesion-card";
+import CopyButton from "@/components/ui/copy-button";
 
 
 // ✅ Tipo correcto para páginas dinámicas
@@ -61,8 +62,11 @@ export default async function ProyectoHome({ params }: PageProps) {
       <p className="text-gray-600">
         ¡Estás dentro de este proyecto! Compartí el siguiente código con otros madrijim para que se unan:
       </p>
-      <div className="bg-gray-100 p-4 rounded font-mono break-all">
-        {proyecto.codigo_invite}
+      <div className="flex items-center">
+        <div className="bg-gray-100 p-4 rounded font-mono break-all flex-1">
+          {proyecto.codigo_invite}
+        </div>
+        {proyecto.codigo_invite && <CopyButton text={proyecto.codigo_invite} />}
       </div>
       <h2 className="text-xl font-semibold mt-6">Madrijim en este proyecto</h2>
       <ul className="list-disc list-inside space-y-1">
