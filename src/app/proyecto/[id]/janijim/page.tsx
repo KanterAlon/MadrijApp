@@ -13,7 +13,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { FileUp, EllipsisVertical } from "lucide-react";
+import {
+  FileUp,
+  Pencil,
+  Trash2,
+  Check,
+  X,
+} from "lucide-react";
 import Skeleton from "@/components/ui/skeleton";
 import ActiveSesionCard from "@/components/active-sesion-card";
 import {
@@ -56,7 +62,8 @@ export default function JanijimPage() {
   const [duplicateNames, setDuplicateNames] = useState<string[]>([]);
   const [selectedDupes, setSelectedDupes] = useState<string[]>([]);
   const [importText, setImportText] = useState("");
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
   const [sesionOpen, setSesionOpen] = useState(false);
   const [sesionNombre, setSesionNombre] = useState("");
   const [sesionFecha, setSesionFecha] = useState(
@@ -124,17 +131,35 @@ export default function JanijimPage() {
   };
 
 
-  const renameJanij = async (id: string) => {
-    const nuevo = prompt("Nuevo nombre?");
-    if (!nuevo) return;
+  const renameJanij = async (id: string, nombre: string) => {
     try {
-      await updateJanij(id, nuevo);
+      await updateJanij(id, nombre);
       setJanijim((prev) =>
-        prev.map((j) => (j.id === id ? { ...j, nombre: nuevo } : j))
+        prev.map((j) => (j.id === id ? { ...j, nombre } : j))
       );
     } catch {
       alert("Error renombrando janij");
     }
+  };
+
+  const startEditing = (id: string, nombre: string) => {
+    setEditingId(id);
+    setEditName(nombre);
+  };
+
+  const confirmEdit = async () => {
+    if (!editingId) return;
+    const name = editName.trim();
+    if (name === "") {
+      setEditingId(null);
+      return;
+    }
+    await renameJanij(editingId, name);
+    setEditingId(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
   };
 
   const deleteJanij = async (id: string) => {
@@ -475,51 +500,55 @@ export default function JanijimPage() {
                 : ""
             }`}
           >
-            <span>{janij.nombre}</span>
-            <div className="relative">
-              <button
-                aria-label="Opciones"
-                aria-haspopup="menu"
-                aria-expanded={menuOpenId === janij.id}
-                onClick={() =>
-                  setMenuOpenId(menuOpenId === janij.id ? null : janij.id)
-                }
+            {editingId === janij.id ? (
+              <input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setMenuOpenId(menuOpenId === janij.id ? null : janij.id);
-                  }
-                  if (e.key === "Escape") {
-                    setMenuOpenId(null);
-                  }
+                  if (e.key === "Enter") confirmEdit();
+                  if (e.key === "Escape") cancelEdit();
                 }}
-              >
-                <EllipsisVertical size={16} />
-              </button>
-              {menuOpenId === janij.id && (
-                <div
-                  className="absolute right-0 mt-2 bg-white border rounded shadow z-10"
-                  onKeyDown={(e) => e.key === "Escape" && setMenuOpenId(null)}
-                >
+                className="p-1 border rounded flex-1 mr-2"
+                autoFocus
+              />
+            ) : (
+              <span>{janij.nombre}</span>
+            )}
+            <div className="flex items-center gap-2">
+              {editingId === janij.id ? (
+                <>
                   <button
-                    onClick={() => {
-                      setMenuOpenId(null);
-                      renameJanij(janij.id);
-                    }}
-                    className="block px-3 py-1 w-full text-left hover:bg-gray-100"
+                    onClick={confirmEdit}
+                    aria-label="Guardar"
+                    className="text-green-600 hover:text-green-800"
                   >
-                    Renombrar
+                    <Check size={16} />
                   </button>
                   <button
-                    onClick={() => {
-                      setMenuOpenId(null);
-                      deleteJanij(janij.id);
-                    }}
-                    className="block px-3 py-1 w-full text-left hover:bg-gray-100 text-red-600"
+                    onClick={cancelEdit}
+                    aria-label="Cancelar"
+                    className="text-gray-600 hover:text-gray-800"
                   >
-                    Eliminar
+                    <X size={16} />
                   </button>
-                </div>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => startEditing(janij.id, janij.nombre)}
+                    aria-label="Editar"
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  <button
+                    onClick={() => deleteJanij(janij.id)}
+                    aria-label="Eliminar"
+                    className="text-red-600 hover:text-red-800"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </>
               )}
             </div>
           </li>
