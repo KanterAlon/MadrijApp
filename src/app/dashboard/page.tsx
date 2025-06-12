@@ -76,7 +76,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-6 text-blue-900">Tus Proyectos</h1>
+      <h1 className="text-3xl font-bold mb-6 text-blue-900">Proyectos</h1>
 
       {loading ? (
         <div className="flex justify-center py-12">
