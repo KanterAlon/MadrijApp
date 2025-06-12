@@ -372,8 +372,9 @@ export default function JanijimPage() {
         </div>
       ) : (
         <>
-          <div className="flex flex-col sm:flex-row items-stretch gap-2">
-            <div className="relative flex flex-1 items-center">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+            <div className="flex flex-col flex-1 gap-2 sm:flex-row">
+              <div className="relative flex flex-1 items-center">
               <Search className="absolute left-2 w-4 h-4 text-gray-400 pointer-events-none" />
               <input
                 type="text"
@@ -478,15 +479,16 @@ export default function JanijimPage() {
 
 
               <Button
-                className="ml-2 shrink-0"
+                className="w-full sm:w-auto shrink-0 sm:ml-2"
                 icon={<FileUp className="w-4 h-4" />}
                 onClick={() => setImportOpen(true)}
               >
                 Insertar
               </Button>
+              </div>
             </div>
             <Button
-              className="shrink-0"
+              className="w-full sm:w-auto shrink-0"
               icon={<Check className="w-4 h-4" />}
               onClick={() => setSesionOpen(true)}
             >
