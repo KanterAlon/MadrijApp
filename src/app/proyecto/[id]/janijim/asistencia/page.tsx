@@ -14,7 +14,8 @@ import {
   getSesion,
 } from "@/lib/supabase/asistencias";
 import { supabase } from "@/lib/supabase";
-import { Search } from "lucide-react";
+import { Search, FileUp, Check } from "lucide-react";
+import Button from "@/components/ui/button";
 
 type AsistenciaRow = {
   janij_id: string;
@@ -247,19 +248,21 @@ export default function AsistenciaPage() {
           <p>Ausentes: {ausentes.length}</p>
         </div>
         {esCreador && (
-          <button
+          <Button
+            className="w-full"
+            icon={<FileUp className="w-4 h-4" />}
             onClick={exportar}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg w-full"
           >
             Descargar Excel
-          </button>
+          </Button>
         )}
-        <button
+        <Button
+          className="w-full"
+          variant="secondary"
           onClick={() => router.push(`/proyecto/${proyectoId}/janijim`)}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg w-full"
         >
           Volver al menú
-        </button>
+        </Button>
       </div>
     );
   }
@@ -354,12 +357,13 @@ export default function AsistenciaPage() {
           ))}
         </ul>
         {esCreador && (
-          <button
+          <Button
+            className="w-full"
+            icon={<Check className="w-4 h-4" />}
             onClick={finalizar}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg w-full"
           >
             Finalizar asistencia
-          </button>
+          </Button>
         )}
       </div>
     </div>

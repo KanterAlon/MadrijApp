@@ -3,7 +3,8 @@
 import { SignInButton, useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { CalendarCheck, Group, LayoutDashboard } from "lucide-react";
+import { CalendarCheck, Group, LayoutDashboard, LogIn } from "lucide-react";
+import Button from "@/components/ui/button";
 
 export default function HomePage() {
   const { isSignedIn } = useAuth();
@@ -39,9 +40,7 @@ export default function HomePage() {
       <h1 className="text-5xl font-extrabold mb-4 text-blue-900">Bienvenido a MadrijApp</h1>
       <p className="text-xl text-gray-700 mb-8">Tu espacio para organizar todo como madrij.</p>
       <SignInButton mode="modal" withSignUp forceRedirectUrl="/dashboard" signUpForceRedirectUrl="/dashboard">
-        <button className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition">
-          Iniciar sesión
-        </button>
+        <Button icon={<LogIn className="w-4 h-4" />}>Iniciar sesión</Button>
       </SignInButton>
       <section className="mt-12 grid gap-6 w-full max-w-5xl md:grid-cols-3">
         {features.map(({ icon: Icon, title, desc }) => (

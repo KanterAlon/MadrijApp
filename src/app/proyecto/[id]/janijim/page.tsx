@@ -21,6 +21,7 @@ import {
   X,
   Search,
 } from "lucide-react";
+import Button from "@/components/ui/button";
 import Skeleton from "@/components/ui/skeleton";
 import ActiveSesionCard from "@/components/active-sesion-card";
 import {
@@ -355,22 +356,23 @@ export default function JanijimPage() {
   return (
     <div className="max-w-2xl mx-auto mt-12 space-y-4">
       <ActiveSesionCard proyectoId={proyectoId} />
-      <button
+      <Button
+        icon={<Check className="w-4 h-4" />}
         onClick={() => setSesionOpen(true)}
-        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
       >
         Iniciar asistencia del día
-      </button>
+      </Button>
 
       {janijim.length === 0 ? (
         <div className="text-center space-y-4 py-12 border rounded-lg">
           <p className="text-gray-600">Importá janijim para comenzar</p>
-          <button
+          <Button
+            className="mx-auto"
+            icon={<FileUp className="w-4 h-4" />}
             onClick={() => setImportOpen(true)}
-            className="mx-auto px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-1 hover:bg-blue-700"
           >
-            <FileUp size={16} /> Importar
-          </button>
+            Importar
+          </Button>
         </div>
       ) : (
         <>
@@ -478,12 +480,12 @@ export default function JanijimPage() {
 )}
 
 
-        <button
+        <Button
+          icon={<FileUp className="w-4 h-4" />}
           onClick={() => setImportOpen(true)}
-          className="px-3 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-1"
         >
-          <FileUp size={16} /> Importar
-        </button>
+          Importar
+        </Button>
         <input
           ref={fileInput}
           type="file"
@@ -558,12 +560,12 @@ export default function JanijimPage() {
           </li>
         ))}
       </ul>
-      <button
+      <Button
+        className="mx-auto mt-4 block"
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        className="mx-auto mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg block"
       >
         Volver arriba
-      </button>
+      </Button>
       </>)}
 
       <Sheet open={importOpen} onOpenChange={setImportOpen}>
@@ -637,18 +639,15 @@ export default function JanijimPage() {
                 />
               </div>
               <SheetFooter>
-                <button
-                  onClick={importFromText}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg"
-                >
+                <Button icon={<FileUp className="w-4 h-4" />} onClick={importFromText}>
                   Importar
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="secondary"
                   onClick={() => setImportMode("chooser")}
-                  className="px-4 py-2 bg-gray-200 rounded-lg"
                 >
                   Volver
-                </button>
+                </Button>
               </SheetFooter>
             </>
           )}
@@ -677,12 +676,9 @@ export default function JanijimPage() {
             </select>
           </div>
           <SheetFooter>
-            <button
-              onClick={importColumn}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg"
-            >
+            <Button icon={<FileUp className="w-4 h-4" />} onClick={importColumn}>
               Importar
-            </button>
+            </Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
@@ -760,12 +756,9 @@ export default function JanijimPage() {
             </select>
           </div>
           <SheetFooter>
-            <button
-              onClick={iniciarSesion}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg"
-            >
+            <Button icon={<Check className="w-4 h-4" />} onClick={iniciarSesion}>
               Iniciar
-            </button>
+            </Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
