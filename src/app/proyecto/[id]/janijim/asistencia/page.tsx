@@ -215,7 +215,8 @@ export default function AsistenciaPage() {
 
     return (
       <div className="max-w-2xl mx-auto mt-12 space-y-4">
-        <h2 className="text-xl font-semibold">Resumen de {sesion?.nombre}</h2>
+        <h2 className="text-xl font-semibold">Asistencia finalizada</h2>
+        <p className="text-gray-700">{sesion?.nombre}</p>
         <div className="bg-white p-4 rounded shadow">
           <p>Presentes: {presentes.length}</p>
           <p>Ausentes: {ausentes.length}</p>

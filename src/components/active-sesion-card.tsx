@@ -16,6 +16,7 @@ type SesionData = {
 export default function ActiveSesionCard({ proyectoId }: { proyectoId: string }) {
   const [sesion, setSesion] = useState<SesionData | null>(null);
   const [madrijNombre, setMadrijNombre] = useState<string>("");
+  const [ago, setAgo] = useState("");
   const currentId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -73,10 +74,18 @@ export default function ActiveSesionCard({ proyectoId }: { proyectoId: string })
     };
   }, [proyectoId]);
 
-  if (!sesion) return null;
+  useEffect(() => {
+    if (!sesion) return;
+    const calc = () => {
+      const mins = Math.floor((Date.now() - new Date(sesion.inicio).getTime()) / 60000);
+      setAgo(mins < 1 ? "hace menos de un minuto" : `hace ${mins} min`);
+    };
+    calc();
+    const id = setInterval(calc, 60000);
+    return () => clearInterval(id);
+  }, [sesion]);
 
-  const mins = Math.floor((Date.now() - new Date(sesion.inicio).getTime()) / 60000);
-  const ago = mins < 1 ? "hace menos de un minuto" : `hace ${mins} min`;
+  if (!sesion) return null;
 
   return (
     <Link
