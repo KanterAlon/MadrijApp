@@ -335,7 +335,7 @@ export default function AsistenciaPage() {
             </ul>
           )}
         </div>
-        <ul className="space-y-2">
+        <ul className="space-y-2 pb-24">
           {janijim.map((j) => (
             <li
               id={`janij-${j.id}`}
@@ -356,16 +356,19 @@ export default function AsistenciaPage() {
             </li>
           ))}
         </ul>
-        {esCreador && (
+      </div>
+      {esCreador && (
+        <div className="fixed bottom-0 left-0 right-0 p-4 border-t bg-white shadow-md flex justify-center">
           <Button
-            className="w-full"
+            className="w-full max-w-2xl"
+            variant="danger"
             icon={<Check className="w-4 h-4" />}
             onClick={finalizar}
           >
             Finalizar asistencia
           </Button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
