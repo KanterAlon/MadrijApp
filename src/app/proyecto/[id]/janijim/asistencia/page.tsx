@@ -72,7 +72,7 @@ export default function AsistenciaPage() {
       setAiResults([]);
       return;
     }
-@@ -81,127 +95,175 @@ export default function AsistenciaPage() {
+@@ -81,127 +95,202 @@ export default function AsistenciaPage() {
     return () => controller.abort();
   }, [search, janijim]);
 
@@ -102,35 +102,62 @@ export default function AsistenciaPage() {
     if (!sesionId) return;
 
     const attendance = supabase
-      .from(`asistencias:sesion_id=eq.${sesionId}`)
-      .on("INSERT", (payload) => {
-        const data = payload.new as AsistenciaRow;
-        setEstado((p) => ({ ...p, [data.janij_id]: data.presente }));
-        if (data.madrij_id !== user?.id) {
-          setUpdating(true);
-          setTimeout(() => setUpdating(false), 300);
+      .channel("asistencias")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "asistencias",
+          filter: `sesion_id=eq.${sesionId}`,
+        },
+        (payload) => {
+          const data = payload.new as AsistenciaRow;
+          setEstado((p) => ({ ...p, [data.janij_id]: data.presente }));
+          if (data.madrij_id !== user?.id) {
+            setUpdating(true);
+            setTimeout(() => setUpdating(false), 300);
+          }
         }
-      })
-      .on("UPDATE", (payload) => {
-        const data = payload.new as AsistenciaRow;
-        setEstado((p) => ({ ...p, [data.janij_id]: data.presente }));
-        if (data.madrij_id !== user?.id) {
-          setUpdating(true);
-          setTimeout(() => setUpdating(false), 300);
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "asistencias",
+          filter: `sesion_id=eq.${sesionId}`,
+        },
+        (payload) => {
+          const data = payload.new as AsistenciaRow;
+          setEstado((p) => ({ ...p, [data.janij_id]: data.presente }));
+          if (data.madrij_id !== user?.id) {
+            setUpdating(true);
+            setTimeout(() => setUpdating(false), 300);
+          }
         }
-      })
+      )
       .subscribe();
 
     const sesionChan = supabase
-      .from(`asistencia_sesiones:id=eq.${sesionId}`)
-      .on("UPDATE", (payload) => {
-        const data = payload.new as SesionRow;
-        if (data.finalizado) {
-          setUpdating(true);
-          setFinalizado(true);
-          setTimeout(() => setUpdating(false), 300);
+      .channel("asistencia_sesiones")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "asistencia_sesiones",
+          filter: `id=eq.${sesionId}`,
+        },
+        (payload) => {
+          const data = payload.new as SesionRow;
+          if (data.finalizado) {
+            setUpdating(true);
+            setFinalizado(true);
+            setTimeout(() => setUpdating(false), 300);
+          }
         }
-      })
+      )
       .subscribe();
 
     return () => {
@@ -248,7 +275,7 @@ export default function AsistenciaPage() {
                 <span>{r.nombre}</span>
               </li>
             ))}
-@@ -236,34 +298,37 @@ export default function AsistenciaPage() {
+@@ -236,34 +325,37 @@ export default function AsistenciaPage() {
         )}
       </div>
       <ul className="space-y-2">

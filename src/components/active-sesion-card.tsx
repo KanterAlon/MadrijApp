@@ -38,32 +38,50 @@ export default function ActiveSesionCard({ proyectoId }: { proyectoId: string })
     load();
 
     const channel = supabase
-      .from(`asistencia_sesiones:proyecto_id=eq.${proyectoId}`)
-      .on("INSERT", (payload) => {
-        const data = payload.new as SesionData;
-        if (!data.finalizado) {
-          currentId.current = data.id;
-          setSesion(data);
-          getMadrijNombre(data.madrij_id)
-            .then((n) => setMadrijNombre(n))
-            .catch(() => {});
-        }
-      })
-      .on("UPDATE", (payload) => {
-        const data = payload.new as SesionData;
-        if (data.finalizado) {
-          if (currentId.current === data.id) {
-            setSesion(null);
-            currentId.current = null;
+      .channel("asistencia_sesiones")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "asistencia_sesiones",
+          filter: `proyecto_id=eq.${proyectoId}`,
+        },
+        (payload) => {
+          const data = payload.new as SesionData;
+          if (!data.finalizado) {
+            currentId.current = data.id;
+            setSesion(data);
+            getMadrijNombre(data.madrij_id)
+              .then((n) => setMadrijNombre(n))
+              .catch(() => {});
           }
-        } else {
-          currentId.current = data.id;
-          setSesion(data);
-          getMadrijNombre(data.madrij_id)
-            .then((n) => setMadrijNombre(n))
-            .catch(() => {});
         }
-      })
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "asistencia_sesiones",
+          filter: `proyecto_id=eq.${proyectoId}`,
+        },
+        (payload) => {
+          const data = payload.new as SesionData;
+          if (data.finalizado) {
+            if (currentId.current === data.id) {
+              setSesion(null);
+              currentId.current = null;
+            }
+          } else {
+            currentId.current = data.id;
+            setSesion(data);
+            getMadrijNombre(data.madrij_id)
+              .then((n) => setMadrijNombre(n))
+              .catch(() => {});
+          }
+        }
+      )
       .subscribe();
 
     return () => {
