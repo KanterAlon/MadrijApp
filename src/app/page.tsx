@@ -23,8 +23,8 @@ export default function HomePage() {
         <SignInButton
           mode="modal"
           withSignUp
-          afterSignInUrl="/dashboard"
-          afterSignUpUrl="/dashboard"
+          forceRedirectUrl="/dashboard"
+          signUpForceRedirectUrl="/dashboard"
         >
           <button className="px-4 py-2 bg-black text-white rounded-xl hover:bg-gray-900 transition">
             Iniciar sesión
