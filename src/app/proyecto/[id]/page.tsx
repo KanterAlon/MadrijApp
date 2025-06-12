@@ -1,5 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-server";
 import ActiveSesionCard from "@/components/active-sesion-card";
@@ -49,7 +49,7 @@ export default async function ProyectoHome({ params }: PageProps) {
 
   if (!proyecto || errorProyecto) {
     console.error("Error cargando el proyecto", errorProyecto);
-    return <div className="p-6">Error cargando el proyecto</div>;
+    notFound();
   }
 
   const madrijim = await getMadrijimPorProyecto(proyectoId);
