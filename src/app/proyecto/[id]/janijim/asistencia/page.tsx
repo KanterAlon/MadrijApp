@@ -72,26 +72,7 @@ export default function AsistenciaPage() {
       setAiResults([]);
       return;
     }
-
-    const controller = new AbortController();
-    setAiLoading(true);
-
-    fetch("/api/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query: search, names: janijim.map((j) => j.nombre) }),
-      signal: controller.signal,
-    })
-      .then((res) => res.json())
-      .then((d) => {
-        setAiResults(d.matches || []);
-        setAiLoading(false);
-      })
-      .catch(() => {
-        setAiResults([]);
-        setAiLoading(false);
-      });
-
+@@ -81,127 +95,175 @@ export default function AsistenciaPage() {
     return () => controller.abort();
   }, [search, janijim]);
 
@@ -267,34 +248,7 @@ export default function AsistenciaPage() {
                 <span>{r.nombre}</span>
               </li>
             ))}
-            {aiLoading && (
-              <li className="p-2 text-sm text-gray-500">Buscando con IA...</li>
-            )}
-            {!aiLoading && aiResults.length === 0 && (
-              <li className="p-2 text-sm text-gray-500">
-                No se encontraron resultados con la IA.
-              </li>
-            )}
-            {!aiLoading && resultados.filter((r) => r.ai).length > 0 && (
-              <>
-                <li className="px-2 text-xs text-gray-400">Sugerencias con IA</li>
-                {resultados
-                  .filter((r) => r.ai)
-                  .map((r) => (
-                    <li
-                      key={r.id}
-                      onMouseDown={() => seleccionar(r.id)}
-                      className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
-                    >
-                      <span>{r.nombre}</span>
-                      <span className="bg-fuchsia-100 text-fuchsia-700 text-xs px-1 rounded">
-                        IA
-                      </span>
-                    </li>
-                  ))}
-              </>
-            )}
-          </ul>
+@@ -236,34 +298,37 @@ export default function AsistenciaPage() {
         )}
       </div>
       <ul className="space-y-2">
