@@ -358,9 +358,9 @@ export default function AsistenciaPage() {
         </ul>
       </div>
       {esCreador && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 border-t bg-white shadow-md flex justify-center">
+        <div className="fixed bottom-4 right-4 md:bottom-8 md:right-8 z-10">
           <Button
-            className="w-full max-w-2xl"
+            className="rounded-full shadow-lg px-6 py-3"
             variant="danger"
             icon={<Check className="w-4 h-4" />}
             onClick={finalizar}
