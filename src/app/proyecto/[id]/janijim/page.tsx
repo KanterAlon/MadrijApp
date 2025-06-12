@@ -339,8 +339,16 @@ export default function JanijimPage() {
     {resultados.filter((r) => !r.ai).map((r) => (
       <li
         key={r.id}
+        tabIndex={0}
         onMouseDown={() => seleccionar(r.id)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            seleccionar(r.id);
+          }
+        }}
         className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
+        aria-label={`Seleccionar ${r.nombre}`}
       >
         <span>{r.nombre}</span>
       </li>
@@ -367,8 +375,16 @@ export default function JanijimPage() {
           .map((r) => (
             <li
               key={r.id}
+              tabIndex={0}
               onMouseDown={() => seleccionar(r.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  seleccionar(r.id);
+                }
+              }}
               className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
+              aria-label={`Seleccionar ${r.nombre}`}
             >
               <span>{r.nombre}</span>
               <span className="bg-fuchsia-100 text-fuchsia-700 text-xs px-1 rounded">
@@ -388,8 +404,16 @@ export default function JanijimPage() {
         (r) => r.nombre.toLowerCase() === search.trim().toLowerCase()
       ) && (
         <li
+          tabIndex={0}
           onMouseDown={() => agregar(search.trim())}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              agregar(search.trim());
+            }
+          }}
           className="p-2 cursor-pointer hover:bg-gray-100"
+          aria-label={`Agregar ${search.trim()}`}
         >
           Agregar &quot;{search.trim()}&quot;
         </li>
@@ -427,14 +451,29 @@ export default function JanijimPage() {
             <span>{janij.nombre}</span>
             <div className="relative">
               <button
+                aria-label="Opciones"
+                aria-haspopup="menu"
+                aria-expanded={menuOpenId === janij.id}
                 onClick={() =>
                   setMenuOpenId(menuOpenId === janij.id ? null : janij.id)
                 }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setMenuOpenId(menuOpenId === janij.id ? null : janij.id);
+                  }
+                  if (e.key === "Escape") {
+                    setMenuOpenId(null);
+                  }
+                }}
               >
                 <EllipsisVertical size={16} />
               </button>
               {menuOpenId === janij.id && (
-                <div className="absolute right-0 mt-2 bg-white border rounded shadow z-10">
+                <div
+                  className="absolute right-0 mt-2 bg-white border rounded shadow z-10"
+                  onKeyDown={(e) => e.key === "Escape" && setMenuOpenId(null)}
+                >
                   <button
                     onClick={() => {
                       setMenuOpenId(null);
