@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sheet";
 import { FileUp, EllipsisVertical } from "lucide-react";
 import Loader from "@/components/ui/loader";
+import ActiveSesionCard from "@/components/active-sesion-card";
 import {
   getJanijim,
   addJanijim,
@@ -308,6 +309,7 @@ export default function JanijimPage() {
 
   return (
     <div className="max-w-2xl mx-auto mt-12 space-y-4">
+      <ActiveSesionCard proyectoId={proyectoId} />
       <button
         onClick={() => setSesionOpen(true)}
         className="px-4 py-2 bg-blue-600 text-white rounded"
