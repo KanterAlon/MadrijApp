@@ -49,4 +49,14 @@ Create a new **Web Service** on [Render](https://render.com) using this reposito
 
 Run the SQL scripts under `sql/migrations` on your Supabase instance to keep the schema up to date. The file `20240411_add_activo_to_janijim.sql` adds a column used for soft deleting janijim.
 
+## Environment Variables
+
+The application requires the following variables to be defined, usually in a
+`.env.local` file:
+
+- `NEXT_PUBLIC_SUPABASE_URL` – URL of your Supabase instance.
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` – public anon key provided by Supabase.
+- `OPENAI_API_KEY` – API key used to query OpenAI services.
+
+
 
