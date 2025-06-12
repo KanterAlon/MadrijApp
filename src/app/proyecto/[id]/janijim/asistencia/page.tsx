@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import * as XLSX from "xlsx";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -14,6 +14,7 @@ import {
   getSesion,
 } from "@/lib/supabase/asistencias";
 import { supabase } from "@/lib/supabase";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 type AsistenciaRow = {
   janij_id: string;
@@ -48,6 +49,7 @@ export default function AsistenciaPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const { highlightId, scrollTo } = useHighlightScroll({ prefix: "janij-" });
   const esCreador = user?.id === sesion?.madrij_id;
+  const attendanceRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     if (!sesionId) return;
@@ -128,7 +130,19 @@ export default function AsistenciaPage() {
     if (!sesionId) return;
 
     const attendance = supabase
-      .channel("asistencias")
+      .channel(`asistencias:${sesionId}`, { config: { broadcast: { self: false } } })
+      .on(
+        "broadcast",
+        { event: "update" },
+        ({ payload }) => {
+          const data = payload as AsistenciaRow;
+          setEstado((p) => ({ ...p, [data.janij_id]: data.presente }));
+          if (data.madrij_id !== user?.id) {
+            setUpdating(true);
+            setTimeout(() => setUpdating(false), 300);
+          }
+        },
+      )
       .on(
         "postgres_changes",
         {
@@ -165,6 +179,8 @@ export default function AsistenciaPage() {
       )
       .subscribe();
 
+    attendanceRef.current = attendance;
+
     const sesionChan = supabase
       .channel("asistencia_sesiones")
       .on(
@@ -189,6 +205,7 @@ export default function AsistenciaPage() {
     return () => {
       supabase.removeChannel(attendance);
       supabase.removeChannel(sesionChan);
+      attendanceRef.current = null;
     };
   }, [sesionId, user?.id]);
 
@@ -196,6 +213,11 @@ export default function AsistenciaPage() {
     if (!user || !sesionId) return;
     const nuevo = !estado[janijId];
     setEstado((p) => ({ ...p, [janijId]: nuevo }));
+    attendanceRef.current?.send({
+      type: "broadcast",
+      event: "update",
+      payload: { janij_id: janijId, presente: nuevo, madrij_id: user.id },
+    });
     try {
       await marcarAsistencia(sesionId, proyectoId, janijId, user.id, nuevo);
     } catch (e) {
