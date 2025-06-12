@@ -53,7 +53,7 @@ export default function UnirseProyectoPage() {
       <h1 className="text-2xl font-bold mb-4">Unirse a un Proyecto</h1>
       <input
         type="text"
-        placeholder="Código de invitación"
+        placeholder="Pegá aquí el código de invitación"
         className="p-2 border rounded w-full mb-4"
         value={codigo}
         onChange={(e) => setCodigo(e.target.value)}

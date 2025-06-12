@@ -19,6 +19,7 @@ import {
   Trash2,
   Check,
   X,
+  Search,
 } from "lucide-react";
 import Skeleton from "@/components/ui/skeleton";
 import ActiveSesionCard from "@/components/active-sesion-card";
@@ -373,7 +374,8 @@ export default function JanijimPage() {
         </div>
       ) : (
         <>
-          <div className="relative flex items-center gap-2">
+          <div className="relative flex items-center">
+            <Search className="absolute left-2 w-4 h-4 text-gray-400 pointer-events-none" />
             <input
               type="text"
               value={search}
@@ -383,8 +385,8 @@ export default function JanijimPage() {
                 setSearch(e.target.value);
                 setShowResults(true);
               }}
-              placeholder="Buscar janij..."
-              className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+              placeholder="Buscá un janij por nombre"
+              className="w-full border rounded-lg p-2 pl-8 focus:ring-2 focus:ring-blue-600 focus:outline-none"
             />
 
         {showResults && search.trim() !== "" && (
@@ -630,7 +632,7 @@ export default function JanijimPage() {
                 <textarea
                   value={importText}
                   onChange={(e) => setImportText(e.target.value)}
-                  placeholder="Un nombre por línea"
+                  placeholder="Ingresá un nombre por línea"
                   className="w-full border rounded-lg p-2 min-h-32"
                 />
               </div>
@@ -739,7 +741,7 @@ export default function JanijimPage() {
               type="text"
               value={sesionNombre}
               onChange={(e) => setSesionNombre(e.target.value)}
-              placeholder="Nombre de la sesión"
+              placeholder="Ej.: Reunión de planificación"
               className="w-full border rounded-lg p-2"
             />
             <select
