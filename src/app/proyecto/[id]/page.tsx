@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-server";
+import ActiveSesionCard from "@/components/active-sesion-card";
 
 
 // ✅ Tipo correcto para páginas dinámicas
@@ -56,6 +57,7 @@ export default async function ProyectoHome({ params }: PageProps) {
   return (
     <div className="p-6 space-y-4">
       <h1 className="text-3xl font-bold">{proyecto.nombre}</h1>
+      <ActiveSesionCard proyectoId={proyectoId} />
       <p className="text-gray-600">
         ¡Estás dentro de este proyecto! Compartí el siguiente código con otros madrijim para que se unan:
       </p>
