@@ -4,11 +4,18 @@ export async function crearSesion(
   proyectoId: string,
   nombre: string,
   fecha: string,
-  madrijId: string
+  madrijId: string,
+  inicio: string
 ) {
   const { data, error } = await supabase
     .from("asistencia_sesiones")
-    .insert({ proyecto_id: proyectoId, nombre, fecha, madrij_id: madrijId })
+    .insert({
+      proyecto_id: proyectoId,
+      nombre,
+      fecha,
+      madrij_id: madrijId,
+      inicio,
+    })
     .select()
     .single();
   if (error) throw error;
