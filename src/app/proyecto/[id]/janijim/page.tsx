@@ -356,12 +356,14 @@ export default function JanijimPage() {
   return (
     <div className="max-w-2xl mx-auto mt-12 space-y-4">
       <ActiveSesionCard proyectoId={proyectoId} />
-      <Button
-        icon={<Check className="w-4 h-4" />}
-        onClick={() => setSesionOpen(true)}
-      >
-        Iniciar asistencia del día
-      </Button>
+      {janijim.length > 0 && (
+        <Button
+          icon={<Check className="w-4 h-4" />}
+          onClick={() => setSesionOpen(true)}
+        >
+          Iniciar asistencia del día
+        </Button>
+      )}
 
       {janijim.length === 0 ? (
         <div className="text-center space-y-4 py-12 border rounded-lg">
