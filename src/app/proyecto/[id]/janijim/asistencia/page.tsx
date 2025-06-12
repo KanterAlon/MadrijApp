@@ -129,8 +129,13 @@ export default function AsistenciaPage() {
   useEffect(() => {
     if (!sesionId) return;
 
-    const attendance = supabase
-      .channel(`asistencias:${sesionId}`, { config: { broadcast: { ack: true } } })
+    const attendance = supabase.channel(`asistencias:${sesionId}`, {
+      config: { broadcast: { ack: true } },
+    });
+
+    attendanceRef.current = attendance;
+
+    attendance
       .on(
         "broadcast",
         { event: "update" },
@@ -177,11 +182,7 @@ export default function AsistenciaPage() {
           }
         },
       )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          attendanceRef.current = attendance;
-        }
-      });
+      .subscribe();
 
     const sesionChan = supabase
       .channel("asistencia_sesiones")
