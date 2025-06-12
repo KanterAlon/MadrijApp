@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "react-hot-toast";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import Loader from "@/components/ui/loader";
 
@@ -46,8 +47,16 @@ export default function NuevoProyectoPage() {
   };
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-4">Nuevo Proyecto</h1>
+    <div className="max-w-md mx-auto mt-24 bg-white p-6 rounded-2xl shadow">
+      <Link
+        href="/dashboard"
+        className="text-blue-600 hover:underline mb-4 inline-block"
+      >
+        &larr; Volver
+      </Link>
+      <h1 className="text-2xl font-bold mb-4 text-center text-blue-700">
+        Nuevo Proyecto
+      </h1>
       <input
         type="text"
         placeholder="Nombre del proyecto"
@@ -55,14 +64,22 @@ export default function NuevoProyectoPage() {
         value={nombre}
         onChange={(e) => setNombre(e.target.value)}
       />
-      <button
-        onClick={handleCrear}
-        disabled={creating}
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-75 flex items-center justify-center gap-2"
-      >
-        {creating && <Loader className="h-4 w-4" />}
-        <span>Crear</span>
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={() => router.push('/dashboard')}
+          className="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={handleCrear}
+          disabled={creating}
+          className="flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-75 flex items-center justify-center gap-2"
+        >
+          {creating && <Loader className="h-4 w-4" />}
+          <span>Crear</span>
+        </button>
+      </div>
     </div>
   );
 }
