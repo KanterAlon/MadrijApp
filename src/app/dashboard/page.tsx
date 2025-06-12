@@ -28,34 +28,36 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">Tus Proyectos</h1>
+      <h1 className="text-3xl font-bold mb-6 text-blue-900">Tus Proyectos</h1>
 
-      <div className="space-y-4">
-        {loading ? (
-          <div className="flex justify-center py-8">
-            <Loader className="h-6 w-6" />
-          </div>
-        ) : (
-          proyectos.map((p) => (
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <Loader className="h-6 w-6" />
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {proyectos.map((p) => (
             <Link
               key={p.id}
               href={`/proyecto/${p.id}`}
-              className="block p-4 border rounded-lg hover:bg-gray-100 transition"
+              className="block rounded-xl border border-gray-200 bg-white p-6 shadow hover:shadow-md transition"
             >
-              {p.nombre}
+              <h2 className="text-lg font-medium">{p.nombre}</h2>
             </Link>
-          ))
-        )}
+          ))}
+        </div>
+      )}
 
+      <div className="mt-6 flex flex-col gap-4 sm:flex-row">
         <Link
           href="/dashboard/nuevo"
-          className="inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+          className="flex-1 rounded-md bg-blue-600 px-4 py-3 text-center font-medium text-white transition hover:bg-blue-700"
         >
           + Crear nuevo proyecto
         </Link>
         <Link
           href="/dashboard/unirse"
-          className="inline-block px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+          className="flex-1 rounded-md bg-green-600 px-4 py-3 text-center font-medium text-white transition hover:bg-green-700"
         >
           + Unirse a proyecto
         </Link>
