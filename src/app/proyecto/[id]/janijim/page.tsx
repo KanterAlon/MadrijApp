@@ -43,6 +43,8 @@ export default function JanijimPage() {
   const [columnOpen, setColumnOpen] = useState(false);
   const [dupOpen, setDupOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [importMode, setImportMode] =
+    useState<"chooser" | "file" | "manual">("chooser");
   const [janijim, setJanijim] = useState<Janij[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -62,6 +64,10 @@ export default function JanijimPage() {
   );
   const [madrijes, setMadrijes] = useState<{ clerk_id: string; nombre: string }[]>([]);
   const [sesionMadrij, setSesionMadrij] = useState<string>("");
+
+  useEffect(() => {
+    if (importOpen) setImportMode("chooser");
+  }, [importOpen]);
 
   useEffect(() => {
     setLoading(true);
@@ -515,35 +521,90 @@ export default function JanijimPage() {
 
       <Sheet open={importOpen} onOpenChange={setImportOpen}>
         <SheetContent side="bottom" className="w-full">
-          <SheetHeader>
-            <SheetTitle>Importar janijim</SheetTitle>
-            <SheetDescription>
-              Seleccioná un archivo CSV/Excel o escribí los nombres separados por
-              línea.
-            </SheetDescription>
-          </SheetHeader>
-          <div className="p-4 space-y-4">
-            <button
-              onClick={() => fileInput.current?.click()}
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg"
-            >
-              Seleccionar archivo
-            </button>
-            <textarea
-              value={importText}
-              onChange={(e) => setImportText(e.target.value)}
-              placeholder="Un nombre por línea"
-              className="w-full border rounded-lg p-2 min-h-32"
-            />
-          </div>
-          <SheetFooter>
-            <button
-              onClick={importFromText}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg"
-            >
-              Importar
-            </button>
-          </SheetFooter>
+          {importMode === "chooser" && (
+            <>
+              <SheetHeader>
+                <SheetTitle>Importar janijim</SheetTitle>
+                <SheetDescription>
+                  ¿Cómo querés importar la lista de janijim?
+                </SheetDescription>
+              </SheetHeader>
+              <div className="p-4 space-y-4">
+                <button
+                  onClick={() => setImportMode("file")}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg"
+                >
+                  Desde archivo
+                </button>
+                <button
+                  onClick={() => setImportMode("manual")}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg"
+                >
+                  Escribir manualmente
+                </button>
+              </div>
+            </>
+          )}
+
+          {importMode === "file" && (
+            <>
+              <SheetHeader>
+                <SheetTitle>Importar desde archivo</SheetTitle>
+                <SheetDescription>
+                  Seleccioná un archivo CSV/Excel con los nombres.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="p-4 space-y-4">
+                <button
+                  onClick={() => fileInput.current?.click()}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg"
+                >
+                  Seleccionar archivo
+                </button>
+              </div>
+              <SheetFooter>
+                <button
+                  onClick={() => setImportMode("chooser")}
+                  className="px-4 py-2 bg-gray-200 rounded-lg"
+                >
+                  Volver
+                </button>
+              </SheetFooter>
+            </>
+          )}
+
+          {importMode === "manual" && (
+            <>
+              <SheetHeader>
+                <SheetTitle>Importar manualmente</SheetTitle>
+                <SheetDescription>
+                  Escribí un nombre por línea y luego tocá Importar.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="p-4 space-y-4">
+                <textarea
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
+                  placeholder="Un nombre por línea"
+                  className="w-full border rounded-lg p-2 min-h-32"
+                />
+              </div>
+              <SheetFooter>
+                <button
+                  onClick={importFromText}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+                >
+                  Importar
+                </button>
+                <button
+                  onClick={() => setImportMode("chooser")}
+                  className="px-4 py-2 bg-gray-200 rounded-lg"
+                >
+                  Volver
+                </button>
+              </SheetFooter>
+            </>
+          )}
         </SheetContent>
       </Sheet>
 
