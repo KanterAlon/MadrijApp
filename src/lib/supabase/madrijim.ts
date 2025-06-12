@@ -16,3 +16,13 @@ export async function getMadrijimPorProyecto(proyectoId: string) {
   if (e2) throw e2;
   return madrijim;
 }
+
+export async function getMadrijNombre(clerkId: string) {
+  const { data, error } = await supabase
+    .from("madrijim")
+    .select("nombre")
+    .eq("clerk_id", clerkId)
+    .single();
+  if (error) throw error;
+  return data.nombre as string;
+}
