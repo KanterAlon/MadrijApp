@@ -35,6 +35,7 @@ import {
   updateJanij,
   removeJanij,
 } from "@/lib/supabase/janijim";
+import { parseSpreadsheetFile } from "@/lib/utils";
 import { crearSesion } from "@/lib/supabase/asistencias";
 import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
 
@@ -182,36 +183,17 @@ export default function JanijimPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const finalize = (rows: string[][]) => {
+    try {
+      const rows = await parseSpreadsheetFile(file);
       setRows(rows);
       setColumns(rows[0] || []);
       setImportOpen(false);
       setColumnOpen(true);
-      e.target.value = "";
-    };
-
-    const reader = new FileReader();
-
-    if (file.name.endsWith(".csv")) {
-      reader.onload = (event) => {
-        const text = (event.target?.result as string) || "";
-        const lines = text
-          .split(/\r?\n/)
-          .map((line) => line.split(","));
-        finalize(lines);
-      };
-      reader.readAsText(file);
-    } else {
-      const xlsx = await import("xlsx");
-      reader.onload = (event) => {
-        const data = new Uint8Array(event.target?.result as ArrayBuffer);
-        const wb = xlsx.read(data, { type: "array" });
-        const sheet = wb.Sheets[wb.SheetNames[0]];
-        const json = xlsx.utils.sheet_to_json(sheet, { header: 1 }) as string[][];
-        finalize(json);
-      };
-      reader.readAsArrayBuffer(file);
+    } catch {
+      alert("Error leyendo el archivo");
     }
+
+    e.target.value = "";
   };
 
   const importColumn = () => {
