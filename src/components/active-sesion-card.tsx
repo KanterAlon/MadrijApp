@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
+import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getSesionActiva } from "@/lib/supabase/asistencias";
@@ -22,6 +23,7 @@ export default function ActiveSesionCard({
   const [madrijNombre, setMadrijNombre] = useState<string>("");
   const [ago, setAgo] = useState("");
   const currentId = useRef<string | null>(null);
+  const { user } = useUser();
 
   useEffect(() => {
     let ignore = false;
@@ -112,11 +114,11 @@ export default function ActiveSesionCard({
   return (
     <Link
       href={`/proyecto/${proyectoId}/janijim/asistencia?sesion=${sesion.id}`}
-      className="block p-4 bg-yellow-100 border rounded-lg"
+      className="block p-4 bg-yellow-50 border border-yellow-300 rounded-lg shadow-sm"
     >
       <p className="font-semibold">Asistencia en curso</p>
       <p className="text-sm">
-        Iniciada por {madrijNombre || ""} {ago}
+        Iniciada por {user?.id === sesion.madrij_id ? "vos" : madrijNombre} {ago}
       </p>
     </Link>
   );
