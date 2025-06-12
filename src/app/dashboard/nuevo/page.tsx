@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "react-hot-toast";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -24,7 +25,10 @@ export default function NuevoProyectoPage() {
       .select()
       .single();
 
-    if (e1) return alert("Error creando proyecto");
+    if (e1) {
+      toast.error("Error creando proyecto");
+      return;
+    }
 
     // 2. Insertar relación con madrijim_proyectos
     const { error: e2 } = await supabase
@@ -32,7 +36,7 @@ export default function NuevoProyectoPage() {
       .insert({ proyecto_id: proyecto.id, madrij_id: user.id, rol: "creador", invitado: false });
 
     if (e2) {
-      alert("Error asignando proyecto");
+      toast.error("Error asignando proyecto");
       setCreating(false);
       return;
     }

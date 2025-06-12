@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "react-hot-toast";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -22,7 +23,7 @@ export default function UnirseProyectoPage() {
       .single();
 
     if (!proyecto || error) {
-      alert("Código inválido");
+      toast.error("Código inválido");
       setLoading(false);
       return;
     }
@@ -32,7 +33,7 @@ export default function UnirseProyectoPage() {
       .insert({ proyecto_id: proyecto.id, madrij_id: user.id, invitado: false });
 
     if (e2 && e2.code !== "23505") {
-      alert("Error uniéndose al proyecto");
+      toast.error("Error uniéndose al proyecto");
       setLoading(false);
       return;
     }
