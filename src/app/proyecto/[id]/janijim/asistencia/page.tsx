@@ -130,7 +130,7 @@ export default function AsistenciaPage() {
     if (!sesionId) return;
 
     const attendance = supabase
-      .channel(`asistencias:${sesionId}`, { config: { broadcast: { self: false } } })
+      .channel(`asistencias:${sesionId}`)
       .on(
         "broadcast",
         { event: "update" },
