@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo } from "react";
 import * as XLSX from "xlsx";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -14,7 +14,6 @@ import {
   getSesion,
 } from "@/lib/supabase/asistencias";
 import { supabase } from "@/lib/supabase";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 
 type AsistenciaRow = {
   janij_id: string;
@@ -49,7 +48,6 @@ export default function AsistenciaPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const { highlightId, scrollTo } = useHighlightScroll({ prefix: "janij-" });
   const esCreador = user?.id === sesion?.madrij_id;
-  const attendanceRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     if (!sesionId) return;
@@ -113,7 +111,7 @@ export default function AsistenciaPage() {
       .map((name) => janijim.find((j) => j.nombre === name))
       .filter(
         (j): j is { id: string; nombre: string } =>
-          !!j && !exact.some((e) => e.id === j.id),
+          !!j && !exact.some((e) => e.id === j.id)
       )
       .map((j) => ({ ...j, ai: true }));
 
@@ -129,63 +127,25 @@ export default function AsistenciaPage() {
   useEffect(() => {
     if (!sesionId) return;
 
-    const attendance = supabase.channel(`asistencias:${sesionId}`, {
-      config: { broadcast: { ack: true } },
-    });
-
-    attendanceRef.current = attendance;
-
-    attendance
-      .on(
-        "broadcast",
-        { event: "update" },
-        ({ payload }) => {
-          const data = payload as AsistenciaRow;
-          setEstado((p) => ({ ...p, [data.janij_id]: data.presente }));
-          if (data.madrij_id !== user?.id) {
-            setUpdating(true);
-            setTimeout(() => setUpdating(false), 300);
-          }
-        },
-      )
+    const canal = supabase
+      .channel(`asistencia_sesion_${sesionId}`)
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "asistencias",
           filter: `sesion_id=eq.${sesionId}`,
         },
         (payload) => {
           const data = payload.new as AsistenciaRow;
-          setEstado((p) => ({ ...p, [data.janij_id]: data.presente }));
+          setEstado((prev) => ({ ...prev, [data.janij_id]: data.presente }));
           if (data.madrij_id !== user?.id) {
             setUpdating(true);
             setTimeout(() => setUpdating(false), 300);
           }
-        },
+        }
       )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "asistencias",
-          filter: `sesion_id=eq.${sesionId}`,
-        },
-        (payload) => {
-          const data = payload.new as AsistenciaRow;
-          setEstado((p) => ({ ...p, [data.janij_id]: data.presente }));
-          if (data.madrij_id !== user?.id) {
-            setUpdating(true);
-            setTimeout(() => setUpdating(false), 300);
-          }
-        },
-      )
-      .subscribe();
-
-    const sesionChan = supabase
-      .channel("asistencia_sesiones")
       .on(
         "postgres_changes",
         {
@@ -201,14 +161,12 @@ export default function AsistenciaPage() {
             setFinalizado(true);
             setTimeout(() => setUpdating(false), 300);
           }
-        },
+        }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(attendance);
-      supabase.removeChannel(sesionChan);
-      attendanceRef.current = null;
+      supabase.removeChannel(canal);
     };
   }, [sesionId, user?.id]);
 
@@ -218,11 +176,7 @@ export default function AsistenciaPage() {
     setEstado((p) => ({ ...p, [janijId]: nuevo }));
     try {
       await marcarAsistencia(sesionId, proyectoId, janijId, user.id, nuevo);
-      attendanceRef.current?.send({
-        type: "broadcast",
-        event: "update",
-        payload: { janij_id: janijId, presente: nuevo, madrij_id: user.id },
-      });
+      // No se necesita broadcast
     } catch (e) {
       console.error(e);
     }
@@ -246,7 +200,6 @@ export default function AsistenciaPage() {
     const ausentes = janijim.filter((j) => !estado[j.id]);
 
     const exportar = () => {
-      const presentes = janijim.filter((j) => estado[j.id]);
       const data = presentes.map((j) => ({ nombre: j.nombre }));
       const ws = XLSX.utils.json_to_sheet(data);
       const wb = XLSX.utils.book_new();
@@ -308,7 +261,6 @@ export default function AsistenciaPage() {
             placeholder="Buscar janij..."
             className="w-full border rounded-lg p-2"
           />
-
           {showResults && search.trim() !== "" && (
             <ul className="absolute z-10 left-0 top-full mt-1 w-full bg-white border rounded shadow max-h-60 overflow-auto">
               {resultados
@@ -323,9 +275,7 @@ export default function AsistenciaPage() {
                   </li>
                 ))}
               {aiLoading && (
-                <li className="p-2 text-sm text-gray-500">
-                  Buscando con IA...
-                </li>
+                <li className="p-2 text-sm text-gray-500">Buscando con IA...</li>
               )}
               {!aiLoading && aiResults.length === 0 && (
                 <li className="p-2 text-sm text-gray-500">
