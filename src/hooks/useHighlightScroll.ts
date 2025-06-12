@@ -11,14 +11,32 @@ export default function useHighlightScroll({ timeout = 2000, prefix = "" }: Opti
 
   const scrollTo = useCallback(
     (id: string) => {
-      setHighlightId(id);
       const el = document.getElementById(`${prefix}${id}`);
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
-      if (timeout > 0) {
-        setTimeout(() => setHighlightId(null), timeout);
-      }
+      if (!el) return;
+
+      const startHighlight = () => {
+        setHighlightId(id);
+        if (timeout > 0) {
+          setTimeout(() => setHighlightId(null), timeout);
+        }
+      };
+
+      let handled = false;
+      const handleScrollEnd = () => {
+        if (handled) return;
+        handled = true;
+        startHighlight();
+        document.removeEventListener("scrollend", handleScrollEnd);
+      };
+
+      document.addEventListener("scrollend", handleScrollEnd, { once: true });
+
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+
+      // Fallback for browsers without the scrollend event
+      setTimeout(handleScrollEnd, 500);
     },
-    [timeout, prefix]
+    [prefix, timeout]
   );
 
   return { highlightId, scrollTo };
