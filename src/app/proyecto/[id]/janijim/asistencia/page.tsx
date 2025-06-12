@@ -107,12 +107,13 @@ export default function AsistenciaPage() {
       .filter((j) => j.nombre.toLowerCase().includes(q))
       .map((j) => ({ ...j, ai: false }));
 
-    const aiMatches = aiResults
+    const aiMatches = Array.from(new Set(aiResults))
       .map((name) => janijim.find((j) => j.nombre === name))
       .filter(
         (j): j is { id: string; nombre: string } =>
           !!j && !exact.some((e) => e.id === j.id)
       )
+      .filter((j, idx, arr) => arr.findIndex((a) => a.id === j.id) === idx)
       .map((j) => ({ ...j, ai: true }));
 
     return [...exact, ...aiMatches];
