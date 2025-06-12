@@ -13,7 +13,11 @@ type SesionData = {
   finalizado: boolean;
 };
 
-export default function ActiveSesionCard({ proyectoId }: { proyectoId: string }) {
+export default function ActiveSesionCard({
+  proyectoId,
+}: {
+  proyectoId: string;
+}) {
   const [sesion, setSesion] = useState<SesionData | null>(null);
   const [madrijNombre, setMadrijNombre] = useState<string>("");
   const [ago, setAgo] = useState("");
@@ -56,7 +60,7 @@ export default function ActiveSesionCard({ proyectoId }: { proyectoId: string })
               .then((n) => setMadrijNombre(n))
               .catch(() => {});
           }
-        }
+        },
       )
       .on(
         "postgres_changes",
@@ -80,7 +84,7 @@ export default function ActiveSesionCard({ proyectoId }: { proyectoId: string })
               .then((n) => setMadrijNombre(n))
               .catch(() => {});
           }
-        }
+        },
       )
       .subscribe();
 
@@ -93,7 +97,9 @@ export default function ActiveSesionCard({ proyectoId }: { proyectoId: string })
   useEffect(() => {
     if (!sesion) return;
     const calc = () => {
-      const mins = Math.floor((Date.now() - new Date(sesion.inicio).getTime()) / 60000);
+      const mins = Math.floor(
+        (Date.now() - new Date(sesion.inicio).getTime()) / 60000,
+      );
       setAgo(mins < 1 ? "hace menos de un minuto" : `hace ${mins} min`);
     };
     calc();
@@ -109,7 +115,9 @@ export default function ActiveSesionCard({ proyectoId }: { proyectoId: string })
       className="block p-4 bg-yellow-100 border rounded-lg"
     >
       <p className="font-semibold">Asistencia en curso</p>
-      <p className="text-sm">Iniciada por {madrijNombre || ""} {ago}</p>
+      <p className="text-sm">
+        Iniciada por {madrijNombre || ""} {ago}
+      </p>
     </Link>
   );
 }

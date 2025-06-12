@@ -6,9 +6,7 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import useHighlightScroll from "@/hooks/useHighlightScroll";
 import Loader from "@/components/ui/loader";
-import {
-  getJanijim,
-} from "@/lib/supabase/janijim";
+import { getJanijim } from "@/lib/supabase/janijim";
 import {
   getAsistencias,
   marcarAsistencia,
@@ -38,7 +36,10 @@ export default function AsistenciaPage() {
   const [janijim, setJanijim] = useState<{ id: string; nombre: string }[]>([]);
   const [estado, setEstado] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
-  const [sesion, setSesion] = useState<{ nombre: string; madrij_id: string } | null>(null);
+  const [sesion, setSesion] = useState<{
+    nombre: string;
+    madrij_id: string;
+  } | null>(null);
   const [finalizado, setFinalizado] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [search, setSearch] = useState("");
@@ -72,7 +73,29 @@ export default function AsistenciaPage() {
       setAiResults([]);
       return;
     }
-@@ -81,127 +95,202 @@ export default function AsistenciaPage() {
+
+    const controller = new AbortController();
+    setAiLoading(true);
+
+    fetch("/api/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: search,
+        names: janijim.map((j) => j.nombre),
+      }),
+      signal: controller.signal,
+    })
+      .then((res) => res.json())
+      .then((d) => {
+        setAiResults(d.matches || []);
+        setAiLoading(false);
+      })
+      .catch(() => {
+        setAiResults([]);
+        setAiLoading(false);
+      });
+
     return () => controller.abort();
   }, [search, janijim]);
 
@@ -86,7 +109,10 @@ export default function AsistenciaPage() {
 
     const aiMatches = aiResults
       .map((name) => janijim.find((j) => j.nombre === name))
-      .filter((j): j is { id: string; nombre: string } => !!j && !exact.some((e) => e.id === j.id))
+      .filter(
+        (j): j is { id: string; nombre: string } =>
+          !!j && !exact.some((e) => e.id === j.id),
+      )
       .map((j) => ({ ...j, ai: true }));
 
     return [...exact, ...aiMatches];
@@ -118,7 +144,7 @@ export default function AsistenciaPage() {
             setUpdating(true);
             setTimeout(() => setUpdating(false), 300);
           }
-        }
+        },
       )
       .on(
         "postgres_changes",
@@ -135,7 +161,7 @@ export default function AsistenciaPage() {
             setUpdating(true);
             setTimeout(() => setUpdating(false), 300);
           }
-        }
+        },
       )
       .subscribe();
 
@@ -156,7 +182,7 @@ export default function AsistenciaPage() {
             setFinalizado(true);
             setTimeout(() => setUpdating(false), 300);
           }
-        }
+        },
       )
       .subscribe();
 
@@ -171,13 +197,7 @@ export default function AsistenciaPage() {
     const nuevo = !estado[janijId];
     setEstado((p) => ({ ...p, [janijId]: nuevo }));
     try {
-      await marcarAsistencia(
-        sesionId,
-        proyectoId,
-        janijId,
-        user.id,
-        nuevo
-      );
+      await marcarAsistencia(sesionId, proyectoId, janijId, user.id, nuevo);
     } catch (e) {
       console.error(e);
     }
@@ -250,57 +270,88 @@ export default function AsistenciaPage() {
       )}
       <div className="max-w-2xl mx-auto mt-12 space-y-4">
         <h2 className="text-xl font-semibold">{sesion?.nombre}</h2>
-      <div className="relative flex items-center gap-2">
-        <input
-          type="text"
-          value={search}
-          onFocus={() => setShowResults(true)}
-          onBlur={() => setTimeout(() => setShowResults(false), 100)}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setShowResults(true);
-          }}
-          placeholder="Buscar janij..."
-          className="w-full border rounded-lg p-2"
-        />
+        <div className="relative flex items-center gap-2">
+          <input
+            type="text"
+            value={search}
+            onFocus={() => setShowResults(true)}
+            onBlur={() => setTimeout(() => setShowResults(false), 100)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setShowResults(true);
+            }}
+            placeholder="Buscar janij..."
+            className="w-full border rounded-lg p-2"
+          />
 
-        {showResults && search.trim() !== "" && (
-          <ul className="absolute z-10 left-0 top-full mt-1 w-full bg-white border rounded shadow max-h-60 overflow-auto">
-            {resultados.filter((r) => !r.ai).map((r) => (
-              <li
-                key={r.id}
-                onMouseDown={() => seleccionar(r.id)}
-                className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
-              >
-                <span>{r.nombre}</span>
-              </li>
-            ))}
-@@ -236,34 +325,37 @@ export default function AsistenciaPage() {
-        )}
-      </div>
-      <ul className="space-y-2">
-        {janijim.map((j) => (
-          <li
-            id={`janij-${j.id}`}
-            key={j.id}
-            className={`flex items-center justify-between bg-white shadow p-4 rounded-lg ${
-              highlightId === j.id
-                ? "ring-2 ring-blue-500 animate-pulse"
-                : ""
-            }`}
-          >
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                className="h-4 w-4"
-                checked={!!estado[j.id]}
-                onChange={() => toggle(j.id)}
-              />
-              <span>{j.nombre}</span>
-            </label>
-          </li>
-        ))}
-      </ul>
+          {showResults && search.trim() !== "" && (
+            <ul className="absolute z-10 left-0 top-full mt-1 w-full bg-white border rounded shadow max-h-60 overflow-auto">
+              {resultados
+                .filter((r) => !r.ai)
+                .map((r) => (
+                  <li
+                    key={r.id}
+                    onMouseDown={() => seleccionar(r.id)}
+                    className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
+                  >
+                    <span>{r.nombre}</span>
+                  </li>
+                ))}
+              {aiLoading && (
+                <li className="p-2 text-sm text-gray-500">
+                  Buscando con IA...
+                </li>
+              )}
+              {!aiLoading && aiResults.length === 0 && (
+                <li className="p-2 text-sm text-gray-500">
+                  No se encontraron resultados con la IA.
+                </li>
+              )}
+              {!aiLoading && resultados.filter((r) => r.ai).length > 0 && (
+                <>
+                  <li className="px-2 text-xs text-gray-400">
+                    Sugerencias con IA
+                  </li>
+                  {resultados
+                    .filter((r) => r.ai)
+                    .map((r) => (
+                      <li
+                        key={r.id}
+                        onMouseDown={() => seleccionar(r.id)}
+                        className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
+                      >
+                        <span>{r.nombre}</span>
+                        <span className="bg-fuchsia-100 text-fuchsia-700 text-xs px-1 rounded">
+                          IA
+                        </span>
+                      </li>
+                    ))}
+                </>
+              )}
+            </ul>
+          )}
+        </div>
+        <ul className="space-y-2">
+          {janijim.map((j) => (
+            <li
+              id={`janij-${j.id}`}
+              key={j.id}
+              className={`flex items-center justify-between bg-white shadow p-4 rounded-lg ${
+                highlightId === j.id ? "ring-2 ring-blue-500 animate-pulse" : ""
+              }`}
+            >
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={!!estado[j.id]}
+                  onChange={() => toggle(j.id)}
+                />
+                <span>{j.nombre}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
         {esCreador && (
           <button
             onClick={finalizar}
