@@ -6,7 +6,8 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import Loader from "@/components/ui/loader";
+import Button from "@/components/ui/button";
+import { PlusCircle, X } from "lucide-react";
 
 export default function NuevoProyectoPage() {
   const { user } = useUser();
@@ -65,20 +66,22 @@ export default function NuevoProyectoPage() {
         onChange={(e) => setNombre(e.target.value)}
       />
       <div className="flex gap-2">
-        <button
+        <Button
+          variant="secondary"
+          className="flex-1"
+          icon={<X className="w-4 h-4" />}
           onClick={() => router.push('/dashboard')}
-          className="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
         >
           Cancelar
-        </button>
-        <button
+        </Button>
+        <Button
+          className="flex-1"
           onClick={handleCrear}
-          disabled={creating}
-          className="flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-75 flex items-center justify-center gap-2"
+          loading={creating}
+          icon={<PlusCircle className="w-4 h-4" />}
         >
-          {creating && <Loader className="h-4 w-4" />}
-          <span>Crear</span>
-        </button>
+          Crear
+        </Button>
       </div>
     </div>
   );

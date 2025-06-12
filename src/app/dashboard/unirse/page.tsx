@@ -6,7 +6,8 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import Loader from "@/components/ui/loader";
+import Button from "@/components/ui/button";
+import { LogIn } from "lucide-react";
 
 export default function UnirseProyectoPage() {
   const { user } = useUser();
@@ -58,14 +59,14 @@ export default function UnirseProyectoPage() {
         value={codigo}
         onChange={(e) => setCodigo(e.target.value)}
       />
-      <button
+      <Button
         onClick={handleJoin}
-        disabled={loading}
-        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-75 flex items-center gap-2"
+        loading={loading}
+        icon={<LogIn className="w-4 h-4" />}
+        variant="secondary"
       >
-        {loading && <Loader className="h-4 w-4" />}
-        <span>Unirse</span>
-      </button>
+        Unirse
+      </Button>
     </div>
   );
 }
