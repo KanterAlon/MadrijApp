@@ -356,14 +356,6 @@ export default function JanijimPage() {
   return (
     <div className="max-w-2xl mx-auto mt-12 space-y-4">
       <ActiveSesionCard proyectoId={proyectoId} />
-      {janijim.length > 0 && (
-        <Button
-          icon={<Check className="w-4 h-4" />}
-          onClick={() => setSesionOpen(true)}
-        >
-          Iniciar asistencia del día
-        </Button>
-      )}
 
       {janijim.length === 0 ? (
         <div className="text-center space-y-4 py-12 border rounded-lg">
@@ -378,23 +370,24 @@ export default function JanijimPage() {
         </div>
       ) : (
         <>
-          <div className="relative flex items-center">
-            <Search className="absolute left-2 w-4 h-4 text-gray-400 pointer-events-none" />
-            <input
-              type="text"
-              value={search}
-              onFocus={() => setShowResults(true)}
-              onBlur={() => setTimeout(() => setShowResults(false), 100)}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setShowResults(true);
-              }}
-              placeholder="Buscá un janij por nombre"
-              className="w-full border rounded-lg p-2 pl-8 focus:ring-2 focus:ring-blue-600 focus:outline-none"
-            />
+          <div className="flex flex-col sm:flex-row items-stretch gap-2">
+            <div className="relative flex flex-1 items-center">
+              <Search className="absolute left-2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                value={search}
+                onFocus={() => setShowResults(true)}
+                onBlur={() => setTimeout(() => setShowResults(false), 100)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setShowResults(true);
+                }}
+                placeholder="Buscá un janij por nombre"
+                className="flex-1 border rounded-lg p-2 pl-8 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+              />
 
-        {showResults && search.trim() !== "" && (
-  <ul className="absolute z-10 left-0 top-full mt-1 w-full bg-white border rounded shadow max-h-60 overflow-auto">
+              {showResults && search.trim() !== "" && (
+                <ul className="absolute z-10 left-0 top-full mt-1 w-full bg-white border rounded shadow max-h-60 overflow-auto">
     {/* 1. Coincidencias normales */}
     {resultados.filter((r) => !r.ai).map((r) => (
       <li
@@ -482,20 +475,29 @@ export default function JanijimPage() {
 )}
 
 
-        <Button
-          icon={<FileUp className="w-4 h-4" />}
-          onClick={() => setImportOpen(true)}
-        >
-          Importar
-        </Button>
-        <input
-          ref={fileInput}
-          type="file"
-          accept=".csv,.xlsx,.xls"
-          onChange={handleFile}
-          className="hidden"
-        />
-      </div>
+              <Button
+                className="ml-2 shrink-0"
+                icon={<FileUp className="w-4 h-4" />}
+                onClick={() => setImportOpen(true)}
+              >
+                Importar
+              </Button>
+              <input
+                ref={fileInput}
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                onChange={handleFile}
+                className="hidden"
+              />
+            </div>
+            <Button
+              className="shrink-0"
+              icon={<Check className="w-4 h-4" />}
+              onClick={() => setSesionOpen(true)}
+            >
+              Iniciar asistencia del día
+            </Button>
+          </div>
 
       <ul className="space-y-2">
         {janijim.map((janij) => (
