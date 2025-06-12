@@ -359,13 +359,13 @@ export default function JanijimPage() {
 
       {janijim.length === 0 ? (
         <div className="text-center space-y-4 py-12 border rounded-lg">
-          <p className="text-gray-600">Importá janijim para comenzar</p>
+          <p className="text-gray-600">Insertá janijim para comenzar</p>
           <Button
             className="mx-auto"
             icon={<FileUp className="w-4 h-4" />}
             onClick={() => setImportOpen(true)}
           >
-            Importar
+            Insertar janijim
           </Button>
         </div>
       ) : (
@@ -577,7 +577,7 @@ export default function JanijimPage() {
           {importMode === "chooser" && (
             <>
               <SheetHeader>
-                <SheetTitle>Importar janijim</SheetTitle>
+                <SheetTitle>Insertar janijim</SheetTitle>
                 <SheetDescription>
                   ¿Cómo querés importar la lista de janijim?
                 </SheetDescription>
