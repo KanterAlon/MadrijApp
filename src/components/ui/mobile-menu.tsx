@@ -6,6 +6,7 @@ import {
   SheetTrigger,
   SheetTitle,
   SheetDescription,
+  SheetClose,
 } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 import Link from "next/link";
@@ -52,16 +53,17 @@ export default function MobileMenu({ proyectoId }: MobileMenuProps) {
               const isActive = pathname === fullPath || pathname === fullPath + "/";
 
               return (
-                <Link
-                  key={href}
-                  href={fullPath}
-                  className={cn(
-                    "block text-base font-medium",
-                    isActive ? "text-blue-700" : "text-gray-700"
-                  )}
-                >
-                  {label}
-                </Link>
+                <SheetClose asChild key={href}>
+                  <Link
+                    href={fullPath}
+                    className={cn(
+                      "block text-base font-medium",
+                      isActive ? "text-blue-700" : "text-gray-700"
+                    )}
+                  >
+                    {label}
+                  </Link>
+                </SheetClose>
               );
             })}
           </nav>
