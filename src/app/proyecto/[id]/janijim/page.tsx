@@ -14,7 +14,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { FileUp, EllipsisVertical } from "lucide-react";
-import Loader from "@/components/ui/loader";
+import Skeleton from "@/components/ui/skeleton";
 import ActiveSesionCard from "@/components/active-sesion-card";
 import {
   getJanijim,
@@ -301,8 +301,10 @@ export default function JanijimPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-8">
-        <Loader className="h-6 w-6" />
+      <div className="max-w-2xl mx-auto mt-12 space-y-2">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <Skeleton key={i} className="h-10 w-full" />
+        ))}
       </div>
     );
   }
