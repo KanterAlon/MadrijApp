@@ -130,7 +130,7 @@ export default function AsistenciaPage() {
     if (!sesionId) return;
 
     const attendance = supabase
-      .channel(`asistencias:${sesionId}`)
+      .channel(`asistencias:${sesionId}`, { config: { broadcast: { ack: true } } })
       .on(
         "broadcast",
         { event: "update" },
@@ -177,9 +177,11 @@ export default function AsistenciaPage() {
           }
         },
       )
-      .subscribe();
-
-    attendanceRef.current = attendance;
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          attendanceRef.current = attendance;
+        }
+      });
 
     const sesionChan = supabase
       .channel("asistencia_sesiones")
@@ -213,13 +215,13 @@ export default function AsistenciaPage() {
     if (!user || !sesionId) return;
     const nuevo = !estado[janijId];
     setEstado((p) => ({ ...p, [janijId]: nuevo }));
-    attendanceRef.current?.send({
-      type: "broadcast",
-      event: "update",
-      payload: { janij_id: janijId, presente: nuevo, madrij_id: user.id },
-    });
     try {
       await marcarAsistencia(sesionId, proyectoId, janijId, user.id, nuevo);
+      attendanceRef.current?.send({
+        type: "broadcast",
+        event: "update",
+        payload: { janij_id: janijId, presente: nuevo, madrij_id: user.id },
+      });
     } catch (e) {
       console.error(e);
     }
