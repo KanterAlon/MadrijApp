@@ -64,6 +64,7 @@ export default function JanijimPage() {
   );
   const [madrijes, setMadrijes] = useState<{ clerk_id: string; nombre: string }[]>([]);
   const [sesionMadrij, setSesionMadrij] = useState<string>("");
+  const pendingScrollId = useRef<string | null>(null);
 
   useEffect(() => {
     if (importOpen) setImportMode("chooser");
@@ -94,6 +95,13 @@ export default function JanijimPage() {
       .catch((err) => console.error("Error cargando madrijim", err));
   }, [proyectoId, sesionMadrij, user]);
 
+  useEffect(() => {
+    if (pendingScrollId.current) {
+      seleccionar(pendingScrollId.current);
+      pendingScrollId.current = null;
+    }
+  }, [janijim]);
+
   const agregar = async (nombre: string) => {
     try {
       const inserted = await addJanijim(proyectoId, [nombre]);
@@ -103,7 +111,7 @@ export default function JanijimPage() {
         estado: "ausente" as const,
       };
       setJanijim((prev) => [...prev, nuevo]);
-      seleccionar(inserted[0].id);
+      pendingScrollId.current = inserted[0].id;
     } catch {
       alert("Error agregando janij");
     }
@@ -517,6 +525,12 @@ export default function JanijimPage() {
           </li>
         ))}
       </ul>
+      <button
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        className="mx-auto mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg block"
+      >
+        Volver arriba
+      </button>
       </>)}
 
       <Sheet open={importOpen} onOpenChange={setImportOpen}>
