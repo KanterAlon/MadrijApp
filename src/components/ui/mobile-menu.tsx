@@ -18,6 +18,7 @@ type MobileMenuProps = {
 };
 
 const links = [
+  { href: "/dashboard", label: "Mis Proyectos" },
   { href: "", label: "Inicio" },
   { href: "janijim", label: "Janijim" },
   { href: "notas", label: "Notas" },
@@ -47,7 +48,9 @@ export default function MobileMenu({ proyectoId }: MobileMenuProps) {
 
           <nav className="space-y-4 mt-6">
             {links.map(({ href, label }) => {
-              const fullPath = href
+              const fullPath = href.startsWith("/")
+                ? href
+                : href
                 ? `/proyecto/${proyectoId}/${href}`
                 : `/proyecto/${proyectoId}`;
               const isActive = pathname === fullPath || pathname === fullPath + "/";

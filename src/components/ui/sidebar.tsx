@@ -11,10 +11,12 @@ import {
   PencilRuler,
   PartyPopper,
   Bot,
-  Home
+  Home,
+  LayoutDashboard,
 } from "lucide-react";
 
 const links = [
+  { href: "/dashboard", label: "Mis Proyectos", icon: LayoutDashboard },
   { href: "", label: "Inicio", icon: Home },
   { href: "janijim", label: "Janijim", icon: ClipboardList },
   { href: "notas", label: "Notas", icon: Book },
@@ -32,7 +34,9 @@ export default function Sidebar({ proyectoId }: { proyectoId: string }) {
     <aside className="hidden md:block w-64 bg-white border-r p-4">
       <nav className="space-y-2">
         {links.map(({ href, label, icon: Icon }) => {
-          const fullPath = href
+          const fullPath = href.startsWith("/")
+            ? href
+            : href
             ? `/proyecto/${proyectoId}/${href}`
             : `/proyecto/${proyectoId}`;
           const isActive = pathname === fullPath || pathname === fullPath + "/";
