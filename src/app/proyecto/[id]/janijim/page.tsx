@@ -482,7 +482,7 @@ export default function JanijimPage() {
                 icon={<FileUp className="w-4 h-4" />}
                 onClick={() => setImportOpen(true)}
               >
-                Importar
+                Insertar
               </Button>
             </div>
             <Button
@@ -574,7 +574,7 @@ export default function JanijimPage() {
               <SheetHeader>
                 <SheetTitle>Insertar janijim</SheetTitle>
                 <SheetDescription>
-                  ¿Cómo querés importar la lista de janijim?
+                  ¿Cómo querés Insertar la lista de janijim?
                 </SheetDescription>
               </SheetHeader>
               <div className="p-4 space-y-4">
@@ -597,7 +597,7 @@ export default function JanijimPage() {
           {importMode === "file" && (
             <>
               <SheetHeader>
-                <SheetTitle>Importar desde archivo</SheetTitle>
+                <SheetTitle>Insertar desde archivo</SheetTitle>
                 <SheetDescription>
                   Seleccioná un archivo CSV/Excel con los nombres.
                 </SheetDescription>
@@ -624,9 +624,9 @@ export default function JanijimPage() {
           {importMode === "manual" && (
             <>
               <SheetHeader>
-                <SheetTitle>Importar manualmente</SheetTitle>
+                <SheetTitle>Insertar manualmente</SheetTitle>
                 <SheetDescription>
-                  Escribí un nombre por línea y luego tocá Importar.
+                  Escribí un nombre por línea y luego tocá Insertar.
                 </SheetDescription>
               </SheetHeader>
               <div className="p-4 space-y-4">
@@ -639,7 +639,7 @@ export default function JanijimPage() {
               </div>
               <SheetFooter>
                 <Button icon={<FileUp className="w-4 h-4" />} onClick={importFromText}>
-                  Importar
+                  Insertar
                 </Button>
                 <Button
                   variant="secondary"
@@ -676,7 +676,7 @@ export default function JanijimPage() {
           </div>
           <SheetFooter>
             <Button icon={<FileUp className="w-4 h-4" />} onClick={importColumn}>
-              Importar
+              Insertar
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -689,7 +689,7 @@ export default function JanijimPage() {
             <SheetDescription>
               Se agregarán {uniqueNames.length} janijim nuevos.
               {duplicateNames.length > 0 &&
-                " Seleccioná los repetidos que quieras importar."}
+                " Seleccioná los repetidos que quieras Insertar."}
             </SheetDescription>
           </SheetHeader>
           {duplicateNames.length > 0 && (
@@ -717,7 +717,7 @@ export default function JanijimPage() {
               onClick={confirmImport}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg"
             >
-              Importar
+              Insertar
             </button>
           </SheetFooter>
         </SheetContent>
