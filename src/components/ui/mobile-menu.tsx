@@ -33,7 +33,7 @@ export default function MobileMenu({ proyectoId }: MobileMenuProps) {
   return (
     <div className="md:hidden p-4 bg-white shadow-md flex items-center">
       <Sheet>
-        <SheetTrigger>
+        <SheetTrigger aria-label="Abrir men\u00fa de navegaci\u00f3n">
           <Menu className="text-blue-700" />
         </SheetTrigger>
         <SheetContent side="left" className="w-64 p-4">
