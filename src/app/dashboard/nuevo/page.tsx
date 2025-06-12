@@ -59,7 +59,7 @@ export default function NuevoProyectoPage() {
       </h1>
       <input
         type="text"
-        placeholder="Nombre del proyecto"
+        placeholder="Ej.: Campamento de verano"
         className="p-2 border rounded w-full mb-4"
         value={nombre}
         onChange={(e) => setNombre(e.target.value)}

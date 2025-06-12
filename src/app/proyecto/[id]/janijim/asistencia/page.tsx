@@ -14,6 +14,7 @@ import {
   getSesion,
 } from "@/lib/supabase/asistencias";
 import { supabase } from "@/lib/supabase";
+import { Search } from "lucide-react";
 
 type AsistenciaRow = {
   janij_id: string;
@@ -272,7 +273,8 @@ export default function AsistenciaPage() {
       )}
       <div className="max-w-2xl mx-auto mt-12 space-y-4">
         <h2 className="text-xl font-semibold">{sesion?.nombre}</h2>
-        <div className="relative flex items-center gap-2">
+        <div className="relative flex items-center">
+          <Search className="absolute left-2 w-4 h-4 text-gray-400 pointer-events-none" />
           <input
             type="text"
             value={search}
@@ -282,8 +284,8 @@ export default function AsistenciaPage() {
               setSearch(e.target.value);
               setShowResults(true);
             }}
-            placeholder="Buscar janij..."
-            className="w-full border rounded-lg p-2"
+            placeholder="Buscá un janij por nombre"
+            className="w-full border rounded-lg p-2 pl-8"
           />
           {showResults && search.trim() !== "" && (
             <ul className="absolute z-10 left-0 top-full mt-1 w-full bg-white border rounded shadow max-h-60 overflow-auto">
