@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { UserButton } from "@clerk/nextjs";
 import {
   ClipboardList,
   Book,
@@ -31,8 +32,8 @@ export default function Sidebar({ proyectoId }: { proyectoId: string }) {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden md:block w-64 bg-white border-r p-4">
-      <nav className="space-y-2">
+    <aside className="hidden md:flex w-64 bg-white border-r p-4 flex-col">
+      <nav className="space-y-2 flex-1">
         {links.map(({ href, label, icon: Icon }) => {
           const fullPath = href.startsWith("/")
             ? href
@@ -58,6 +59,9 @@ export default function Sidebar({ proyectoId }: { proyectoId: string }) {
           );
         })}
       </nav>
+      <div className="pt-4 mt-4 border-t">
+        <UserButton afterSignOutUrl="/" />
+      </div>
     </aside>
   );
 }
