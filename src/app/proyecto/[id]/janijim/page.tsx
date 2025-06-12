@@ -375,19 +375,19 @@ export default function JanijimPage() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
             <div className="flex flex-col flex-1 gap-2 sm:flex-row">
               <div className="relative flex flex-1 items-center">
-              <Search className="absolute left-2 w-4 h-4 text-gray-400 pointer-events-none" />
-              <input
-                type="text"
-                value={search}
-                onFocus={() => setShowResults(true)}
-                onBlur={() => setTimeout(() => setShowResults(false), 100)}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setShowResults(true);
-                }}
-                placeholder="Buscá un janij por nombre"
-                className="flex-1 border rounded-lg p-2 pl-8 focus:ring-2 focus:ring-blue-600 focus:outline-none"
-              />
+                <Search className="absolute left-2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={search}
+                  onFocus={() => setShowResults(true)}
+                  onBlur={() => setTimeout(() => setShowResults(false), 100)}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setShowResults(true);
+                  }}
+                  placeholder="Buscá un janij por nombre"
+                  className="w-full border rounded-lg p-2 pl-8 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                />
 
               {showResults && search.trim() !== "" && (
                 <ul className="absolute z-10 left-0 top-full mt-1 w-full bg-white border rounded shadow max-h-60 overflow-auto">
@@ -472,12 +472,12 @@ export default function JanijimPage() {
           aria-label={`Agregar ${search.trim()}`}
         >
           Agregar &quot;{search.trim()}&quot;
-        </li>
+                </li>
       )}
   </ul>
 )}
 
-
+              </div>
               <Button
                 className="w-full sm:w-auto shrink-0 sm:ml-2"
                 icon={<FileUp className="w-4 h-4" />}
@@ -485,10 +485,9 @@ export default function JanijimPage() {
               >
                 Insertar
               </Button>
-              </div>
             </div>
             <Button
-              className="w-full sm:w-auto shrink-0"
+              className="w-full sm:w-auto shrink-0 sm:ml-2"
               icon={<Check className="w-4 h-4" />}
               onClick={() => setSesionOpen(true)}
             >
