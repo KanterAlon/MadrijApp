@@ -1,5 +1,6 @@
 import Sidebar from "@/components/ui/sidebar";
 import MobileMenu from "@/components/ui/mobile-menu";
+import { UserButton } from "@clerk/nextjs";
 
 export default async function ProyectoLayout({
   children,
@@ -13,8 +14,11 @@ export default async function ProyectoLayout({
   return (
     <div className="min-h-screen md:flex">
       <Sidebar proyectoId={proyectoId} />
-      <div className="flex-1">
+      <div className="flex-1 flex flex-col">
         <MobileMenu proyectoId={proyectoId} />
+        <header className="p-4 border-b flex justify-end">
+          <UserButton afterSignOutUrl="/" />
+        </header>
         <main className="p-6">{children}</main>
       </div>
     </div>
