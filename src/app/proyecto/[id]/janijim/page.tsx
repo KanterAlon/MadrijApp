@@ -351,6 +351,14 @@ export default function JanijimPage() {
     <div className="max-w-2xl mx-auto mt-12 space-y-4">
       <ActiveSesionCard proyectoId={proyectoId} />
 
+      <input
+        ref={fileInput}
+        type="file"
+        accept=".csv,.xlsx,.xls"
+        onChange={handleFile}
+        className="hidden"
+      />
+
       {janijim.length === 0 ? (
         <div className="text-center space-y-4 py-12 border rounded-lg">
           <p className="text-gray-600">Insertá janijim para comenzar</p>
@@ -476,13 +484,6 @@ export default function JanijimPage() {
               >
                 Importar
               </Button>
-              <input
-                ref={fileInput}
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                onChange={handleFile}
-                className="hidden"
-              />
             </div>
             <Button
               className="shrink-0"
