@@ -31,9 +31,11 @@ export async function getSesionActiva(proyectoId: string) {
     .select("*")
     .eq("proyecto_id", proyectoId)
     .eq("finalizado", false)
-    .single();
-  if (error && error.code !== "PGRST116") throw error;
-  return data;
+    .order("inicio", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
 }
 
 export async function finalizarSesion(id: string) {

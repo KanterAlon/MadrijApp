@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getSesionActiva } from "@/lib/supabase/asistencias";
@@ -16,6 +16,7 @@ type SesionData = {
 export default function ActiveSesionCard({ proyectoId }: { proyectoId: string }) {
   const [sesion, setSesion] = useState<SesionData | null>(null);
   const [madrijNombre, setMadrijNombre] = useState<string>("");
+  const currentId = useRef<string | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -23,6 +24,7 @@ export default function ActiveSesionCard({ proyectoId }: { proyectoId: string })
       try {
         const s = await getSesionActiva(proyectoId);
         if (s && !ignore) {
+          currentId.current = s.id;
           setSesion(s as SesionData);
           getMadrijNombre(s.madrij_id)
             .then((n) => !ignore && setMadrijNombre(n))
@@ -46,9 +48,16 @@ export default function ActiveSesionCard({ proyectoId }: { proyectoId: string })
         },
         (payload) => {
           const data = payload.new as SesionData;
-          if (data.finalizado) {
-            setSesion(null);
-          } else {
+          if (payload.eventType === "UPDATE" && data.finalizado) {
+            if (currentId.current === data.id) {
+              setSesion(null);
+              currentId.current = null;
+            }
+            return;
+          }
+
+          if (!data.finalizado) {
+            currentId.current = data.id;
             setSesion(data);
             getMadrijNombre(data.madrij_id)
               .then((n) => setMadrijNombre(n))
