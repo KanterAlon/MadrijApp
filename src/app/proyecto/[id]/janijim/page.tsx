@@ -66,9 +66,6 @@ export default function JanijimPage() {
   const [editName, setEditName] = useState("");
   const [sesionOpen, setSesionOpen] = useState(false);
   const [sesionNombre, setSesionNombre] = useState("");
-  const [sesionFecha, setSesionFecha] = useState(
-    new Date().toISOString().slice(0, 16)
-  );
   const [madrijes, setMadrijes] = useState<{ clerk_id: string; nombre: string }[]>([]);
   const [sesionMadrij, setSesionMadrij] = useState<string>("");
   const pendingScrollId = useRef<string | null>(null);
@@ -279,11 +276,16 @@ export default function JanijimPage() {
   const iniciarSesion = async () => {
     if (!user) return;
     try {
+      const ahora = new Date();
+      const rounded = new Date(Math.ceil(ahora.getTime() / (15 * 60 * 1000)) * (15 * 60 * 1000));
+      const inicioIso = rounded.toISOString();
+      const fecha = inicioIso.split("T")[0];
       const sesion = await crearSesion(
         proyectoId,
         sesionNombre || "Asistencia",
-        sesionFecha.split("T")[0],
-        sesionMadrij || user.id
+        fecha,
+        sesionMadrij || user.id,
+        inicioIso
       );
       router.push(
         `/proyecto/${proyectoId}/janijim/asistencia?sesion=${sesion.id}`
@@ -729,7 +731,7 @@ export default function JanijimPage() {
           <SheetHeader>
             <SheetTitle>Nueva toma de asistencia</SheetTitle>
             <SheetDescription>
-              Ingresá el nombre, fecha y madrij encargado.
+              Ingresá el nombre y quién la lleva a cabo.
             </SheetDescription>
           </SheetHeader>
           <div className="p-4 space-y-4">
@@ -738,13 +740,6 @@ export default function JanijimPage() {
               value={sesionNombre}
               onChange={(e) => setSesionNombre(e.target.value)}
               placeholder="Nombre de la sesión"
-              className="w-full border rounded-lg p-2"
-            />
-            <input
-              type="datetime-local"
-              value={sesionFecha}
-              onChange={(e) => setSesionFecha(e.target.value)}
-              placeholder="Fecha y hora de inicio"
               className="w-full border rounded-lg p-2"
             />
             <select
