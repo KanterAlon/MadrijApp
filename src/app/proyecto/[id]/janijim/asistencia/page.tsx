@@ -171,6 +171,29 @@ export default function AsistenciaPage() {
     };
   }, [sesionId, user?.id]);
 
+  // Refresco periódico cada 5 segundos para asegurarnos de que
+  // el estado esté siempre sincronizado, incluso si se pierde un evento
+  useEffect(() => {
+    if (!sesionId) return;
+    const id = setInterval(() => {
+      Promise.all([getSesion(sesionId), getAsistencias(sesionId)])
+        .then(([s, a]) => {
+          if (s) {
+            setFinalizado(s.finalizado);
+          }
+          const m: Record<string, boolean> = {};
+          a.forEach((r) => {
+            m[r.janij_id] = r.presente;
+          });
+          setEstado(m);
+        })
+        .catch(() => {
+          /* ignore errors */
+        });
+    }, 5000);
+    return () => clearInterval(id);
+  }, [sesionId]);
+
   const toggle = async (janijId: string) => {
     if (!user || !sesionId) return;
     const nuevo = !estado[janijId];
