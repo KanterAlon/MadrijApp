@@ -1,7 +1,12 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
-import * as XLSX from "xlsx";
+import {
+  useState,
+  useMemo,
+  useRef,
+  useEffect,
+  useCallback,
+} from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import useHighlightScroll from "@/hooks/useHighlightScroll";
@@ -72,6 +77,15 @@ export default function JanijimPage() {
   const [sesionMadrij, setSesionMadrij] = useState<string>("");
   const pendingScrollId = useRef<string | null>(null);
 
+  const seleccionar = useCallback(
+    (id: string) => {
+      setShowResults(false);
+      setSearch("");
+      scrollTo(id);
+    },
+    [scrollTo]
+  );
+
   useEffect(() => {
     if (importOpen) setImportMode("chooser");
   }, [importOpen]);
@@ -106,7 +120,7 @@ export default function JanijimPage() {
       seleccionar(pendingScrollId.current);
       pendingScrollId.current = null;
     }
-  }, [janijim]);
+  }, [janijim, seleccionar]);
 
   const agregar = async (nombre: string) => {
     try {
@@ -122,13 +136,6 @@ export default function JanijimPage() {
       alert("Error agregando janij");
     }
   };
-
-  const seleccionar = (id: string) => {
-    setShowResults(false);
-    setSearch("");
-    scrollTo(id);
-  };
-
 
   const renameJanij = async (id: string, nombre: string) => {
     try {
@@ -171,32 +178,37 @@ export default function JanijimPage() {
     }
   };
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const finalize = (rows: string[][]) => {
+      setRows(rows);
+      setColumns(rows[0] || []);
+      setImportOpen(false);
+      setColumnOpen(true);
+      e.target.value = "";
+    };
 
     const reader = new FileReader();
 
     if (file.name.endsWith(".csv")) {
       reader.onload = (event) => {
-        const text = event.target?.result as string;
-        const lines = text.split("\n").map((line) => line.split(","));
-        setRows(lines);
-        setColumns(lines[0]);
-        setImportOpen(false);
-        setColumnOpen(true);
+        const text = (event.target?.result as string) || "";
+        const lines = text
+          .split(/\r?\n/)
+          .map((line) => line.split(","));
+        finalize(lines);
       };
       reader.readAsText(file);
     } else {
+      const xlsx = await import("xlsx");
       reader.onload = (event) => {
         const data = new Uint8Array(event.target?.result as ArrayBuffer);
-        const wb = XLSX.read(data, { type: "array" });
+        const wb = xlsx.read(data, { type: "array" });
         const sheet = wb.Sheets[wb.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as string[][];
-        setRows(json);
-        setColumns(json[0]);
-        setImportOpen(false);
-        setColumnOpen(true);
+        const json = xlsx.utils.sheet_to_json(sheet, { header: 1 }) as string[][];
+        finalize(json);
       };
       reader.readAsArrayBuffer(file);
     }
