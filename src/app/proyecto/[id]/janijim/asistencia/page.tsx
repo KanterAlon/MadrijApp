@@ -143,7 +143,7 @@ export default function AsistenciaPage() {
           setEstado((prev) => ({ ...prev, [data.janij_id]: data.presente }));
           if (data.madrij_id !== user?.id) {
             setUpdating(true);
-            setTimeout(() => setUpdating(false), 300);
+            setTimeout(() => setUpdating(false), 150);
           }
         }
       )
@@ -160,7 +160,7 @@ export default function AsistenciaPage() {
           if (data.finalizado) {
             setUpdating(true);
             setFinalizado(true);
-            setTimeout(() => setUpdating(false), 300);
+            setTimeout(() => setUpdating(false), 150);
           }
         }
       )
