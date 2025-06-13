@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import useMediaQuery from "@/hooks/useMediaQuery";
 import {
   FolderKanban,
   ShoppingCart,
@@ -92,6 +93,8 @@ export default function MaterialesPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [materialActual, setMaterialActual] = useState<Material | null>(null);
   const [filtroAsignado, setFiltroAsignado] = useState("");
+
+  const isDesktop = useMediaQuery("(min-width: 640px)");
 
   useEffect(() => {
     if (!proyectoId || !list) return;
@@ -431,13 +434,16 @@ export default function MaterialesPage() {
           setSheetOpen(open);
         }}
       >
-        <SheetContent className="w-full sm:w-96 h-dvh">
+        <SheetContent
+          side={isDesktop ? "right" : "bottom"}
+          className="w-full sm:w-96 h-dvh"
+        >
           {materialActual && (
             <div className="flex flex-col h-full">
               <SheetHeader>
                 <SheetTitle>Editar material</SheetTitle>
               </SheetHeader>
-              <div className="flex-1 overflow-y-auto space-y-3 p-4">
+              <div className="flex-1 overflow-y-auto space-y-3 p-4 pb-32 sm:pb-4">
                 <input
                   value={materialActual.nombre}
                   onChange={(e) =>
@@ -509,7 +515,7 @@ export default function MaterialesPage() {
                     </DropdownMenu.Content>
                   </DropdownMenu.Root>
                   {mostrarAgregar && (
-                    <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                    <div className="flex flex-col gap-2 mt-2 sm:flex-row">
                       <input
                         value={nuevoItemGeneral}
                         onChange={(e) => setNuevoItemGeneral(e.target.value)}
@@ -517,7 +523,7 @@ export default function MaterialesPage() {
                         placeholder="Nuevo item"
                       />
                       <Button
-                        className="sm:flex-1"
+                        className="w-full sm:flex-1"
                         icon={<Plus className="w-4 h-4" />}
                         onClick={() => {
                           const campo: "compraItems" | "sedeItems" | "sanMiguelItems" =
@@ -536,7 +542,7 @@ export default function MaterialesPage() {
                       <Button
                         variant="secondary"
                         onClick={() => setMostrarAgregar(false)}
-                        className="sm:flex-1"
+                        className="w-full sm:flex-1"
                         icon={<X className="w-4 h-4" />}
                       >
                         Cancelar
