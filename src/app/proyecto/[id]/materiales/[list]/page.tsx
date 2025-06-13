@@ -462,21 +462,22 @@ export default function MaterialesPage() {
                     <DropdownMenu.Trigger asChild>
                       <Button
                         variant="secondary"
-                        className="flex items-center gap-1 mb-2"
+                        className="mb-2 justify-start"
+                        icon={<Plus className="w-4 h-4" />}
                       >
-                        <Plus className="w-4 h-4" />
-                        <span>Faltan materiales</span>
+                        Faltan materiales
                       </Button>
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Content
-                      align="end"
-                      className="z-20 w-48 rounded border bg-white shadow focus:outline-none"
+                      align="start"
+                      sideOffset={4}
+                      className="z-20 w-52 rounded-md border border-gray-200 bg-white p-1 shadow-lg focus:outline-none"
                     >
                       <DropdownMenu.Label className="px-2 py-1 text-sm font-medium text-gray-600">
                         ¿Qué necesitás?
                       </DropdownMenu.Label>
                       <DropdownMenu.Item
-                        className="flex w-full items-center gap-2 p-2 text-sm outline-none focus:bg-gray-100"
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 outline-none hover:bg-gray-100 focus:bg-gray-100"
                         onSelect={() => {
                           setTipoNuevoItem("compra");
                           setMostrarAgregar(true);
@@ -486,7 +487,7 @@ export default function MaterialesPage() {
                         <ShoppingCart className="w-4 h-4" /> Comprar
                       </DropdownMenu.Item>
                       <DropdownMenu.Item
-                        className="flex w-full items-center gap-2 p-2 text-sm outline-none focus:bg-gray-100"
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 outline-none hover:bg-gray-100 focus:bg-gray-100"
                         onSelect={() => {
                           setTipoNuevoItem("sede");
                           setMostrarAgregar(true);
@@ -496,7 +497,7 @@ export default function MaterialesPage() {
                         <Building2 className="w-4 h-4" /> Retirar en sede
                       </DropdownMenu.Item>
                       <DropdownMenu.Item
-                        className="flex w-full items-center gap-2 p-2 text-sm outline-none focus:bg-gray-100"
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 outline-none hover:bg-gray-100 focus:bg-gray-100"
                         onSelect={() => {
                           setTipoNuevoItem("sanMiguel");
                           setMostrarAgregar(true);
