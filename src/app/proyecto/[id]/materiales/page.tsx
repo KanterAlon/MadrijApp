@@ -28,6 +28,10 @@ export default function MaterialesPage() {
     compra: boolean;
     sede: boolean;
     sanMiguel: boolean;
+    armarEnSanMiguel: boolean;
+    compraItems: string[];
+    sedeItems: string[];
+    sanMiguelItems: string[];
     estado: Estado;
   }
 
@@ -60,6 +64,10 @@ export default function MaterialesPage() {
       compra: false,
       sede: false,
       sanMiguel: false,
+      armarEnSanMiguel: false,
+      compraItems: [],
+      sedeItems: [],
+      sanMiguelItems: [],
       estado: "por hacer",
     };
     setMateriales((prev) => [...prev, nuevo]);
@@ -166,6 +174,7 @@ export default function MaterialesPage() {
         </div>
       </section>
 
+
       {/* Cosas para llevar */}
       <section className="space-y-4">
         <h2 className="text-2xl font-semibold text-blue-800">Cosas para llevar</h2>
@@ -228,6 +237,60 @@ export default function MaterialesPage() {
         </div>
       </section>
 
+      {/* Cosas a comprar */}
+      <section className="space-y-2">
+        <h2 className="text-2xl font-semibold text-blue-800">Cosas a comprar</h2>
+        <div className="space-y-1">
+          {materiales.filter((m) => m.compra && m.compraItems.length > 0).length === 0 && (
+            <p className="text-sm text-gray-500">Sin compras</p>
+          )}
+          {materiales
+            .filter((m) => m.compra && m.compraItems.length > 0)
+            .map((m) =>
+              m.compraItems.map((item, idx) => (
+                <div
+                  key={`${m.id}-c-${idx}`}
+                  onClick={() => {
+                    setMaterialActual(m);
+                    setSheetOpen(true);
+                  }}
+                  className="cursor-pointer hover:underline"
+                >
+                  {item} <span className="text-xs text-gray-600">({m.nombre})</span>
+                </div>
+              ))
+            )}
+        </div>
+      </section>
+
+      {/* Cosas para retirar en la sede */}
+      <section className="space-y-2">
+        <h2 className="text-2xl font-semibold text-blue-800">
+          Cosas para retirar en la sede
+        </h2>
+        <div className="space-y-1">
+          {materiales.filter((m) => m.sede && m.sedeItems.length > 0).length === 0 && (
+            <p className="text-sm text-gray-500">Sin retiros</p>
+          )}
+          {materiales
+            .filter((m) => m.sede && m.sedeItems.length > 0)
+            .map((m) =>
+              m.sedeItems.map((item, idx) => (
+                <div
+                  key={`${m.id}-s-${idx}`}
+                  onClick={() => {
+                    setMaterialActual(m);
+                    setSheetOpen(true);
+                  }}
+                  className="cursor-pointer hover:underline"
+                >
+                  {item} <span className="text-xs text-gray-600">({m.nombre})</span>
+                </div>
+              ))
+            )}
+        </div>
+      </section>
+
       <Sheet
         open={sheetOpen}
         onOpenChange={(open) => {
@@ -275,6 +338,23 @@ export default function MaterialesPage() {
                   />
                   <ShoppingCart className="w-4 h-4" /> Comprar material
                 </label>
+                {materialActual.compra && (
+                  <input
+                    value={materialActual.compraItems.join(", ")}
+                    onChange={(e) =>
+                      actualizarMaterial(
+                        materialActual.id,
+                        "compraItems",
+                        e.target.value
+                          .split(/,\s*/)
+                          .map((s) => s.trim())
+                          .filter(Boolean)
+                      )
+                    }
+                    className="border rounded p-1 w-full text-sm"
+                    placeholder="Qué comprar"
+                  />
+                )}
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -289,6 +369,23 @@ export default function MaterialesPage() {
                   />
                   <Building2 className="w-4 h-4" /> Retirar de la sede
                 </label>
+                {materialActual.sede && (
+                  <input
+                    value={materialActual.sedeItems.join(", ")}
+                    onChange={(e) =>
+                      actualizarMaterial(
+                        materialActual.id,
+                        "sedeItems",
+                        e.target.value
+                          .split(/,\s*/)
+                          .map((s) => s.trim())
+                          .filter(Boolean)
+                      )
+                    }
+                    className="border rounded p-1 w-full text-sm"
+                    placeholder="Qué retirar en sede"
+                  />
+                )}
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -301,7 +398,38 @@ export default function MaterialesPage() {
                       )
                     }
                   />
-                  <Tent className="w-4 h-4" /> Llevar a San Miguel
+                  <Tent className="w-4 h-4" /> Usar en San Miguel
+                </label>
+                {materialActual.sanMiguel && (
+                  <input
+                    value={materialActual.sanMiguelItems.join(", ")}
+                    onChange={(e) =>
+                      actualizarMaterial(
+                        materialActual.id,
+                        "sanMiguelItems",
+                        e.target.value
+                          .split(/,\s*/)
+                          .map((s) => s.trim())
+                          .filter(Boolean)
+                      )
+                    }
+                    className="border rounded p-1 w-full text-sm"
+                    placeholder="Qué usar en San Miguel"
+                  />
+                )}
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={materialActual.armarEnSanMiguel}
+                    onChange={(e) =>
+                      actualizarMaterial(
+                        materialActual.id,
+                        "armarEnSanMiguel",
+                        e.target.checked
+                      )
+                    }
+                  />
+                  <Tent className="w-4 h-4" /> Armar en San Miguel
                 </label>
                 <label className="flex items-center gap-2">
                   <span>Asignado a:</span>
