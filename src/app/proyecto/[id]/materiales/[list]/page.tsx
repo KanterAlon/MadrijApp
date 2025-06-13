@@ -2,7 +2,15 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { FolderKanban, ShoppingCart, Building2, Tent, Trash2, Plus } from "lucide-react";
+import {
+  FolderKanban,
+  ShoppingCart,
+  Building2,
+  Tent,
+  Trash2,
+  Plus,
+} from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Button from "@/components/ui/button";
 import DiagonalToggle from "@/components/ui/diagonal-toggle";
 import {
@@ -393,53 +401,55 @@ export default function MaterialesPage() {
                   placeholder="Descripción"
                 />
                 <div>
-                  <div className="relative mb-2">
-                    <Button
-                      variant="secondary"
-                      onClick={() => setMenuOpen((p) => !p)}
-                      className="flex items-center gap-1"
+                  <DropdownMenu.Root open={menuOpen} onOpenChange={setMenuOpen}>
+                    <DropdownMenu.Trigger asChild>
+                      <Button
+                        variant="secondary"
+                        className="flex items-center gap-1 mb-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Faltan materiales</span>
+                      </Button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content
+                      align="end"
+                      className="z-20 w-48 rounded border bg-white shadow focus:outline-none"
                     >
-                      <Plus className="w-4 h-4" />
-                      <span>Faltan materiales</span>
-                    </Button>
-                    {menuOpen && (
-                      <div className="absolute right-0 z-20 mt-1 w-48 rounded border bg-white shadow">
-                        <div className="px-2 py-1 text-sm font-medium text-gray-600">
-                          ¿Qué necesitás?
-                        </div>
-                        <button
-                          className="flex w-full items-center gap-2 p-2 hover:bg-gray-100"
-                          onClick={() => {
-                            setTipoNuevoItem("compra");
-                            setMostrarAgregar(true);
-                            setMenuOpen(false);
-                          }}
-                        >
-                          <ShoppingCart className="w-4 h-4" /> Comprar
-                        </button>
-                        <button
-                          className="flex w-full items-center gap-2 p-2 hover:bg-gray-100"
-                          onClick={() => {
-                            setTipoNuevoItem("sede");
-                            setMostrarAgregar(true);
-                            setMenuOpen(false);
-                          }}
-                        >
-                          <Building2 className="w-4 h-4" /> Retirar en sede
-                        </button>
-                        <button
-                          className="flex w-full items-center gap-2 p-2 hover:bg-gray-100"
-                          onClick={() => {
-                            setTipoNuevoItem("sanMiguel");
-                            setMostrarAgregar(true);
-                            setMenuOpen(false);
-                          }}
-                        >
-                          <Tent className="w-4 h-4" /> Buscar en San Miguel
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                      <DropdownMenu.Label className="px-2 py-1 text-sm font-medium text-gray-600">
+                        ¿Qué necesitás?
+                      </DropdownMenu.Label>
+                      <DropdownMenu.Item
+                        className="flex w-full items-center gap-2 p-2 text-sm outline-none focus:bg-gray-100"
+                        onSelect={() => {
+                          setTipoNuevoItem("compra");
+                          setMostrarAgregar(true);
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <ShoppingCart className="w-4 h-4" /> Comprar
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item
+                        className="flex w-full items-center gap-2 p-2 text-sm outline-none focus:bg-gray-100"
+                        onSelect={() => {
+                          setTipoNuevoItem("sede");
+                          setMostrarAgregar(true);
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <Building2 className="w-4 h-4" /> Retirar en sede
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item
+                        className="flex w-full items-center gap-2 p-2 text-sm outline-none focus:bg-gray-100"
+                        onSelect={() => {
+                          setTipoNuevoItem("sanMiguel");
+                          setMostrarAgregar(true);
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <Tent className="w-4 h-4" /> Buscar en San Miguel
+                      </DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Root>
                   {mostrarAgregar && (
                     <div className="flex gap-2 mt-2">
                       <input
