@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   FolderKanban,
   ShoppingCart,
   Building2,
   Tent,
+  Trash2,
 } from "lucide-react";
 import Button from "@/components/ui/button";
 import {
@@ -54,6 +55,21 @@ export default function MaterialesPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [materialActual, setMaterialActual] = useState<Material | null>(null);
 
+  useEffect(() => {
+    const storedMat = localStorage.getItem("materiales");
+    if (storedMat) setMateriales(JSON.parse(storedMat));
+    const storedItems = localStorage.getItem("itemsLlevar");
+    if (storedItems) setItems(JSON.parse(storedItems));
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("materiales", JSON.stringify(materiales));
+  }, [materiales]);
+
+  useEffect(() => {
+    localStorage.setItem("itemsLlevar", JSON.stringify(items));
+  }, [items]);
+
   const crearMaterial = () => {
     if (!nuevoNombre.trim()) return;
     const nuevo: Material = {
@@ -93,6 +109,9 @@ export default function MaterialesPage() {
     setMateriales((prev) =>
       prev.map((m) => (m.id === id ? { ...m, estado } : m))
     );
+    setMaterialActual((prev) =>
+      prev && prev.id === id ? { ...prev, estado } : prev
+    );
   };
 
   const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -107,6 +126,9 @@ export default function MaterialesPage() {
     setMateriales((prev) =>
       prev.map((m) => (m.id === id ? { ...m, [campo]: valor } : m))
     );
+    setMaterialActual((prev) =>
+      prev && prev.id === id ? { ...prev, [campo]: valor } : prev
+    );
   };
 
   const actualizarItem = (
@@ -117,6 +139,18 @@ export default function MaterialesPage() {
     setItems((prev) =>
       prev.map((i) => (i.id === id ? { ...i, [campo]: valor } : i))
     );
+  };
+
+  const eliminarMaterial = (id: string) => {
+    if (!confirm("¿Eliminar material?")) return;
+    setMateriales((prev) => prev.filter((m) => m.id !== id));
+    setSheetOpen(false);
+    setMaterialActual(null);
+  };
+
+  const eliminarItem = (id: string) => {
+    if (!confirm("¿Eliminar item?")) return;
+    setItems((prev) => prev.filter((i) => i.id !== id));
   };
 
   return (
@@ -191,8 +225,15 @@ export default function MaterialesPage() {
           {items.map((item) => (
             <div
               key={item.id}
-              className="bg-white rounded p-3 shadow"
+              className="bg-white rounded p-3 shadow relative"
             >
+              <button
+                onClick={() => eliminarItem(item.id)}
+                aria-label="Eliminar"
+                className="absolute top-2 right-2 text-red-600 hover:text-red-800"
+              >
+                <Trash2 size={16} />
+              </button>
               <div className="font-medium mb-2">{item.nombre}</div>
               <label className="flex items-center gap-2 text-sm mb-1">
                 <input
@@ -448,9 +489,20 @@ export default function MaterialesPage() {
                 </label>
               </div>
               <SheetFooter>
-                <SheetClose asChild>
-                  <Button variant="secondary">Cerrar</Button>
-                </SheetClose>
+                <div className="flex w-full gap-2">
+                  <Button
+                    variant="danger"
+                    onClick={() => eliminarMaterial(materialActual.id)}
+                    className="flex-1"
+                  >
+                    Eliminar
+                  </Button>
+                  <SheetClose asChild>
+                    <Button variant="secondary" className="flex-1">
+                      Cerrar
+                    </Button>
+                  </SheetClose>
+                </div>
               </SheetFooter>
             </div>
           )}
