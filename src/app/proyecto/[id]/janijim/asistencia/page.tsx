@@ -14,7 +14,7 @@ import {
   getSesion,
 } from "@/lib/supabase/asistencias";
 import { supabase } from "@/lib/supabase";
-import { Search, FileUp, Check } from "lucide-react";
+import { Search, FileUp, Check, ArrowLeft } from "lucide-react";
 import Button from "@/components/ui/button";
 
 type AsistenciaRow = {
@@ -260,6 +260,7 @@ export default function AsistenciaPage() {
           className="w-full"
           variant="secondary"
           onClick={() => router.push(`/proyecto/${proyectoId}/janijim`)}
+          icon={<ArrowLeft className="w-4 h-4" />}
         >
           Volver al menú
         </Button>

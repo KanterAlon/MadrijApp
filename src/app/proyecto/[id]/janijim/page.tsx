@@ -25,6 +25,8 @@ import {
   Check,
   X,
   Search,
+  ArrowLeft,
+  ArrowUp,
 } from "lucide-react";
 import Button from "@/components/ui/button";
 import Skeleton from "@/components/ui/skeleton";
@@ -563,6 +565,7 @@ export default function JanijimPage() {
       <Button
         className="mx-auto mt-4 block"
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        icon={<ArrowUp className="w-4 h-4" />}
       >
         Volver arriba
       </Button>
@@ -614,9 +617,10 @@ export default function JanijimPage() {
               <SheetFooter>
                 <button
                   onClick={() => setImportMode("chooser")}
-                  className="px-4 py-2 bg-gray-200 rounded-lg"
+                  className="px-4 py-2 bg-gray-200 rounded-lg inline-flex items-center gap-1"
                 >
-                  Volver
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Volver</span>
                 </button>
               </SheetFooter>
             </>
@@ -645,6 +649,7 @@ export default function JanijimPage() {
                 <Button
                   variant="secondary"
                   onClick={() => setImportMode("chooser")}
+                  icon={<ArrowLeft className="w-4 h-4" />}
                 >
                   Volver
                 </Button>

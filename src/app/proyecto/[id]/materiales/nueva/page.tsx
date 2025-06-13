@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
+import BackLink from "@/components/ui/back-link";
 import Button from "@/components/ui/button";
 import { addMaterialList } from "@/lib/supabase/materiales";
 import { PlusCircle, X } from "lucide-react";
@@ -29,12 +29,7 @@ export default function NuevaListaPage() {
 
   return (
     <div className="max-w-md mx-auto mt-24 bg-white p-6 rounded-2xl shadow">
-      <Link
-        href=".."
-        className="text-blue-600 hover:underline mb-4 inline-block"
-      >
-        &larr; Volver
-      </Link>
+      <BackLink href=".." className="mb-4 inline-flex" />
       <h1 className="text-2xl font-bold mb-4 text-center text-blue-700">
         Nueva Lista de Materiales
       </h1>
