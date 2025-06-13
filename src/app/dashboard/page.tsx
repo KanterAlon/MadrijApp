@@ -9,7 +9,7 @@ import {
   deleteProyecto,
 } from "@/lib/supabase/projects";
 import Loader from "@/components/ui/loader";
-import { Pencil, Trash2, Check, X } from "lucide-react";
+import { Pencil, Trash2, Check, X, FolderPlus, Handshake } from "lucide-react";
 
 type Proyecto = {
   id: string;
@@ -177,15 +177,17 @@ export default function DashboardPage() {
       <div className="mt-6 flex flex-col gap-4 sm:flex-row">
         <Link
           href="/dashboard/nuevo"
-          className="flex-1 rounded-md bg-blue-600 px-4 py-3 text-center font-medium text-white transition hover:bg-blue-700"
+          className="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-3 text-center font-medium text-white transition hover:bg-blue-700"
         >
-          + Crear nuevo proyecto
+          <FolderPlus className="w-4 h-4" />
+          <span>Crear nuevo proyecto</span>
         </Link>
         <Link
           href="/dashboard/unirse"
-          className="flex-1 rounded-md bg-green-600 px-4 py-3 text-center font-medium text-white transition hover:bg-green-700"
+          className="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-green-600 px-4 py-3 text-center font-medium text-white transition hover:bg-green-700"
         >
-          + Unirse a proyecto
+          <Handshake className="w-4 h-4" />
+          <span>Unirse a proyecto</span>
         </Link>
       </div>
     </div>

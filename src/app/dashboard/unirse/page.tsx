@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import Button from "@/components/ui/button";
-import { LogIn } from "lucide-react";
+import { Handshake } from "lucide-react";
 
 export default function UnirseProyectoPage() {
   const { user } = useUser();
@@ -62,7 +62,7 @@ export default function UnirseProyectoPage() {
       <Button
         onClick={handleJoin}
         loading={loading}
-        icon={<LogIn className="w-4 h-4" />}
+        icon={<Handshake className="w-4 h-4" />}
         variant="secondary"
       >
         Unirse
