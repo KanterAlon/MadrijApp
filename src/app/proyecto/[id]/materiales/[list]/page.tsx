@@ -399,9 +399,13 @@ export default function MaterialesPage() {
                       className="flex items-center gap-1"
                     >
                       <Plus className="w-4 h-4" />
+                      <span>Faltan materiales</span>
                     </Button>
                     {menuOpen && (
-                      <div className="absolute right-0 z-20 bg-white border rounded shadow mt-1 w-40">
+                      <div className="absolute right-0 z-20 mt-1 w-48 rounded border bg-white shadow">
+                        <div className="px-2 py-1 text-sm font-medium text-gray-600">
+                          ¿Qué necesitás?
+                        </div>
                         <button
                           className="flex w-full items-center gap-2 p-2 hover:bg-gray-100"
                           onClick={() => {
@@ -430,7 +434,7 @@ export default function MaterialesPage() {
                             setMenuOpen(false);
                           }}
                         >
-                          <Tent className="w-4 h-4" /> En San Miguel
+                          <Tent className="w-4 h-4" /> Buscar en San Miguel
                         </button>
                       </div>
                     )}
@@ -467,62 +471,68 @@ export default function MaterialesPage() {
                     </div>
                   )}
                 </div>
-                <details className="border rounded p-2">
-                  <summary className="cursor-pointer flex items-center gap-2">
-                    <ShoppingCart className="w-4 h-4" /> Compras necesarias
-                  </summary>
-                  <div className="mt-2 space-y-1">
-                    {materialActual.compraItems.map((c, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <span className="flex-1 text-sm">{c}</span>
-                        <button
-                          onClick={() => quitarItemLista(materialActual, "compraItems", idx)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </details>
+                {materialActual.compraItems.length > 0 && (
+                  <details className="border rounded p-2">
+                    <summary className="cursor-pointer flex items-center gap-2">
+                      <ShoppingCart className="w-4 h-4" /> Compras necesarias
+                    </summary>
+                    <div className="mt-2 space-y-1">
+                      {materialActual.compraItems.map((c, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <span className="flex-1 text-sm">{c}</span>
+                          <button
+                            onClick={() => quitarItemLista(materialActual, "compraItems", idx)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
 
-                <details className="border rounded p-2">
-                  <summary className="cursor-pointer flex items-center gap-2">
-                    <Building2 className="w-4 h-4" /> Retirar de la sede
-                  </summary>
-                  <div className="mt-2 space-y-1">
-                    {materialActual.sedeItems.map((s, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <span className="flex-1 text-sm">{s}</span>
-                        <button
-                          onClick={() => quitarItemLista(materialActual, "sedeItems", idx)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </details>
+                {materialActual.sedeItems.length > 0 && (
+                  <details className="border rounded p-2">
+                    <summary className="cursor-pointer flex items-center gap-2">
+                      <Building2 className="w-4 h-4" /> Retirar de la sede
+                    </summary>
+                    <div className="mt-2 space-y-1">
+                      {materialActual.sedeItems.map((s, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <span className="flex-1 text-sm">{s}</span>
+                          <button
+                            onClick={() => quitarItemLista(materialActual, "sedeItems", idx)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
 
-                <details className="border rounded p-2">
-                  <summary className="cursor-pointer flex items-center gap-2">
-                    <Tent className="w-4 h-4" /> Material en San Miguel
-                  </summary>
-                  <div className="mt-2 space-y-1">
-                    {materialActual.sanMiguelItems.map((s, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <span className="flex-1 text-sm">{s}</span>
-                        <button
-                          onClick={() => quitarItemLista(materialActual, "sanMiguelItems", idx)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </details>
+                {materialActual.sanMiguelItems.length > 0 && (
+                  <details className="border rounded p-2">
+                    <summary className="cursor-pointer flex items-center gap-2">
+                      <Tent className="w-4 h-4" /> Material en San Miguel
+                    </summary>
+                    <div className="mt-2 space-y-1">
+                      {materialActual.sanMiguelItems.map((s, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <span className="flex-1 text-sm">{s}</span>
+                          <button
+                            onClick={() => quitarItemLista(materialActual, "sanMiguelItems", idx)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
 
                 <div className="flex items-center gap-2 text-sm">
                   <span>Se termina en</span>
