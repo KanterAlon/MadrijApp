@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
-import { FolderKanban, ShoppingCart, Building2, Tent, Trash2 } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { FolderKanban, ShoppingCart, Building2, Tent, Trash2, Plus } from "lucide-react";
 import Button from "@/components/ui/button";
 import {
   Sheet,
@@ -17,6 +17,7 @@ import {
   addMaterialEnLista,
   updateMaterial,
   deleteMaterial,
+  deleteMaterialList,
   MaterialRow,
 } from "@/lib/supabase/materiales";
 import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
@@ -59,6 +60,7 @@ export default function MaterialesPage() {
 
 
   const { id: proyectoId, list } = useParams<{ id: string; list: string }>();
+  const router = useRouter();
   const estados: Estado[] = ["por hacer", "en proceso", "realizado"];
 
   const [materiales, setMateriales] = useState<Material[]>([]);
@@ -72,7 +74,6 @@ export default function MaterialesPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [materialActual, setMaterialActual] = useState<Material | null>(null);
   const [filtroAsignado, setFiltroAsignado] = useState("");
-  const [busqueda, setBusqueda] = useState("");
 
   useEffect(() => {
     if (!proyectoId || !list) return;
@@ -159,6 +160,14 @@ export default function MaterialesPage() {
       .catch(() => alert("Error eliminando material"));
   };
 
+  const eliminarLista = () => {
+    if (!list) return;
+    if (!confirm("¿Eliminar lista?")) return;
+    deleteMaterialList(list)
+      .then(() => router.push("../"))
+      .catch(() => alert("Error eliminando lista"));
+  };
+
 
   const agregarItemLista = (
     mat: Material,
@@ -197,14 +206,9 @@ export default function MaterialesPage() {
       <h1 className="text-3xl font-bold flex items-center gap-2 text-blue-900">
         <FolderKanban className="w-7 h-7" /> organización de materiales
       </h1>
+      <Button variant="danger" onClick={eliminarLista}>Eliminar lista</Button>
 
       <div className="flex flex-col sm:flex-row gap-2">
-        <input
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar material"
-          className="border rounded p-2 flex-1"
-        />
         <select
           value={filtroAsignado}
           onChange={(e) => setFiltroAsignado(e.target.value)}
@@ -247,8 +251,7 @@ export default function MaterialesPage() {
                   .filter(
                     (m) =>
                       m.estado === estado &&
-                      (!filtroAsignado || m.asignado === filtroAsignado) &&
-                      m.nombre.toLowerCase().includes(busqueda.toLowerCase())
+                      (!filtroAsignado || m.asignado === filtroAsignado)
                   )
                   .map((m) => (
                     <div
@@ -279,8 +282,7 @@ export default function MaterialesPage() {
                 {materiales.filter(
                   (m) =>
                     m.estado === estado &&
-                    (!filtroAsignado || m.asignado === filtroAsignado) &&
-                    m.nombre.toLowerCase().includes(busqueda.toLowerCase())
+                    (!filtroAsignado || m.asignado === filtroAsignado)
                 ).length === 0 && (
                   <p className="text-sm text-gray-500">Sin materiales</p>
                 )}
@@ -387,9 +389,9 @@ export default function MaterialesPage() {
                   <Button
                     variant="secondary"
                     onClick={() => setMostrarAgregar((p) => !p)}
-                    className="mb-2"
+                    className="mb-2 flex items-center gap-1"
                   >
-                    {mostrarAgregar ? "Cancelar" : "Agregar item"}
+                    {mostrarAgregar ? "Cancelar" : <><Plus className="w-4 h-4" /> Agregar</>}
                   </Button>
                   {mostrarAgregar && (
                     <div className="flex gap-2 mt-2">
