@@ -30,6 +30,7 @@ import {
   MaterialRow,
   ItemRow,
 } from "@/lib/supabase/materiales";
+import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
 
 export default function MaterialesPage() {
   type Estado = "por hacer" | "en proceso" | "realizado";
@@ -95,21 +96,28 @@ interface ItemLlevar {
   const [items, setItems] = useState<ItemLlevar[]>([]);
   const [nuevoItem, setNuevoItem] = useState("");
 
+  const [madrijes, setMadrijes] = useState<{ clerk_id: string; nombre: string }[]>([]);
+  const [nuevoCompraItem, setNuevoCompraItem] = useState("");
+  const [nuevoSedeItem, setNuevoSedeItem] = useState("");
+  const [nuevoSanMiguelItem, setNuevoSanMiguelItem] = useState("");
+
   const [sheetOpen, setSheetOpen] = useState(false);
   const [materialActual, setMaterialActual] = useState<Material | null>(null);
 
   useEffect(() => {
     if (!proyectoId) return;
-    Promise.all([getMateriales(proyectoId), getItems(proyectoId)])
-      .then(([mats, its]) => {
+    Promise.all([getMateriales(proyectoId), getItems(proyectoId), getMadrijimPorProyecto(proyectoId)])
+      .then(([mats, its, mads]) => {
         const convM = mats.map(rowToMaterial);
         const convI = its.map(rowToItem);
         setMateriales(convM);
         setItems(convI);
+        setMadrijes(mads);
       })
       .catch(() => {
         setMateriales([]);
         setItems([]);
+        setMadrijes([]);
       });
   }, [proyectoId, rowToMaterial, rowToItem]);
 
@@ -219,6 +227,38 @@ interface ItemLlevar {
       .catch(() => alert("Error eliminando item"));
   };
 
+  const agregarItemLista = (
+    mat: Material,
+    campo: "compraItems" | "sedeItems" | "sanMiguelItems",
+    nuevo: string
+  ) => {
+    if (!nuevo.trim()) return;
+    const lista = [...mat[campo], nuevo.trim()];
+    actualizarMaterial(mat.id, campo, lista);
+    if (campo === "compraItems") actualizarMaterial(mat.id, "compra", lista.length > 0);
+    if (campo === "sedeItems") actualizarMaterial(mat.id, "sede", lista.length > 0);
+    if (campo === "sanMiguelItems") {
+      actualizarMaterial(mat.id, "sanMiguel", lista.length > 0);
+      actualizarMaterial(mat.id, "armarEnSanMiguel", lista.length > 0);
+    }
+  };
+
+  const quitarItemLista = (
+    mat: Material,
+    campo: "compraItems" | "sedeItems" | "sanMiguelItems",
+    idx: number
+  ) => {
+    const lista = mat[campo].filter((_, i) => i !== idx);
+    actualizarMaterial(mat.id, campo, lista);
+    if (campo === "compraItems") actualizarMaterial(mat.id, "compra", lista.length > 0);
+    if (campo === "sedeItems") actualizarMaterial(mat.id, "sede", lista.length > 0);
+    if (campo === "sanMiguelItems") {
+      const flag = lista.length > 0;
+      actualizarMaterial(mat.id, "sanMiguel", flag);
+      actualizarMaterial(mat.id, "armarEnSanMiguel", flag);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <h1 className="text-3xl font-bold flex items-center gap-2 text-blue-900">
@@ -263,6 +303,17 @@ interface ItemLlevar {
                       className="bg-white rounded p-3 shadow cursor-pointer"
                     >
                       <div className="font-medium">{m.nombre}</div>
+                      <div className="flex gap-1 mt-1">
+                        {m.compraItems.length > 0 && (
+                          <ShoppingCart className="w-4 h-4 text-gray-500" />
+                        )}
+                        {m.sedeItems.length > 0 && (
+                          <Building2 className="w-4 h-4 text-gray-500" />
+                        )}
+                        {m.sanMiguelItems.length > 0 && (
+                          <Tent className="w-4 h-4 text-gray-500" />
+                        )}
+                      </div>
                     </div>
                   ))}
                 {materiales.filter((m) => m.estado === estado).length === 0 && (
@@ -348,11 +399,11 @@ interface ItemLlevar {
       <section className="space-y-2">
         <h2 className="text-2xl font-semibold text-blue-800">Cosas a comprar</h2>
         <div className="space-y-1">
-          {materiales.filter((m) => m.compra && m.compraItems.length > 0).length === 0 && (
+          {materiales.filter((m) => m.compraItems.length > 0).length === 0 && (
             <p className="text-sm text-gray-500">Sin compras</p>
           )}
           {materiales
-            .filter((m) => m.compra && m.compraItems.length > 0)
+            .filter((m) => m.compraItems.length > 0)
             .map((m) =>
               m.compraItems.map((item, idx) => (
                 <div
@@ -363,7 +414,10 @@ interface ItemLlevar {
                   }}
                   className="cursor-pointer hover:underline"
                 >
-                  {item} <span className="text-xs text-gray-600">({m.nombre})</span>
+                  {item}{" "}
+                  <span className="text-xs text-gray-600">
+                    ({m.nombre} - {m.asignado || "sin madrij"})
+                  </span>
                 </div>
               ))
             )}
@@ -376,11 +430,11 @@ interface ItemLlevar {
           Cosas para retirar en la sede
         </h2>
         <div className="space-y-1">
-          {materiales.filter((m) => m.sede && m.sedeItems.length > 0).length === 0 && (
+          {materiales.filter((m) => m.sedeItems.length > 0).length === 0 && (
             <p className="text-sm text-gray-500">Sin retiros</p>
           )}
           {materiales
-            .filter((m) => m.sede && m.sedeItems.length > 0)
+            .filter((m) => m.sedeItems.length > 0)
             .map((m) =>
               m.sedeItems.map((item, idx) => (
                 <div
@@ -391,7 +445,10 @@ interface ItemLlevar {
                   }}
                   className="cursor-pointer hover:underline"
                 >
-                  {item} <span className="text-xs text-gray-600">({m.nombre})</span>
+                  {item}{" "}
+                  <span className="text-xs text-gray-600">
+                    ({m.nombre} - {m.asignado || "sin madrij"})
+                  </span>
                 </div>
               ))
             )}
@@ -431,116 +488,120 @@ interface ItemLlevar {
                   className="border rounded p-2 w-full"
                   placeholder="Descripción"
                 />
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={materialActual.compra}
-                    onChange={(e) =>
-                      actualizarMaterial(
-                        materialActual.id,
-                        "compra",
-                        e.target.checked
-                      )
-                    }
-                  />
-                  <ShoppingCart className="w-4 h-4" /> Comprar material
-                </label>
-                {materialActual.compra && (
-                  <input
-                    value={materialActual.compraItems.join(", ")}
-                    onChange={(e) =>
-                      actualizarMaterial(
-                        materialActual.id,
-                        "compraItems",
-                        e.target.value
-                          .split(/,\s*/)
-                          .map((s) => s.trim())
-                          .filter(Boolean)
-                      )
-                    }
-                    className="border rounded p-1 w-full text-sm"
-                    placeholder="Qué comprar"
-                  />
+                <details className="border rounded p-2">
+                  <summary className="cursor-pointer flex items-center gap-2">
+                    <ShoppingCart className="w-4 h-4" /> Compras necesarias
+                  </summary>
+                  <div className="mt-2 space-y-1">
+                    {materialActual.compraItems.map((c, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <span className="flex-1 text-sm">{c}</span>
+                        <button
+                          onClick={() => quitarItemLista(materialActual, "compraItems", idx)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    <div className="flex gap-2">
+                      <input
+                        value={nuevoCompraItem}
+                        onChange={(e) => setNuevoCompraItem(e.target.value)}
+                        className="border rounded p-1 flex-1 text-sm"
+                        placeholder="Nueva compra"
+                      />
+                      <Button
+                        onClick={() => {
+                          agregarItemLista(materialActual, "compraItems", nuevoCompraItem);
+                          setNuevoCompraItem("");
+                        }}
+                      >
+                        Agregar
+                      </Button>
+                    </div>
+                  </div>
+                </details>
+
+                <details className="border rounded p-2">
+                  <summary className="cursor-pointer flex items-center gap-2">
+                    <Building2 className="w-4 h-4" /> Retirar de la sede
+                  </summary>
+                  <div className="mt-2 space-y-1">
+                    {materialActual.sedeItems.map((s, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <span className="flex-1 text-sm">{s}</span>
+                        <button
+                          onClick={() => quitarItemLista(materialActual, "sedeItems", idx)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    <div className="flex gap-2">
+                      <input
+                        value={nuevoSedeItem}
+                        onChange={(e) => setNuevoSedeItem(e.target.value)}
+                        className="border rounded p-1 flex-1 text-sm"
+                        placeholder="Nuevo item"
+                      />
+                      <Button
+                        onClick={() => {
+                          agregarItemLista(materialActual, "sedeItems", nuevoSedeItem);
+                          setNuevoSedeItem("");
+                        }}
+                      >
+                        Agregar
+                      </Button>
+                    </div>
+                  </div>
+                </details>
+
+                <details className="border rounded p-2">
+                  <summary className="cursor-pointer flex items-center gap-2">
+                    <Tent className="w-4 h-4" /> Material en San Miguel
+                  </summary>
+                  <div className="mt-2 space-y-1">
+                    {materialActual.sanMiguelItems.map((s, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <span className="flex-1 text-sm">{s}</span>
+                        <button
+                          onClick={() => quitarItemLista(materialActual, "sanMiguelItems", idx)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    <div className="flex gap-2">
+                      <input
+                        value={nuevoSanMiguelItem}
+                        onChange={(e) => setNuevoSanMiguelItem(e.target.value)}
+                        className="border rounded p-1 flex-1 text-sm"
+                        placeholder="Nuevo item"
+                      />
+                      <Button
+                        onClick={() => {
+                          agregarItemLista(materialActual, "sanMiguelItems", nuevoSanMiguelItem);
+                          setNuevoSanMiguelItem("");
+                        }}
+                      >
+                        Agregar
+                      </Button>
+                    </div>
+                  </div>
+                </details>
+
+                {materialActual.sanMiguelItems.length > 0 && (
+                  <p className="text-sm text-blue-800">
+                    Este material se terminará en San Miguel
+                  </p>
                 )}
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={materialActual.sede}
-                    onChange={(e) =>
-                      actualizarMaterial(
-                        materialActual.id,
-                        "sede",
-                        e.target.checked
-                      )
-                    }
-                  />
-                  <Building2 className="w-4 h-4" /> Retirar de la sede
-                </label>
-                {materialActual.sede && (
-                  <input
-                    value={materialActual.sedeItems.join(", ")}
-                    onChange={(e) =>
-                      actualizarMaterial(
-                        materialActual.id,
-                        "sedeItems",
-                        e.target.value
-                          .split(/,\s*/)
-                          .map((s) => s.trim())
-                          .filter(Boolean)
-                      )
-                    }
-                    className="border rounded p-1 w-full text-sm"
-                    placeholder="Qué retirar en sede"
-                  />
-                )}
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={materialActual.sanMiguel}
-                    onChange={(e) =>
-                      actualizarMaterial(
-                        materialActual.id,
-                        "sanMiguel",
-                        e.target.checked
-                      )
-                    }
-                  />
-                  <Tent className="w-4 h-4" /> Usar en San Miguel
-                </label>
-                {materialActual.sanMiguel && (
-                  <input
-                    value={materialActual.sanMiguelItems.join(", ")}
-                    onChange={(e) =>
-                      actualizarMaterial(
-                        materialActual.id,
-                        "sanMiguelItems",
-                        e.target.value
-                          .split(/,\s*/)
-                          .map((s) => s.trim())
-                          .filter(Boolean)
-                      )
-                    }
-                    className="border rounded p-1 w-full text-sm"
-                    placeholder="Qué usar en San Miguel"
-                  />
-                )}
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={materialActual.armarEnSanMiguel}
-                    onChange={(e) =>
-                      actualizarMaterial(
-                        materialActual.id,
-                        "armarEnSanMiguel",
-                        e.target.checked
-                      )
-                    }
-                  />
-                  <Tent className="w-4 h-4" /> Armar en San Miguel
-                </label>
+
                 <label className="flex items-center gap-2">
                   <span>Asignado a:</span>
-                  <input
+                  <select
                     value={materialActual.asignado}
                     onChange={(e) =>
                       actualizarMaterial(
@@ -550,8 +611,14 @@ interface ItemLlevar {
                       )
                     }
                     className="border rounded p-1 flex-1"
-                    placeholder="Madrij"
-                  />
+                  >
+                    <option value="">Sin asignar</option>
+                    {madrijes.map((m) => (
+                      <option key={m.clerk_id} value={m.nombre}>
+                        {m.nombre}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
               <SheetFooter>
