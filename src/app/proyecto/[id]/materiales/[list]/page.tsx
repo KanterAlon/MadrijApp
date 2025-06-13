@@ -235,7 +235,6 @@ export default function MaterialesPage() {
 
       {/* Cosas para hacer */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-semibold text-blue-800">Cosas para hacer</h2>
         <div className="flex gap-2">
           <input
             value={nuevoNombre}
@@ -247,32 +246,36 @@ export default function MaterialesPage() {
             Agregar
           </Button>
         </div>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
-          <label htmlFor="filtroAsignado" className="text-sm text-gray-700">
-            Ver de:
-          </label>
-          <select
-            id="filtroAsignado"
-            value={filtroAsignado}
-            onChange={(e) => setFiltroAsignado(e.target.value)}
-            className="border rounded p-2"
-          >
-            <option value="">Todos</option>
-            {madrijes.map((m) => (
-              <option key={m.clerk_id} value={m.nombre}>
-                {m.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="grid md:grid-cols-3 gap-4 mt-4">
-          {estados.map((estado) => (
-            <div
-              key={estado}
-              onDrop={(e) => onDrop(e, estado)}
-              onDragOver={onDragOver}
-              className="bg-gray-100 rounded-lg p-4 min-h-[200px]"
-            >
+        <div className="bg-white rounded-lg shadow">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border-b gap-2">
+            <h2 className="text-2xl font-semibold text-blue-800">Organización de materiales</h2>
+            <div className="flex items-center gap-2">
+              <label htmlFor="filtroAsignado" className="text-sm text-gray-700">
+                Ver de:
+              </label>
+              <select
+                id="filtroAsignado"
+                value={filtroAsignado}
+                onChange={(e) => setFiltroAsignado(e.target.value)}
+                className="border rounded p-2"
+              >
+                <option value="">Todos</option>
+                {madrijes.map((m) => (
+                  <option key={m.clerk_id} value={m.nombre}>
+                    {m.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid md:grid-cols-3 gap-4 p-4">
+            {estados.map((estado) => (
+              <div
+                key={estado}
+                onDrop={(e) => onDrop(e, estado)}
+                onDragOver={onDragOver}
+                className="bg-gray-100 rounded-lg p-4 min-h-[200px]"
+              >
               <h3 className="text-lg font-semibold capitalize mb-2 text-blue-700">
                 {estado}
               </h3>
@@ -319,6 +322,7 @@ export default function MaterialesPage() {
               </div>
             </div>
           ))}
+          </div>
         </div>
       </section>
 
