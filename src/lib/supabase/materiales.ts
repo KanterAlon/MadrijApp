@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 export interface MaterialRow {
   id: string;
   proyecto_id: string | null;
+  lista_id?: string | null;
   nombre: string;
   descripcion: string | null;
   asignado: string | null;
@@ -27,11 +28,30 @@ export interface ItemRow {
   created_at?: string;
 }
 
-export async function getMateriales(proyectoId: string) {
+export interface MaterialListRow {
+  id: string;
+  proyecto_id: string | null;
+  titulo: string;
+  fecha: string;
+  created_at?: string;
+}
+
+export async function getMateriales(proyectoId: string, listaId?: string) {
+  let query = supabase.from("materiales").select("*");
+  query = query.eq("proyecto_id", proyectoId);
+  if (listaId) {
+    query = query.eq("lista_id", listaId);
+  }
+  const { data, error } = await query.order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data as MaterialRow[]) || [];
+}
+
+export async function getMaterialesPorLista(listaId: string) {
   const { data, error } = await supabase
     .from("materiales")
     .select("*")
-    .eq("proyecto_id", proyectoId)
+    .eq("lista_id", listaId)
     .order("created_at", { ascending: true });
   if (error) throw error;
   return (data as MaterialRow[]) || [];
@@ -41,6 +61,20 @@ export async function addMaterial(proyectoId: string, nombre: string) {
   const { data, error } = await supabase
     .from("materiales")
     .insert({ proyecto_id: proyectoId, nombre })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as MaterialRow;
+}
+
+export async function addMaterialEnLista(
+  listaId: string,
+  nombre: string,
+  proyectoId: string
+) {
+  const { data, error } = await supabase
+    .from("materiales")
+    .insert({ proyecto_id: proyectoId, lista_id: listaId, nombre })
     .select()
     .single();
   if (error) throw error;
@@ -57,6 +91,35 @@ export async function updateMaterial(id: string, updates: Partial<MaterialRow>) 
 
 export async function deleteMaterial(id: string) {
   const { error } = await supabase.from("materiales").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function getMaterialLists(proyectoId: string) {
+  const { data, error } = await supabase
+    .from("material_lists")
+    .select("*")
+    .eq("proyecto_id", proyectoId)
+    .order("fecha", { ascending: true });
+  if (error) throw error;
+  return (data as MaterialListRow[]) || [];
+}
+
+export async function addMaterialList(
+  proyectoId: string,
+  titulo: string,
+  fecha: string
+) {
+  const { data, error } = await supabase
+    .from("material_lists")
+    .insert({ proyecto_id: proyectoId, titulo, fecha })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as MaterialListRow;
+}
+
+export async function deleteMaterialList(id: string) {
+  const { error } = await supabase.from("material_lists").delete().eq("id", id);
   if (error) throw error;
 }
 
