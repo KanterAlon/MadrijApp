@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { getMaterialLists, deleteMaterialList } from "@/lib/supabase/materiales";
-import { Trash2 } from "lucide-react";
+import { Trash2, PlusCircle } from "lucide-react";
 import { showError, confirmDialog } from "@/lib/alerts";
 
 export default function MaterialesIndexPage() {
@@ -88,9 +88,10 @@ export default function MaterialesIndexPage() {
       <div className="mt-6">
         <Link
           href="./materiales/nueva"
-          className="inline-block rounded-md bg-blue-600 px-4 py-2 text-white font-medium hover:bg-blue-700"
+          className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-white font-medium hover:bg-blue-700"
         >
-          + Crear nueva lista
+          <PlusCircle className="w-4 h-4" />
+          <span>Crear nueva lista</span>
         </Link>
       </div>
     </div>

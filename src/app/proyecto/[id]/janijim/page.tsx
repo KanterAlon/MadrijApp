@@ -584,18 +584,20 @@ export default function JanijimPage() {
                 </SheetDescription>
               </SheetHeader>
               <div className="p-4 space-y-4">
-                <button
+                <Button
                   onClick={() => setImportMode("file")}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg"
+                  className="w-full"
+                  icon={<FileUp className="w-4 h-4" />}
                 >
                   Desde archivo
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() => setImportMode("manual")}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg"
+                  className="w-full"
+                  icon={<Pencil className="w-4 h-4" />}
                 >
                   Escribir manualmente
-                </button>
+                </Button>
               </div>
             </>
           )}
@@ -609,12 +611,13 @@ export default function JanijimPage() {
                 </SheetDescription>
               </SheetHeader>
               <div className="p-4 space-y-4">
-                <button
+                <Button
                   onClick={() => fileInput.current?.click()}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg"
+                  className="w-full"
+                  icon={<FileUp className="w-4 h-4" />}
                 >
                   Seleccionar archivo
-                </button>
+                </Button>
               </div>
               <SheetFooter>
                 <button
@@ -721,12 +724,12 @@ export default function JanijimPage() {
             </div>
           )}
           <SheetFooter>
-            <button
+            <Button
               onClick={confirmImport}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+              icon={<FileUp className="w-4 h-4" />}
             >
               Insertar
-            </button>
+            </Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
