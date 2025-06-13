@@ -431,7 +431,7 @@ export default function MaterialesPage() {
           setSheetOpen(open);
         }}
       >
-        <SheetContent className="w-80 sm:w-96">
+        <SheetContent className="w-full sm:w-96 h-dvh">
           {materialActual && (
             <div className="flex flex-col h-full">
               <SheetHeader>
@@ -509,7 +509,7 @@ export default function MaterialesPage() {
                     </DropdownMenu.Content>
                   </DropdownMenu.Root>
                   {mostrarAgregar && (
-                    <div className="flex gap-2 mt-2">
+                    <div className="flex flex-col sm:flex-row gap-2 mt-2">
                       <input
                         value={nuevoItemGeneral}
                         onChange={(e) => setNuevoItemGeneral(e.target.value)}
@@ -517,6 +517,7 @@ export default function MaterialesPage() {
                         placeholder="Nuevo item"
                       />
                       <Button
+                        className="sm:flex-1"
                         icon={<Plus className="w-4 h-4" />}
                         onClick={() => {
                           const campo: "compraItems" | "sedeItems" | "sanMiguelItems" =
@@ -535,6 +536,7 @@ export default function MaterialesPage() {
                       <Button
                         variant="secondary"
                         onClick={() => setMostrarAgregar(false)}
+                        className="sm:flex-1"
                         icon={<X className="w-4 h-4" />}
                       >
                         Cancelar
@@ -643,7 +645,7 @@ export default function MaterialesPage() {
                 </label>
               </div>
               <SheetFooter>
-                <div className="flex w-full gap-2">
+                <div className="flex flex-col sm:flex-row w-full gap-2">
                   <Button
                     variant="danger"
                     onClick={() => eliminarMaterial(materialActual.id)}
