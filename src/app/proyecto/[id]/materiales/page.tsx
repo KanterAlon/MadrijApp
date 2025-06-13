@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { getMaterialLists, deleteMaterialList } from "@/lib/supabase/materiales";
 import { Trash2 } from "lucide-react";
+import { showError, confirmDialog } from "@/lib/alerts";
 
 export default function MaterialesIndexPage() {
   const { id: proyectoId } = useParams<{ id: string }>();
@@ -20,11 +21,11 @@ export default function MaterialesIndexPage() {
   }, [proyectoId]);
 
 
-  const eliminarLista = (id: string) => {
-    if (!confirm("¿Eliminar lista?")) return;
+  const eliminarLista = async (id: string) => {
+    if (!(await confirmDialog("¿Eliminar lista?"))) return;
     deleteMaterialList(id)
       .then(() => setListas((prev) => prev.filter((l) => l.id !== id)))
-      .catch(() => alert("Error eliminando lista"));
+      .catch(() => showError("Error eliminando lista"));
   };
 
   const bandeja = listas.filter((l) => l.fecha > hoy);

@@ -40,6 +40,7 @@ import {
 import { parseSpreadsheetFile } from "@/lib/utils";
 import { crearSesion } from "@/lib/supabase/asistencias";
 import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
+import { showError, confirmDialog } from "@/lib/alerts";
 
 
 type Janij = {
@@ -136,7 +137,7 @@ export default function JanijimPage() {
       setJanijim((prev) => [...prev, nuevo]);
       pendingScrollId.current = inserted[0].id;
     } catch {
-      alert("Error agregando janij");
+      showError("Error agregando janij");
     }
   };
 
@@ -147,7 +148,7 @@ export default function JanijimPage() {
         prev.map((j) => (j.id === id ? { ...j, nombre } : j))
       );
     } catch {
-      alert("Error renombrando janij");
+      showError("Error renombrando janij");
     }
   };
 
@@ -172,12 +173,12 @@ export default function JanijimPage() {
   };
 
   const deleteJanij = async (id: string) => {
-    if (!confirm("¿Eliminar janij?")) return;
+    if (!(await confirmDialog("¿Eliminar janij?"))) return;
     try {
       await removeJanij(id);
       setJanijim((prev) => prev.filter((j) => j.id !== id));
     } catch {
-      alert("Error eliminando janij");
+      showError("Error eliminando janij");
     }
   };
 
@@ -192,7 +193,7 @@ export default function JanijimPage() {
       setImportOpen(false);
       setColumnOpen(true);
     } catch {
-      alert("Error leyendo el archivo");
+      showError("Error leyendo el archivo");
     }
 
     e.target.value = "";
@@ -266,7 +267,7 @@ export default function JanijimPage() {
         ...inserted.map((j) => ({ ...j, estado: "ausente" as const })),
       ]);
     } catch {
-      alert("Error importando janijim");
+      showError("Error importando janijim");
     }
     setDupOpen(false);
   };
@@ -289,7 +290,7 @@ export default function JanijimPage() {
         `/proyecto/${proyectoId}/janijim/asistencia?sesion=${sesion.id}`
       );
     } catch {
-      alert("Error iniciando asistencia");
+      showError("Error iniciando asistencia");
     }
   };
 
