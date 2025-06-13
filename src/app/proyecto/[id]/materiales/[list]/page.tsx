@@ -616,6 +616,7 @@ export default function MaterialesPage() {
                         v === "sanMiguel"
                       )
                     }
+                    disableCapital={materialActual.sanMiguelItems.length > 0}
                   />
                 </div>
 
