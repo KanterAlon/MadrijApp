@@ -30,7 +30,10 @@ export default function NuevaListaPage() {
 
   return (
     <div className="max-w-md mx-auto mt-24 bg-white p-6 rounded-2xl shadow">
-      <BackLink href=".." className="mb-4 inline-flex" />
+      <BackLink
+        href={`/proyecto/${proyectoId}/materiales`}
+        className="mb-4 inline-flex"
+      />
       <h1 className="text-2xl font-bold mb-4 text-center text-blue-700">
         Nueva Lista de Materiales
       </h1>
@@ -52,7 +55,9 @@ export default function NuevaListaPage() {
           variant="secondary"
           className="flex-1"
           icon={<X className="w-4 h-4" />}
-          onClick={() => router.push("..")}
+          onClick={() =>
+            router.push(`/proyecto/${proyectoId}/materiales`)
+          }
         >
           Cancelar
         </Button>

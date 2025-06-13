@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Button from "@/components/ui/button";
+import BackLink from "@/components/ui/back-link";
 import DiagonalToggle from "@/components/ui/diagonal-toggle";
 import {
   Sheet,
@@ -214,6 +215,10 @@ export default function MaterialesPage() {
 
   return (
     <div className="space-y-8">
+      <BackLink
+        href={`/proyecto/${proyectoId}/materiales`}
+        className="inline-flex"
+      />
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-3xl font-bold flex items-center gap-2 text-blue-900">
           <FolderKanban className="w-7 h-7" /> Organización de Materiales
