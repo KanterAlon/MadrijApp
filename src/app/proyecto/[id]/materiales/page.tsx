@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useParams } from "next/navigation";
 import {
   FolderKanban,
   ShoppingCart,
@@ -17,6 +18,18 @@ import {
   SheetFooter,
   SheetClose,
 } from "@/components/ui/sheet";
+import {
+  getMateriales,
+  addMaterial,
+  updateMaterial,
+  deleteMaterial,
+  getItems,
+  addItem,
+  updateItem,
+  deleteItem,
+  MaterialRow,
+  ItemRow,
+} from "@/lib/supabase/materiales";
 
 export default function MaterialesPage() {
   type Estado = "por hacer" | "en proceso" | "realizado";
@@ -36,14 +49,44 @@ export default function MaterialesPage() {
     estado: Estado;
   }
 
-  interface ItemLlevar {
-    id: string;
-    nombre: string;
-    enSanMiguel: boolean;
-    desdeSede: boolean;
-    encargado: string;
-  }
+interface ItemLlevar {
+  id: string;
+  nombre: string;
+  enSanMiguel: boolean;
+  desdeSede: boolean;
+  encargado: string;
+}
 
+  const rowToMaterial = useCallback(
+    (row: MaterialRow): Material => ({
+      id: row.id,
+      nombre: row.nombre,
+      descripcion: row.descripcion || "",
+      asignado: row.asignado || "",
+      compra: row.compra || false,
+      sede: row.sede || false,
+      sanMiguel: row.san_miguel || false,
+      armarEnSanMiguel: row.armar_en_san_miguel || false,
+      compraItems: row.compra_items || [],
+      sedeItems: row.sede_items || [],
+      sanMiguelItems: row.san_miguel_items || [],
+      estado: (row.estado as Estado) || "por hacer",
+    }),
+    []
+  );
+
+  const rowToItem = useCallback(
+    (row: ItemRow): ItemLlevar => ({
+      id: row.id,
+      nombre: row.nombre,
+      enSanMiguel: row.en_san_miguel ?? true,
+      desdeSede: row.desde_sede ?? false,
+      encargado: row.encargado || "",
+    }),
+    []
+  );
+
+  const { id: proyectoId } = useParams<{ id: string }>();
   const estados: Estado[] = ["por hacer", "en proceso", "realizado"];
 
   const [materiales, setMateriales] = useState<Material[]>([]);
@@ -56,51 +99,38 @@ export default function MaterialesPage() {
   const [materialActual, setMaterialActual] = useState<Material | null>(null);
 
   useEffect(() => {
-    const storedMat = localStorage.getItem("materiales");
-    if (storedMat) setMateriales(JSON.parse(storedMat));
-    const storedItems = localStorage.getItem("itemsLlevar");
-    if (storedItems) setItems(JSON.parse(storedItems));
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("materiales", JSON.stringify(materiales));
-  }, [materiales]);
-
-  useEffect(() => {
-    localStorage.setItem("itemsLlevar", JSON.stringify(items));
-  }, [items]);
+    if (!proyectoId) return;
+    Promise.all([getMateriales(proyectoId), getItems(proyectoId)])
+      .then(([mats, its]) => {
+        const convM = mats.map(rowToMaterial);
+        const convI = its.map(rowToItem);
+        setMateriales(convM);
+        setItems(convI);
+      })
+      .catch(() => {
+        setMateriales([]);
+        setItems([]);
+      });
+  }, [proyectoId, rowToMaterial, rowToItem]);
 
   const crearMaterial = () => {
     if (!nuevoNombre.trim()) return;
-    const nuevo: Material = {
-      id: Date.now().toString(),
-      nombre: nuevoNombre.trim(),
-      descripcion: "",
-      asignado: "",
-      compra: false,
-      sede: false,
-      sanMiguel: false,
-      armarEnSanMiguel: false,
-      compraItems: [],
-      sedeItems: [],
-      sanMiguelItems: [],
-      estado: "por hacer",
-    };
-    setMateriales((prev) => [...prev, nuevo]);
-    setNuevoNombre("");
+    addMaterial(proyectoId, nuevoNombre.trim())
+      .then((row) => {
+        setMateriales((prev) => [...prev, rowToMaterial(row)]);
+        setNuevoNombre("");
+      })
+      .catch(() => alert("Error creando material"));
   };
 
   const crearItem = () => {
     if (!nuevoItem.trim()) return;
-    const nuevo: ItemLlevar = {
-      id: Date.now().toString(),
-      nombre: nuevoItem.trim(),
-      enSanMiguel: true,
-      desdeSede: false,
-      encargado: "",
-    };
-    setItems((prev) => [...prev, nuevo]);
-    setNuevoItem("");
+    addItem(proyectoId, nuevoItem.trim())
+      .then((row) => {
+        setItems((prev) => [...prev, rowToItem(row)]);
+        setNuevoItem("");
+      })
+      .catch(() => alert("Error creando item"));
   };
 
   const onDrop = (e: React.DragEvent<HTMLDivElement>, estado: Estado) => {
@@ -111,6 +141,9 @@ export default function MaterialesPage() {
     );
     setMaterialActual((prev) =>
       prev && prev.id === id ? { ...prev, estado } : prev
+    );
+    updateMaterial(id, { estado } as Partial<MaterialRow>).catch(() =>
+      console.error("Error cambiando estado")
     );
   };
 
@@ -129,6 +162,23 @@ export default function MaterialesPage() {
     setMaterialActual((prev) =>
       prev && prev.id === id ? { ...prev, [campo]: valor } : prev
     );
+    const map: Record<keyof Material, keyof MaterialRow> = {
+      id: "id",
+      nombre: "nombre",
+      descripcion: "descripcion",
+      asignado: "asignado",
+      compra: "compra",
+      sede: "sede",
+      sanMiguel: "san_miguel",
+      armarEnSanMiguel: "armar_en_san_miguel",
+      compraItems: "compra_items",
+      sedeItems: "sede_items",
+      sanMiguelItems: "san_miguel_items",
+      estado: "estado",
+    };
+    updateMaterial(id, { [map[campo]]: valor } as Partial<MaterialRow>).catch(() =>
+      console.error("Error actualizando material")
+    );
   };
 
   const actualizarItem = (
@@ -139,18 +189,34 @@ export default function MaterialesPage() {
     setItems((prev) =>
       prev.map((i) => (i.id === id ? { ...i, [campo]: valor } : i))
     );
+    const map: Record<keyof ItemLlevar, keyof ItemRow> = {
+      id: "id",
+      nombre: "nombre",
+      enSanMiguel: "en_san_miguel",
+      desdeSede: "desde_sede",
+      encargado: "encargado",
+    };
+    updateItem(id, { [map[campo]]: valor } as Partial<ItemRow>).catch(() =>
+      console.error("Error actualizando item")
+    );
   };
 
   const eliminarMaterial = (id: string) => {
     if (!confirm("¿Eliminar material?")) return;
-    setMateriales((prev) => prev.filter((m) => m.id !== id));
-    setSheetOpen(false);
-    setMaterialActual(null);
+    deleteMaterial(id)
+      .then(() => {
+        setMateriales((prev) => prev.filter((m) => m.id !== id));
+        setSheetOpen(false);
+        setMaterialActual(null);
+      })
+      .catch(() => alert("Error eliminando material"));
   };
 
   const eliminarItem = (id: string) => {
     if (!confirm("¿Eliminar item?")) return;
-    setItems((prev) => prev.filter((i) => i.id !== id));
+    deleteItem(id)
+      .then(() => setItems((prev) => prev.filter((i) => i.id !== id)))
+      .catch(() => alert("Error eliminando item"));
   };
 
   return (
