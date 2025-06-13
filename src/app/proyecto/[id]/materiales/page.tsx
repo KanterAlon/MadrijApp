@@ -1,16 +1,38 @@
 "use client";
 
 import { useState } from "react";
-import { Kanban } from "lucide-react";
+import {
+  Kanban,
+  ShoppingCart,
+  Building2,
+  Tent,
+  User,
+  Hammer,
+} from "lucide-react";
 import Button from "@/components/ui/button";
 
 export default function MaterialesPage() {
   type Estado =
     | "por hacer"
-    | "en progreso"
+    | "en proceso"
     | "realizado"
     | "disponible"
     | "a retirar";
+
+  type SubEstado =
+    | "falta comprar materiales"
+    | "hay que pasar por la sede"
+    | "se arma en San Miguel"
+    | "nadie lo empezó"
+    | "ya está en proceso";
+
+  const subEstados: SubEstado[] = [
+    "falta comprar materiales",
+    "hay que pasar por la sede",
+    "se arma en San Miguel",
+    "nadie lo empezó",
+    "ya está en proceso",
+  ];
 
   type Material = {
     id: string;
@@ -22,11 +44,12 @@ export default function MaterialesPage() {
     sanMiguel: boolean;
     asignado: string;
     estado: Estado;
+    subestado: SubEstado | null;
   };
 
   const estados: Estado[] = [
     "por hacer",
-    "en progreso",
+    "en proceso",
     "realizado",
     "disponible",
     "a retirar",
@@ -37,6 +60,11 @@ export default function MaterialesPage() {
   const [nuevoTipo, setNuevoTipo] = useState<"realizable" | "crudo">("realizable");
   const [nuevoArmado, setNuevoArmado] = useState(false);
   const [filtro, setFiltro] = useState<"todos" | "realizable" | "crudo">("todos");
+  const [estadoFiltro, setEstadoFiltro] = useState<"todos" | Estado>("todos");
+  const [personaFiltro, setPersonaFiltro] = useState("");
+  const [necesidadFiltro, setNecesidadFiltro] = useState<
+    "todas" | "comprar" | "sede" | "sanMiguel"
+  >("todas");
 
   const onDrop = (e: React.DragEvent<HTMLDivElement>, estado: Estado) => {
     e.preventDefault();
@@ -60,16 +88,33 @@ export default function MaterialesPage() {
       sanMiguel: false,
       asignado: "",
       estado: nuevoTipo === "realizable" ? "por hacer" : "disponible",
+      subestado:
+        nuevoTipo === "realizable" ? "nadie lo empezó" : null,
     };
     setMateriales((prev) => [...prev, nuevo]);
     setNuevoNombre("");
     setNuevoArmado(false);
   };
 
-  const materialesFiltrados =
-    filtro === "todos"
-      ? materiales
-      : materiales.filter((m) => m.tipo === filtro);
+  let materialesFiltrados = [...materiales];
+  if (filtro !== "todos") {
+    materialesFiltrados = materialesFiltrados.filter((m) => m.tipo === filtro);
+  }
+  if (estadoFiltro !== "todos") {
+    materialesFiltrados = materialesFiltrados.filter((m) => m.estado === estadoFiltro);
+  }
+  if (personaFiltro.trim() !== "") {
+    materialesFiltrados = materialesFiltrados.filter((m) =>
+      m.asignado.toLowerCase().includes(personaFiltro.trim().toLowerCase())
+    );
+  }
+  if (necesidadFiltro === "comprar") {
+    materialesFiltrados = materialesFiltrados.filter((m) => m.compra);
+  } else if (necesidadFiltro === "sede") {
+    materialesFiltrados = materialesFiltrados.filter((m) => m.sede);
+  } else if (necesidadFiltro === "sanMiguel") {
+    materialesFiltrados = materialesFiltrados.filter((m) => m.sanMiguel);
+  }
 
   const actualizarCampo = (
     id: string,
@@ -78,6 +123,14 @@ export default function MaterialesPage() {
   ) => {
     setMateriales((prev) => prev.map((m) => (m.id === id ? { ...m, [campo]: valor } : m)));
   };
+
+  const compras = materiales.filter((m) => m.compra);
+  const sedeList = materiales.filter((m) => m.sede);
+  const sanMiguelList = materiales.filter((m) => m.sanMiguel);
+  const sinAsignar = materiales.filter((m) => !m.asignado.trim());
+  const disponiblesCrudos = materiales.filter(
+    (m) => m.tipo === "crudo" && m.estado === "disponible"
+  );
 
   return (
     <div>
@@ -113,6 +166,41 @@ export default function MaterialesPage() {
           />
           Crudos
         </label>
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-4">
+        <select
+          value={estadoFiltro}
+          onChange={(e) => setEstadoFiltro(e.target.value as Estado | "todos")}
+          className="border rounded p-2"
+        >
+          <option value="todos">Todos los estados</option>
+          {estados.map((e) => (
+            <option key={e} value={e}>
+              {e}
+            </option>
+          ))}
+        </select>
+        <input
+          value={personaFiltro}
+          onChange={(e) => setPersonaFiltro(e.target.value)}
+          placeholder="Filtrar por persona"
+          className="border rounded p-2"
+        />
+        <select
+          value={necesidadFiltro}
+          onChange={(e) =>
+            setNecesidadFiltro(
+              e.target.value as "todas" | "comprar" | "sede" | "sanMiguel"
+            )
+          }
+          className="border rounded p-2"
+        >
+          <option value="todas">Todas las necesidades</option>
+          <option value="comprar">Solo para comprar</option>
+          <option value="sede">Solo de la sede</option>
+          <option value="sanMiguel">Solo San Miguel</option>
+        </select>
       </div>
 
       <div className="mb-6 flex flex-col sm:flex-row gap-4">
@@ -173,38 +261,143 @@ export default function MaterialesPage() {
                         <input
                           type="checkbox"
                           checked={m.compra}
-                          onChange={(e) => actualizarCampo(m.id, "compra", e.target.checked)}
+                          onChange={(e) =>
+                            actualizarCampo(m.id, "compra", e.target.checked)
+                          }
                         />
-                        Comprar
+                        <ShoppingCart className="w-4 h-4" /> Comprar
                       </label>
                       <label className="flex items-center gap-2">
                         <input
                           type="checkbox"
                           checked={m.sede}
-                          onChange={(e) => actualizarCampo(m.id, "sede", e.target.checked)}
+                          onChange={(e) =>
+                            actualizarCampo(m.id, "sede", e.target.checked)
+                          }
                         />
-                        Pedir en sede
+                        <Building2 className="w-4 h-4" /> Pedir en sede
                       </label>
                       <label className="flex items-center gap-2">
                         <input
                           type="checkbox"
                           checked={m.sanMiguel}
-                          onChange={(e) => actualizarCampo(m.id, "sanMiguel", e.target.checked)}
+                          onChange={(e) =>
+                            actualizarCampo(m.id, "sanMiguel", e.target.checked)
+                          }
                         />
-                        Llevar a San Miguel
+                        <Tent className="w-4 h-4" /> Llevar a San Miguel
                       </label>
-                      <input
-                        value={m.asignado}
-                        onChange={(e) => actualizarCampo(m.id, "asignado", e.target.value)}
-                        placeholder="Asignado a"
-                        className="border rounded p-1 w-full"
-                      />
+                      <label className="flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        <input
+                          value={m.asignado}
+                          onChange={(e) =>
+                            actualizarCampo(m.id, "asignado", e.target.value)
+                          }
+                          placeholder="Asignado a"
+                          className="border rounded p-1 flex-1"
+                        />
+                      </label>
+                      {m.tipo === "realizable" && (
+                        <div className="space-y-1">
+                          <span className="inline-block bg-blue-100 text-blue-800 rounded px-2 py-0.5 text-xs">
+                            {m.subestado}
+                          </span>
+                          <select
+                            value={m.subestado ?? subEstados[3]}
+                            onChange={(e) =>
+                              actualizarCampo(m.id, "subestado", e.target.value as SubEstado)
+                            }
+                            className="border rounded p-1 w-full text-xs"
+                          >
+                            {subEstados.map((s) => (
+                              <option key={s} value={s}>
+                                {s}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
+              {materialesFiltrados.filter((m) => m.estado === estado).length === 0 && (
+                <p className="text-sm text-gray-500">Sin materiales</p>
+              )}
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="mt-8 space-y-6">
+        <h2 className="text-2xl font-bold text-blue-800">Listas automáticas</h2>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div>
+            <h3 className="font-semibold text-blue-700 mb-2 flex items-center gap-2">
+              <ShoppingCart className="w-4 h-4" /> Lista de compras
+            </h3>
+            <ul className="list-disc list-inside space-y-1">
+              {compras.map((m) => (
+                <li key={m.id}>{m.nombre}</li>
+              ))}
+              {compras.length === 0 && (
+                <li className="text-gray-500">Sin items</li>
+              )}
+            </ul>
+          </div>
+          <div>
+            <h3 className="font-semibold text-blue-700 mb-2 flex items-center gap-2">
+              <Building2 className="w-4 h-4" /> Cosas a retirar de la sede
+            </h3>
+            <ul className="list-disc list-inside space-y-1">
+              {sedeList.map((m) => (
+                <li key={m.id}>{m.nombre}</li>
+              ))}
+              {sedeList.length === 0 && (
+                <li className="text-gray-500">Sin items</li>
+              )}
+            </ul>
+          </div>
+          <div>
+            <h3 className="font-semibold text-blue-700 mb-2 flex items-center gap-2">
+              <Tent className="w-4 h-4" /> Llevar a San Miguel
+            </h3>
+            <ul className="list-disc list-inside space-y-1">
+              {sanMiguelList.map((m) => (
+                <li key={m.id}>{m.nombre}</li>
+              ))}
+              {sanMiguelList.length === 0 && (
+                <li className="text-gray-500">Sin items</li>
+              )}
+            </ul>
+          </div>
+          <div>
+            <h3 className="font-semibold text-blue-700 mb-2 flex items-center gap-2">
+              <User className="w-4 h-4" /> Materiales sin asignar
+            </h3>
+            <ul className="list-disc list-inside space-y-1">
+              {sinAsignar.map((m) => (
+                <li key={m.id}>{m.nombre}</li>
+              ))}
+              {sinAsignar.length === 0 && (
+                <li className="text-gray-500">Sin items</li>
+              )}
+            </ul>
+          </div>
+          <div>
+            <h3 className="font-semibold text-blue-700 mb-2 flex items-center gap-2">
+              <Hammer className="w-4 h-4" /> Materiales no realizables disponibles
+            </h3>
+            <ul className="list-disc list-inside space-y-1">
+              {disponiblesCrudos.map((m) => (
+                <li key={m.id}>{m.nombre}</li>
+              ))}
+              {disponiblesCrudos.length === 0 && (
+                <li className="text-gray-500">Sin items</li>
+              )}
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   );
