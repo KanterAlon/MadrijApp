@@ -22,6 +22,7 @@ const links = [
   { href: "/dashboard", label: "Mis Proyectos" },
   { href: "", label: "Inicio" },
   { href: "janijim", label: "Janijim" },
+  { href: "materiales", label: "Materiales" },
   { href: "notas", label: "Notas" },
   { href: "calendario", label: "Calendario" },
   { href: "tareas", label: "Tareas" },
