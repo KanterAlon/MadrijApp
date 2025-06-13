@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { FolderKanban, ShoppingCart, Building2, Tent, Trash2, Plus } from "lucide-react";
 import Button from "@/components/ui/button";
+import DiagonalToggle from "@/components/ui/diagonal-toggle";
 import {
   Sheet,
   SheetContent,
@@ -536,21 +537,16 @@ export default function MaterialesPage() {
 
                 <div className="flex items-center gap-2 text-sm">
                   <span>Se termina en</span>
-                  <button
-                    onClick={() =>
+                  <DiagonalToggle
+                    value={materialActual.armarEnSanMiguel ? "sanMiguel" : "capital"}
+                    onChange={(v) =>
                       actualizarMaterial(
                         materialActual.id,
                         "armarEnSanMiguel",
-                        !materialActual.armarEnSanMiguel
+                        v === "sanMiguel"
                       )
                     }
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${materialActual.armarEnSanMiguel ? "bg-blue-600" : "bg-gray-300"}`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${materialActual.armarEnSanMiguel ? "translate-x-6" : "translate-x-1"}`}
-                    />
-                  </button>
-                  <span>{materialActual.armarEnSanMiguel ? "San Miguel" : "Capital"}</span>
+                  />
                 </div>
 
                 <label className="flex items-center gap-2">
