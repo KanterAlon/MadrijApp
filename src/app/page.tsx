@@ -1,6 +1,6 @@
 "use client";
 
-import { SignInButton, useAuth } from "@clerk/nextjs";
+import { SignInButton, SignUpButton, useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { CalendarCheck, Group, LayoutDashboard, LogIn } from "lucide-react";
@@ -39,9 +39,14 @@ export default function HomePage() {
     <main className="min-h-screen flex flex-col items-center justify-center text-center p-6 bg-gradient-to-b from-blue-50 to-white">
       <h1 className="text-5xl font-extrabold mb-4 text-blue-900">Bienvenido a MadrijApp</h1>
       <p className="text-xl text-gray-700 mb-8">Tu espacio para organizar todo como madrij.</p>
-      <SignInButton mode="modal" withSignUp forceRedirectUrl="/dashboard" signUpForceRedirectUrl="/dashboard">
-        <Button icon={<LogIn className="w-4 h-4" />}>Iniciar sesión</Button>
-      </SignInButton>
+      <div className="flex gap-4">
+        <SignInButton mode="modal" forceRedirectUrl="/dashboard">
+          <Button icon={<LogIn className="w-4 h-4" />}>Iniciar sesión</Button>
+        </SignInButton>
+        <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
+          <Button variant="secondary">Crear cuenta</Button>
+        </SignUpButton>
+      </div>
       <section className="mt-12 grid gap-6 w-full max-w-5xl md:grid-cols-3">
         {features.map(({ icon: Icon, title, desc }) => (
           <div key={title} className="flex flex-col items-center bg-white/60 backdrop-blur rounded-lg p-6 shadow">
