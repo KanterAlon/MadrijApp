@@ -10,6 +10,7 @@ import {
 } from "@/lib/supabase/projects";
 import Loader from "@/components/ui/loader";
 import { Pencil, Trash2, Check, X, FolderPlus, Handshake } from "lucide-react";
+import { showError, confirmDialog } from "@/lib/alerts";
 
 type Proyecto = {
   id: string;
@@ -57,7 +58,7 @@ export default function DashboardPage() {
         prev.map((p) => (p.id === editingId ? { ...p, nombre: name } : p))
       );
     } catch {
-      alert("Error renombrando proyecto");
+      showError("Error renombrando proyecto");
     }
     setEditingId(null);
   };
@@ -65,12 +66,12 @@ export default function DashboardPage() {
   const cancelEdit = () => setEditingId(null);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("¿Eliminar proyecto?")) return;
+    if (!(await confirmDialog("¿Eliminar proyecto?"))) return;
     try {
       await deleteProyecto(id);
       setCreados((prev) => prev.filter((p) => p.id !== id));
     } catch {
-      alert("Error eliminando proyecto");
+      showError("Error eliminando proyecto");
     }
   };
 

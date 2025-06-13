@@ -30,6 +30,7 @@ import {
   MaterialRow,
 } from "@/lib/supabase/materiales";
 import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
+import { showError, confirmDialog } from "@/lib/alerts";
 
 export default function MaterialesPage() {
   type Estado = "por hacer" | "en proceso" | "realizado";
@@ -106,7 +107,7 @@ export default function MaterialesPage() {
         setMateriales((prev) => [...prev, rowToMaterial(row)]);
         setNuevoNombre("");
       })
-      .catch(() => alert("Error creando material"));
+      .catch(() => showError("Error creando material"));
   };
 
 
@@ -159,23 +160,23 @@ export default function MaterialesPage() {
   };
 
 
-  const eliminarMaterial = (id: string) => {
-    if (!confirm("¿Eliminar material?")) return;
+  const eliminarMaterial = async (id: string) => {
+    if (!(await confirmDialog("¿Eliminar material?"))) return;
     deleteMaterial(id)
       .then(() => {
         setMateriales((prev) => prev.filter((m) => m.id !== id));
         setSheetOpen(false);
         setMaterialActual(null);
       })
-      .catch(() => alert("Error eliminando material"));
+      .catch(() => showError("Error eliminando material"));
   };
 
-  const eliminarLista = () => {
+  const eliminarLista = async () => {
     if (!list) return;
-    if (!confirm("¿Eliminar lista?")) return;
+    if (!(await confirmDialog("¿Eliminar lista?"))) return;
     deleteMaterialList(list)
       .then(() => router.push("../"))
-      .catch(() => alert("Error eliminando lista"));
+      .catch(() => showError("Error eliminando lista"));
   };
 
 

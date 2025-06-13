@@ -6,6 +6,7 @@ import BackLink from "@/components/ui/back-link";
 import Button from "@/components/ui/button";
 import { addMaterialList } from "@/lib/supabase/materiales";
 import { PlusCircle, X } from "lucide-react";
+import { showError } from "@/lib/alerts";
 
 export default function NuevaListaPage() {
   const { id: proyectoId } = useParams<{ id: string }>();
@@ -22,7 +23,7 @@ export default function NuevaListaPage() {
       const row = await addMaterialList(proyectoId, titulo.trim(), fecha);
       router.push(`/proyecto/${proyectoId}/materiales/${row.id}`);
     } catch {
-      alert("Error creando lista");
+      showError("Error creando lista");
     }
     setCreating(false);
   };
