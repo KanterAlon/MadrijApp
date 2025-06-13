@@ -9,6 +9,7 @@ import {
   Tent,
   Trash2,
   Plus,
+  X,
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Button from "@/components/ui/button";
@@ -223,7 +224,13 @@ export default function MaterialesPage() {
         <h1 className="text-3xl font-bold flex items-center gap-2 text-blue-900">
           <FolderKanban className="w-7 h-7" /> Organización de Materiales
         </h1>
-        <Button variant="danger" onClick={eliminarLista}>Eliminar lista</Button>
+        <Button
+          variant="danger"
+          onClick={eliminarLista}
+          icon={<Trash2 className="w-4 h-4" />}
+        >
+          Eliminar lista
+        </Button>
       </div>
 
       {/* Cosas para hacer */}
@@ -236,7 +243,9 @@ export default function MaterialesPage() {
             placeholder="Nuevo material"
             className="border rounded p-2 flex-1"
           />
-          <Button onClick={crearMaterial}>Agregar</Button>
+          <Button onClick={crearMaterial} icon={<Plus className="w-4 h-4" />}>
+            Agregar
+          </Button>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
           <label htmlFor="filtroAsignado" className="text-sm text-gray-700">
@@ -465,6 +474,7 @@ export default function MaterialesPage() {
                         placeholder="Nuevo item"
                       />
                       <Button
+                        icon={<Plus className="w-4 h-4" />}
                         onClick={() => {
                           const campo: "compraItems" | "sedeItems" | "sanMiguelItems" =
                             tipoNuevoItem === "compra"
@@ -482,6 +492,7 @@ export default function MaterialesPage() {
                       <Button
                         variant="secondary"
                         onClick={() => setMostrarAgregar(false)}
+                        icon={<X className="w-4 h-4" />}
                       >
                         Cancelar
                       </Button>
@@ -593,11 +604,16 @@ export default function MaterialesPage() {
                     variant="danger"
                     onClick={() => eliminarMaterial(materialActual.id)}
                     className="flex-1"
+                    icon={<Trash2 className="w-4 h-4" />}
                   >
                     Eliminar
                   </Button>
                   <SheetClose asChild>
-                    <Button variant="secondary" className="flex-1">
+                    <Button
+                      variant="secondary"
+                      className="flex-1"
+                      icon={<X className="w-4 h-4" />}
+                    >
                       Cerrar
                     </Button>
                   </SheetClose>
