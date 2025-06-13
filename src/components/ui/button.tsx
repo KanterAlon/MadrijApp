@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "secondary" | "danger";
+  variant?: "primary" | "secondary" | "danger" | "success";
   loading?: boolean;
   icon?: React.ReactNode;
   iconRight?: boolean;
@@ -25,6 +25,7 @@ export default function Button({
     primary: "bg-blue-600 text-white hover:bg-blue-700",
     secondary: "bg-gray-200 text-gray-700 hover:bg-gray-300",
     danger: "bg-red-600 text-white hover:bg-red-700",
+    success: "bg-green-600 text-white hover:bg-green-700",
   };
 
   return (

@@ -489,6 +489,7 @@ export default function JanijimPage() {
               </Button>
             </div>
             <Button
+              variant="success"
               className="w-full sm:w-auto shrink-0 sm:ml-2"
               icon={<Check className="w-4 h-4" />}
               onClick={() => setSesionOpen(true)}
@@ -761,7 +762,11 @@ export default function JanijimPage() {
             </select>
           </div>
           <SheetFooter>
-            <Button icon={<Check className="w-4 h-4" />} onClick={iniciarSesion}>
+            <Button
+              variant="success"
+              icon={<Check className="w-4 h-4" />}
+              onClick={iniciarSesion}
+            >
               Iniciar
             </Button>
           </SheetFooter>
