@@ -56,7 +56,10 @@ export default function MobileMenu({ proyectoId }: MobileMenuProps) {
                   : href
                   ? `/proyecto/${proyectoId}/${href}`
                   : `/proyecto/${proyectoId}`;
-                const isActive = pathname === fullPath || pathname === fullPath + "/";
+                const isRoot = href === "";
+                const isActive = isRoot
+                  ? pathname === fullPath || pathname === fullPath + "/"
+                  : pathname === fullPath || pathname.startsWith(fullPath + "/");
 
                 return (
                   <SheetClose asChild key={href}>

@@ -42,7 +42,10 @@ export default function Sidebar({ proyectoId }: { proyectoId: string }) {
             : href
             ? `/proyecto/${proyectoId}/${href}`
             : `/proyecto/${proyectoId}`;
-          const isActive = pathname === fullPath || pathname === fullPath + "/";
+          const isRoot = href === "";
+          const isActive = isRoot
+            ? pathname === fullPath || pathname === fullPath + "/"
+            : pathname === fullPath || pathname.startsWith(fullPath + "/");
 
           return (
             <Link
