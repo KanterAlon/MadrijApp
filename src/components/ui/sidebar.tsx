@@ -11,6 +11,7 @@ import {
   CheckSquare,
   PencilRuler,
   PartyPopper,
+  Boxes,
   Bot,
   Home,
   LayoutDashboard,
@@ -25,6 +26,7 @@ const links = [
   { href: "tareas", label: "Tareas", icon: CheckSquare },
   { href: "planificaciones", label: "Planificaciones", icon: PencilRuler },
   { href: "actividades", label: "Actividades", icon: PartyPopper },
+  { href: "materiales", label: "Materiales", icon: Boxes },
   { href: "chatbot", label: "Chatbot", icon: Bot },
 ];
 
