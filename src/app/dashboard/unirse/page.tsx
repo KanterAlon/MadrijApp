@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "react-hot-toast";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import BackLink from "@/components/ui/back-link";
 import { supabase } from "@/lib/supabase";
 import Button from "@/components/ui/button";
 import { Handshake } from "lucide-react";
@@ -18,6 +18,7 @@ export default function UnirseProyectoPage() {
   const handleJoin = async () => {
     if (!user || !codigo || loading) return;
     setLoading(true);
+
     const { data: proyecto, error } = await supabase
       .from("proyectos")
       .select("id")
@@ -45,12 +46,7 @@ export default function UnirseProyectoPage() {
 
   return (
     <div className="max-w-md mx-auto mt-24 bg-white p-6 rounded-2xl shadow">
-      <Link
-        href="/dashboard"
-        className="text-blue-600 hover:underline mb-4 inline-block"
-      >
-        &larr; Volver
-      </Link>
+      <BackLink href="/dashboard" className="mb-4 inline-flex" />
       <h1 className="text-2xl font-bold mb-6 text-center text-blue-700">
         Unirse a un Proyecto
       </h1>
