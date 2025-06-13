@@ -5,10 +5,18 @@ import { Kanban } from "lucide-react";
 import Button from "@/components/ui/button";
 
 export default function MaterialesPage() {
+  type Estado =
+    | "por hacer"
+    | "en progreso"
+    | "realizado"
+    | "disponible"
+    | "a retirar";
+
   type Material = {
     id: string;
     nombre: string;
     tipo: "realizable" | "crudo";
+    requiereArmado: boolean;
     compra: boolean;
     sede: boolean;
     sanMiguel: boolean;
@@ -16,20 +24,24 @@ export default function MaterialesPage() {
     estado: Estado;
   };
 
-  type Estado = "pendiente" | "en progreso" | "listo";
-
-  const estados: Estado[] = ["pendiente", "en progreso", "listo"];
+  const estados: Estado[] = [
+    "por hacer",
+    "en progreso",
+    "realizado",
+    "disponible",
+    "a retirar",
+  ];
 
   const [materiales, setMateriales] = useState<Material[]>([]);
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [nuevoTipo, setNuevoTipo] = useState<"realizable" | "crudo">("realizable");
+  const [nuevoArmado, setNuevoArmado] = useState(false);
+  const [filtro, setFiltro] = useState<"todos" | "realizable" | "crudo">("todos");
 
   const onDrop = (e: React.DragEvent<HTMLDivElement>, estado: Estado) => {
     e.preventDefault();
     const id = e.dataTransfer.getData("text");
-    setMateriales((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, estado } : m))
-    );
+    setMateriales((prev) => prev.map((m) => (m.id === id ? { ...m, estado } : m)));
   };
 
   const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -42,14 +54,29 @@ export default function MaterialesPage() {
       id: Date.now().toString(),
       nombre: nuevoNombre.trim(),
       tipo: nuevoTipo,
+      requiereArmado: nuevoArmado,
       compra: false,
       sede: false,
       sanMiguel: false,
       asignado: "",
-      estado: "pendiente",
+      estado: nuevoTipo === "realizable" ? "por hacer" : "disponible",
     };
     setMateriales((prev) => [...prev, nuevo]);
     setNuevoNombre("");
+    setNuevoArmado(false);
+  };
+
+  const materialesFiltrados =
+    filtro === "todos"
+      ? materiales
+      : materiales.filter((m) => m.tipo === filtro);
+
+  const actualizarCampo = (
+    id: string,
+    campo: keyof Material,
+    valor: Material[keyof Material]
+  ) => {
+    setMateriales((prev) => prev.map((m) => (m.id === id ? { ...m, [campo]: valor } : m)));
   };
 
   return (
@@ -57,6 +84,36 @@ export default function MaterialesPage() {
       <h1 className="text-3xl font-bold mb-6 flex items-center gap-2 text-blue-900">
         <Kanban className="w-7 h-7" /> MaterialFlow
       </h1>
+
+      <div className="mb-4 flex gap-4">
+        <label className="flex items-center gap-2">
+          <input
+            type="radio"
+            name="tipoFiltro"
+            checked={filtro === "todos"}
+            onChange={() => setFiltro("todos")}
+          />
+          Todos
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="radio"
+            name="tipoFiltro"
+            checked={filtro === "realizable"}
+            onChange={() => setFiltro("realizable")}
+          />
+          Realizables
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="radio"
+            name="tipoFiltro"
+            checked={filtro === "crudo"}
+            onChange={() => setFiltro("crudo")}
+          />
+          Crudos
+        </label>
+      </div>
 
       <div className="mb-6 flex flex-col sm:flex-row gap-4">
         <input
@@ -73,10 +130,20 @@ export default function MaterialesPage() {
           <option value="realizable">Realizable</option>
           <option value="crudo">Crudo</option>
         </select>
+        {nuevoTipo === "realizable" && (
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={nuevoArmado}
+              onChange={(e) => setNuevoArmado(e.target.checked)}
+            />
+            Requiere armado
+          </label>
+        )}
         <Button onClick={crearMaterial}>Agregar</Button>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid md:grid-cols-5 gap-4">
         {estados.map((estado) => (
           <div
             key={estado}
@@ -88,7 +155,7 @@ export default function MaterialesPage() {
               {estado}
             </h2>
             <div className="space-y-2">
-              {materiales
+              {materialesFiltrados
                 .filter((m) => m.estado === estado)
                 .map((m) => (
                   <div
@@ -99,22 +166,14 @@ export default function MaterialesPage() {
                   >
                     <div className="font-medium">{m.nombre}</div>
                     <div className="text-sm text-gray-600">
-                      Tipo: {m.tipo}
+                      Tipo: {m.tipo} {m.tipo === "realizable" && m.requiereArmado ? "(armar)" : ""}
                     </div>
                     <div className="mt-2 space-y-1 text-sm">
                       <label className="flex items-center gap-2">
                         <input
                           type="checkbox"
                           checked={m.compra}
-                          onChange={(e) =>
-                            setMateriales((prev) =>
-                              prev.map((mat) =>
-                                mat.id === m.id
-                                  ? { ...mat, compra: e.target.checked }
-                                  : mat
-                              )
-                            )
-                          }
+                          onChange={(e) => actualizarCampo(m.id, "compra", e.target.checked)}
                         />
                         Comprar
                       </label>
@@ -122,15 +181,7 @@ export default function MaterialesPage() {
                         <input
                           type="checkbox"
                           checked={m.sede}
-                          onChange={(e) =>
-                            setMateriales((prev) =>
-                              prev.map((mat) =>
-                                mat.id === m.id
-                                  ? { ...mat, sede: e.target.checked }
-                                  : mat
-                              )
-                            )
-                          }
+                          onChange={(e) => actualizarCampo(m.id, "sede", e.target.checked)}
                         />
                         Pedir en sede
                       </label>
@@ -138,18 +189,16 @@ export default function MaterialesPage() {
                         <input
                           type="checkbox"
                           checked={m.sanMiguel}
-                          onChange={(e) =>
-                            setMateriales((prev) =>
-                              prev.map((mat) =>
-                                mat.id === m.id
-                                  ? { ...mat, sanMiguel: e.target.checked }
-                                  : mat
-                              )
-                            )
-                          }
+                          onChange={(e) => actualizarCampo(m.id, "sanMiguel", e.target.checked)}
                         />
                         Llevar a San Miguel
                       </label>
+                      <input
+                        value={m.asignado}
+                        onChange={(e) => actualizarCampo(m.id, "asignado", e.target.value)}
+                        placeholder="Asignado a"
+                        className="border rounded p-1 w-full"
+                      />
                     </div>
                   </div>
                 ))}
@@ -160,4 +209,3 @@ export default function MaterialesPage() {
     </div>
   );
 }
-
