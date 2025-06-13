@@ -2,16 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getMaterialLists, addMaterialList, deleteMaterialList } from "@/lib/supabase/materiales";
+import Link from "next/link";
+import { getMaterialLists, deleteMaterialList } from "@/lib/supabase/materiales";
 import { Trash2 } from "lucide-react";
-import Button from "@/components/ui/button";
 
 export default function MaterialesIndexPage() {
   const { id: proyectoId } = useParams<{ id: string }>();
   const router = useRouter();
   const [listas, setListas] = useState<{ id: string; titulo: string; fecha: string }[]>([]);
-  const [titulo, setTitulo] = useState("");
-  const [fecha, setFecha] = useState("");
   const hoy = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
@@ -21,16 +19,6 @@ export default function MaterialesIndexPage() {
       .catch(() => setListas([]));
   }, [proyectoId]);
 
-  const crearLista = () => {
-    if (!titulo.trim() || !fecha) return;
-    addMaterialList(proyectoId, titulo.trim(), fecha)
-      .then((row) => {
-        setListas((prev) => [...prev, row]);
-        setTitulo("");
-        setFecha("");
-      })
-      .catch(() => alert("Error creando lista"));
-  };
 
   const eliminarLista = (id: string) => {
     if (!confirm("¿Eliminar lista?")) return;
@@ -96,23 +84,13 @@ export default function MaterialesIndexPage() {
           ))}
         </div>
       </details>
-      <div className="space-y-2">
-        <h2 className="text-xl font-semibold text-blue-800">Crear nueva lista</h2>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            value={titulo}
-            onChange={(e) => setTitulo(e.target.value)}
-            placeholder="Título de la actividad"
-            className="border rounded p-2 flex-1"
-          />
-          <input
-            type="date"
-            value={fecha}
-            onChange={(e) => setFecha(e.target.value)}
-            className="border rounded p-2"
-          />
-          <Button onClick={crearLista}>Agregar</Button>
-        </div>
+      <div className="mt-6">
+        <Link
+          href="./materiales/nueva"
+          className="inline-block rounded-md bg-blue-600 px-4 py-2 text-white font-medium hover:bg-blue-700"
+        >
+          + Crear nueva lista
+        </Link>
       </div>
     </div>
   );
