@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { getMaterialLists, deleteMaterialList } from "@/lib/supabase/materiales";
 import { Trash2, PlusCircle } from "lucide-react";
 import { showError, confirmDialog } from "@/lib/alerts";
@@ -58,6 +57,14 @@ export default function MaterialesIndexPage() {
               <p className="text-sm text-gray-600">{l.fecha}</p>
             </div>
           ))}
+          <div
+            key="crear"
+            onClick={() => router.push("./materiales/nueva")}
+            className="cursor-pointer rounded border-2 border-dashed p-4 bg-white flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50"
+          >
+            <PlusCircle className="w-6 h-6" />
+            <span className="mt-2 font-semibold">Crear nueva lista</span>
+          </div>
         </div>
       </details>
 
@@ -85,15 +92,6 @@ export default function MaterialesIndexPage() {
           ))}
         </div>
       </details>
-      <div className="mt-6">
-        <Link
-          href="./materiales/nueva"
-          className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-white font-medium hover:bg-blue-700"
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span>Crear nueva lista</span>
-        </Link>
-      </div>
     </div>
   );
 }
