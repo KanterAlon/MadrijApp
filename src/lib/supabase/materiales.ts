@@ -70,11 +70,12 @@ export async function addMaterial(proyectoId: string, nombre: string) {
 export async function addMaterialEnLista(
   listaId: string,
   nombre: string,
-  proyectoId: string
+  proyectoId: string,
+  estado: string = "por hacer"
 ) {
   const { data, error } = await supabase
     .from("materiales")
-    .insert({ proyecto_id: proyectoId, lista_id: listaId, nombre })
+    .insert({ proyecto_id: proyectoId, lista_id: listaId, nombre, estado })
     .select()
     .single();
   if (error) throw error;

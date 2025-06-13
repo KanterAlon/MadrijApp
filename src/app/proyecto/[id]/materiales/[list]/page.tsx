@@ -77,6 +77,11 @@ export default function MaterialesPage() {
 
   const [materiales, setMateriales] = useState<Material[]>([]);
   const [nuevoNombre, setNuevoNombre] = useState("");
+  const [nuevoPorEstado, setNuevoPorEstado] = useState<Record<Estado, string>>({
+    "por hacer": "",
+    "en proceso": "",
+    realizado: "",
+  });
 
   const [madrijes, setMadrijes] = useState<{ clerk_id: string; nombre: string }[]>([]);
   const [nuevoItemGeneral, setNuevoItemGeneral] = useState("");
@@ -108,6 +113,17 @@ export default function MaterialesPage() {
       .then((row) => {
         setMateriales((prev) => [...prev, rowToMaterial(row)]);
         setNuevoNombre("");
+      })
+      .catch(() => showError("Error creando material"));
+  };
+
+  const crearMaterialEnEstado = (estado: Estado) => {
+    const nombre = nuevoPorEstado[estado].trim();
+    if (!nombre || !list) return;
+    addMaterialEnLista(list, nombre, proyectoId, estado)
+      .then((row) => {
+        setMateriales((prev) => [...prev, rowToMaterial(row)]);
+        setNuevoPorEstado((prev) => ({ ...prev, [estado]: "" }));
       })
       .catch(() => showError("Error creando material"));
   };
@@ -319,6 +335,28 @@ export default function MaterialesPage() {
                 ).length === 0 && (
                   <p className="text-sm text-gray-500">Sin materiales</p>
                 )}
+                <div className="pt-2 flex items-center gap-2">
+                  <input
+                    value={nuevoPorEstado[estado]}
+                    onChange={(e) =>
+                      setNuevoPorEstado((prev) => ({
+                        ...prev,
+                        [estado]: e.target.value,
+                      }))
+                    }
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && crearMaterialEnEstado(estado)
+                    }
+                    placeholder="Agregar material"
+                    className="flex-1 bg-transparent border-b border-gray-300 focus:outline-none"
+                  />
+                  <button
+                    onClick={() => crearMaterialEnEstado(estado)}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
