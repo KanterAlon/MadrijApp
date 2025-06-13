@@ -60,3 +60,6 @@ The application requires the following variables to be defined, usually in a
 
 
 
+##CONFIGS PARA EL COLE
+
+set NODE_TLS_REJECT_UNAUTHORIZED=0
