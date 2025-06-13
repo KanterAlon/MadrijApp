@@ -204,24 +204,11 @@ export default function MaterialesPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-bold flex items-center gap-2 text-blue-900">
-        <FolderKanban className="w-7 h-7" /> organización de materiales
-      </h1>
-      <Button variant="danger" onClick={eliminarLista}>Eliminar lista</Button>
-
-      <div className="flex flex-col sm:flex-row gap-2">
-        <select
-          value={filtroAsignado}
-          onChange={(e) => setFiltroAsignado(e.target.value)}
-          className="border rounded p-2"
-        >
-          <option value="">Todos</option>
-          {madrijes.map((m) => (
-            <option key={m.clerk_id} value={m.nombre}>
-              {m.nombre}
-            </option>
-          ))}
-        </select>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-3xl font-bold flex items-center gap-2 text-blue-900">
+          <FolderKanban className="w-7 h-7" /> Organización de Materiales
+        </h1>
+        <Button variant="danger" onClick={eliminarLista}>Eliminar lista</Button>
       </div>
 
       {/* Cosas para hacer */}
@@ -235,6 +222,24 @@ export default function MaterialesPage() {
             className="border rounded p-2 flex-1"
           />
           <Button onClick={crearMaterial}>Agregar</Button>
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
+          <label htmlFor="filtroAsignado" className="text-sm text-gray-700">
+            Ver de:
+          </label>
+          <select
+            id="filtroAsignado"
+            value={filtroAsignado}
+            onChange={(e) => setFiltroAsignado(e.target.value)}
+            className="border rounded p-2"
+          >
+            <option value="">Todos</option>
+            {madrijes.map((m) => (
+              <option key={m.clerk_id} value={m.nombre}>
+                {m.nombre}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="grid md:grid-cols-3 gap-4 mt-4">
           {estados.map((estado) => (
