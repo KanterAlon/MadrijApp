@@ -70,6 +70,7 @@ export default function MaterialesPage() {
   const [nuevoItemGeneral, setNuevoItemGeneral] = useState("");
   const [tipoNuevoItem, setTipoNuevoItem] = useState<"compra" | "sede" | "sanMiguel">("compra");
   const [mostrarAgregar, setMostrarAgregar] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [materialActual, setMaterialActual] = useState<Material | null>(null);
@@ -386,26 +387,51 @@ export default function MaterialesPage() {
                   placeholder="Descripción"
                 />
                 <div>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setMostrarAgregar((p) => !p)}
-                    className="mb-2 flex items-center gap-1"
-                  >
-                    {mostrarAgregar ? "Cancelar" : <><Plus className="w-4 h-4" /> Agregar</>}
-                  </Button>
+                  <div className="relative mb-2">
+                    <Button
+                      variant="secondary"
+                      onClick={() => setMenuOpen((p) => !p)}
+                      className="flex items-center gap-1"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                    {menuOpen && (
+                      <div className="absolute right-0 z-20 bg-white border rounded shadow mt-1 w-40">
+                        <button
+                          className="flex w-full items-center gap-2 p-2 hover:bg-gray-100"
+                          onClick={() => {
+                            setTipoNuevoItem("compra");
+                            setMostrarAgregar(true);
+                            setMenuOpen(false);
+                          }}
+                        >
+                          <ShoppingCart className="w-4 h-4" /> Comprar
+                        </button>
+                        <button
+                          className="flex w-full items-center gap-2 p-2 hover:bg-gray-100"
+                          onClick={() => {
+                            setTipoNuevoItem("sede");
+                            setMostrarAgregar(true);
+                            setMenuOpen(false);
+                          }}
+                        >
+                          <Building2 className="w-4 h-4" /> Retirar en sede
+                        </button>
+                        <button
+                          className="flex w-full items-center gap-2 p-2 hover:bg-gray-100"
+                          onClick={() => {
+                            setTipoNuevoItem("sanMiguel");
+                            setMostrarAgregar(true);
+                            setMenuOpen(false);
+                          }}
+                        >
+                          <Tent className="w-4 h-4" /> En San Miguel
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   {mostrarAgregar && (
                     <div className="flex gap-2 mt-2">
-                      <select
-                        value={tipoNuevoItem}
-                        onChange={(e) =>
-                          setTipoNuevoItem(e.target.value as "compra" | "sede" | "sanMiguel")
-                        }
-                        className="border rounded p-1"
-                      >
-                        <option value="compra">Compra</option>
-                        <option value="sede">Retirar de sede</option>
-                        <option value="sanMiguel">En San Miguel</option>
-                      </select>
                       <input
                         value={nuevoItemGeneral}
                         onChange={(e) => setNuevoItemGeneral(e.target.value)}
@@ -426,6 +452,12 @@ export default function MaterialesPage() {
                         }}
                       >
                         Agregar
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={() => setMostrarAgregar(false)}
+                      >
+                        Cancelar
                       </Button>
                     </div>
                   )}
@@ -487,20 +519,24 @@ export default function MaterialesPage() {
                   </div>
                 </details>
 
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={materialActual.armarEnSanMiguel}
-                    onChange={(e) =>
+                <div className="flex items-center gap-2 text-sm">
+                  <span>Se termina en</span>
+                  <button
+                    onClick={() =>
                       actualizarMaterial(
                         materialActual.id,
                         "armarEnSanMiguel",
-                        e.target.checked
+                        !materialActual.armarEnSanMiguel
                       )
                     }
-                  />
-                  Terminar en San Miguel
-                </label>
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${materialActual.armarEnSanMiguel ? "bg-blue-600" : "bg-gray-300"}`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${materialActual.armarEnSanMiguel ? "translate-x-6" : "translate-x-1"}`}
+                    />
+                  </button>
+                  <span>{materialActual.armarEnSanMiguel ? "San Miguel" : "Capital"}</span>
+                </div>
 
                 <label className="flex items-center gap-2">
                   <span>Asignado a:</span>

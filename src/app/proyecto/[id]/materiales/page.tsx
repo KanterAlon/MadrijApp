@@ -39,7 +39,8 @@ export default function MaterialesIndexPage() {
       .catch(() => alert("Error eliminando lista"));
   };
 
-  const listasFuturas = listas.filter((l) => l.fecha >= hoy);
+  const bandeja = listas.filter((l) => !l.fecha || l.fecha === hoy);
+  const listasFuturas = listas.filter((l) => l.fecha > hoy);
   const listasPrevias = listas.filter((l) => l.fecha < hoy);
 
   return (
@@ -48,7 +49,32 @@ export default function MaterialesIndexPage() {
       {listas.length === 0 && <p className="text-gray-600">No hay listas creadas.</p>}
 
       <details open>
-        <summary className="font-semibold cursor-pointer mb-2">Futuras</summary>
+        <summary className="font-semibold cursor-pointer mb-2">Bandeja de entrada</summary>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+          {bandeja.map((l) => (
+            <div
+              key={l.id}
+              onClick={() => router.push(`./materiales/${l.id}`)}
+              className="cursor-pointer rounded border p-4 bg-white shadow hover:shadow-md relative group"
+            >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  eliminarLista(l.id);
+                }}
+                className="absolute top-2 right-2 text-red-600 hover:text-red-800 hidden group-hover:block"
+              >
+                <Trash2 size={16} />
+              </button>
+              <h3 className="font-semibold">{l.titulo}</h3>
+              <p className="text-sm text-gray-600">{l.fecha}</p>
+            </div>
+          ))}
+        </div>
+      </details>
+
+      <details>
+        <summary className="font-semibold cursor-pointer mb-2">Futuras listas</summary>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
           {listasFuturas.map((l) => (
             <div
@@ -73,7 +99,7 @@ export default function MaterialesIndexPage() {
       </details>
 
       <details>
-        <summary className="font-semibold cursor-pointer mb-2">Previas</summary>
+        <summary className="font-semibold cursor-pointer mb-2">Listas previas</summary>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
           {listasPrevias.map((l) => (
             <div
