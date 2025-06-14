@@ -5,18 +5,22 @@ import { useParams, useRouter } from "next/navigation";
 import { getMaterialLists, deleteMaterialList } from "@/lib/supabase/materiales";
 import { Trash2, PlusCircle } from "lucide-react";
 import { showError, confirmDialog } from "@/lib/alerts";
+import Skeleton from "@/components/ui/skeleton";
 
 export default function MaterialesIndexPage() {
   const { id: proyectoId } = useParams<{ id: string }>();
   const router = useRouter();
   const [listas, setListas] = useState<{ id: string; titulo: string; fecha: string }[]>([]);
+  const [loading, setLoading] = useState(true);
   const hoy = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
     if (!proyectoId) return;
+    setLoading(true);
     getMaterialLists(proyectoId)
       .then(setListas)
-      .catch(() => setListas([]));
+      .catch(() => setListas([]))
+      .finally(() => setLoading(false));
   }, [proyectoId]);
 
 
@@ -33,7 +37,15 @@ export default function MaterialesIndexPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-blue-900">Listas de materiales</h1>
-      {listas.length === 0 && <p className="text-gray-600">No hay listas creadas.</p>}
+      {loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
+      ) : (
+        <>
+          {listas.length === 0 && <p className="text-gray-600">No hay listas creadas.</p>}
 
       <details open>
         <summary className="font-semibold cursor-pointer mb-2">Bandeja de entrada</summary>
@@ -62,10 +74,10 @@ export default function MaterialesIndexPage() {
             onClick={() => router.push("./materiales/nueva")}
             className="cursor-pointer rounded border-2 border-dashed p-4 bg-white flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50"
           >
-            <PlusCircle className="w-6 h-6" />
-            <span className="mt-2 font-semibold">Crear nueva lista</span>
-          </div>
+          <PlusCircle className="w-6 h-6" />
+          <span className="mt-2 font-semibold">Crear nueva lista</span>
         </div>
+      </div>
       </details>
 
       <details>
@@ -86,12 +98,14 @@ export default function MaterialesIndexPage() {
               >
                 <Trash2 size={16} />
               </button>
-              <h3 className="font-semibold">{l.titulo}</h3>
-              <p className="text-sm text-gray-600">{l.fecha}</p>
-            </div>
-          ))}
-        </div>
+            <h3 className="font-semibold">{l.titulo}</h3>
+            <p className="text-sm text-gray-600">{l.fecha}</p>
+          </div>
+        ))}
+      </div>
       </details>
+        </>
+      )}
     </div>
   );
 }
