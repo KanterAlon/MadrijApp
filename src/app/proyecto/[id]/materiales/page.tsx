@@ -27,8 +27,8 @@ export default function MaterialesIndexPage() {
       .catch(() => showError("Error eliminando lista"));
   };
 
-  const bandeja = listas.filter((l) => l.fecha > hoy);
-  const listasPrevias = listas.filter((l) => !l.fecha || l.fecha <= hoy);
+  const bandeja = listas.filter((l) => l.fecha >= hoy);
+  const listasPrevias = listas.filter((l) => !l.fecha || l.fecha < hoy);
 
   return (
     <div className="space-y-6">
