@@ -14,7 +14,7 @@ import {
   getSesion,
 } from "@/lib/supabase/asistencias";
 import { supabase } from "@/lib/supabase";
-import { Search, FileUp, Check, ArrowLeft } from "lucide-react";
+import { Search, FileUp, Check, ArrowLeft, ArrowUp } from "lucide-react";
 import Button from "@/components/ui/button";
 
 type AsistenciaRow = {
@@ -48,8 +48,16 @@ export default function AsistenciaPage() {
   const [showResults, setShowResults] = useState(false);
   const [aiResults, setAiResults] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [showTopButton, setShowTopButton] = useState(false);
   const { highlightId, scrollTo } = useHighlightScroll({ prefix: "janij-" });
   const esCreador = user?.id === sesion?.madrij_id;
+
+  useEffect(() => {
+    const handle = () => setShowTopButton(window.scrollY > 200);
+    window.addEventListener("scroll", handle);
+    handle();
+    return () => window.removeEventListener("scroll", handle);
+  }, []);
 
   useEffect(() => {
     if (!sesionId) return;
@@ -213,6 +221,10 @@ export default function AsistenciaPage() {
     setFinalizado(true);
   };
 
+  const irArriba = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-8">
@@ -358,16 +370,28 @@ export default function AsistenciaPage() {
           ))}
         </ul>
       </div>
-      {esCreador && (
-        <div className="fixed bottom-4 right-4 md:bottom-8 md:right-8 z-10">
-          <Button
-            className="rounded-full shadow-lg px-6 py-3"
-            variant="danger"
-            icon={<Check className="w-4 h-4" />}
-            onClick={finalizar}
-          >
-            Finalizar asistencia
-          </Button>
+      {(esCreador || showTopButton) && (
+        <div className="fixed bottom-4 right-4 md:bottom-8 md:right-8 z-10 flex flex-col items-end space-y-2">
+          {esCreador && (
+            <Button
+              className="rounded-full shadow-lg px-6 py-3"
+              variant="danger"
+              icon={<Check className="w-4 h-4" />}
+              onClick={finalizar}
+            >
+              Finalizar asistencia
+            </Button>
+          )}
+          {showTopButton && (
+            <Button
+              className="rounded-full shadow-lg px-6 py-3"
+              variant="secondary"
+              icon={<ArrowUp className="w-4 h-4" />}
+              onClick={irArriba}
+            >
+              Ir arriba
+            </Button>
+          )}
         </div>
       )}
     </div>
