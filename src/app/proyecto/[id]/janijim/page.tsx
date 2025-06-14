@@ -66,6 +66,7 @@ export default function JanijimPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showResults, setShowResults] = useState(false);
+  const [showTopButton, setShowTopButton] = useState(false);
   const { highlightId, scrollTo } = useHighlightScroll({ prefix: "janij-" });
   const [aiResults, setAiResults] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
@@ -93,6 +94,13 @@ export default function JanijimPage() {
   useEffect(() => {
     if (importOpen) setImportMode("chooser");
   }, [importOpen]);
+
+  useEffect(() => {
+    const handle = () => setShowTopButton(window.scrollY > 200);
+    window.addEventListener("scroll", handle);
+    handle();
+    return () => window.removeEventListener("scroll", handle);
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -564,13 +572,6 @@ export default function JanijimPage() {
           </li>
         ))}
       </ul>
-      <Button
-        className="mx-auto mt-4 block"
-        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        icon={<ArrowUp className="w-4 h-4" />}
-      >
-        Volver arriba
-      </Button>
       </>)}
 
       <Sheet open={importOpen} onOpenChange={setImportOpen}>
@@ -776,6 +777,18 @@ export default function JanijimPage() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+      {showTopButton && (
+        <div className="fixed bottom-20 right-4 md:bottom-24 md:right-8 z-10">
+          <Button
+            className="rounded-full shadow-lg px-6 py-3"
+            variant="secondary"
+            icon={<ArrowUp className="w-4 h-4" />}
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          >
+            Ir arriba
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
