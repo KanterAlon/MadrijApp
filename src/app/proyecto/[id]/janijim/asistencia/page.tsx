@@ -52,6 +52,11 @@ export default function AsistenciaPage() {
   const { highlightId, scrollTo } = useHighlightScroll({ prefix: "janij-" });
   const esCreador = user?.id === sesion?.madrij_id;
 
+  const presentesCount = useMemo(
+    () => janijim.filter((j) => estado[j.id]).length,
+    [janijim, estado]
+  );
+
   useEffect(() => {
     const handle = () => setShowTopButton(window.scrollY > 200);
     window.addEventListener("scroll", handle);
@@ -348,7 +353,7 @@ export default function AsistenciaPage() {
             </ul>
           )}
         </div>
-        <ul className="space-y-2 pb-24">
+        <ul className="space-y-2 pb-32">
           {janijim.map((j) => (
             <li
               id={`janij-${j.id}`}
@@ -369,9 +374,12 @@ export default function AsistenciaPage() {
             </li>
           ))}
         </ul>
-      </div>
-      {(esCreador || showTopButton) && (
-        <div className="fixed bottom-4 right-4 md:bottom-8 md:right-8 z-10 flex flex-col items-end space-y-2">
+        </div>
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow text-center py-2">
+          Presentes: {presentesCount} / {janijim.length}
+        </div>
+        {(esCreador || showTopButton) && (
+        <div className="fixed bottom-20 right-4 md:bottom-24 md:right-8 z-10 flex flex-col items-end space-y-2">
           {esCreador && (
             <Button
               className="rounded-full shadow-lg px-6 py-3"
