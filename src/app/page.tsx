@@ -3,11 +3,12 @@
 import { SignInButton, useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import Loader from "@/components/ui/loader";
 import { CalendarCheck, Group, LayoutDashboard, LogIn } from "lucide-react";
 import Button from "@/components/ui/button";
 
 export default function HomePage() {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, isLoaded } = useAuth();
   const router = useRouter();
 
   // Redirige al dashboard si ya está logueado
@@ -16,6 +17,14 @@ export default function HomePage() {
       router.push("/dashboard");
     }
   }, [isSignedIn, router]);
+
+  if (!isLoaded || isSignedIn) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader className="h-8 w-8" />
+      </div>
+    );
+  }
 
   const features = [
     {

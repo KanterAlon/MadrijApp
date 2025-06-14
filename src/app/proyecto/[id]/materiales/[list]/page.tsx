@@ -34,6 +34,7 @@ import {
 } from "@/lib/supabase/materiales";
 import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
 import { showError, confirmDialog } from "@/lib/alerts";
+import Loader from "@/components/ui/loader";
 
 export default function MaterialesPage() {
   type Estado = "por hacer" | "en proceso" | "realizado";
@@ -77,6 +78,7 @@ export default function MaterialesPage() {
   const estados: Estado[] = ["por hacer", "en proceso", "realizado"];
 
   const [materiales, setMateriales] = useState<Material[]>([]);
+  const [loading, setLoading] = useState(true);
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [nuevoPorEstado, setNuevoPorEstado] = useState<Record<Estado, string>>({
     "por hacer": "",
@@ -98,6 +100,7 @@ export default function MaterialesPage() {
 
   useEffect(() => {
     if (!proyectoId || !list) return;
+    setLoading(true);
     Promise.all([getMateriales(proyectoId, list), getMadrijimPorProyecto(proyectoId)])
       .then(([mats, mads]) => {
         const convM = mats.map(rowToMaterial);
@@ -107,8 +110,17 @@ export default function MaterialesPage() {
       .catch(() => {
         setMateriales([]);
         setMadrijes([]);
-      });
+      })
+      .finally(() => setLoading(false));
   }, [proyectoId, list, rowToMaterial]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader className="h-6 w-6" />
+      </div>
+    );
+  }
 
   const crearMaterial = () => {
     if (!nuevoNombre.trim() || !list) return;
