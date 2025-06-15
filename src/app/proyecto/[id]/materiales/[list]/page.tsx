@@ -390,19 +390,28 @@ export default function MaterialesPage() {
             .filter((m) => m.compraItems.length > 0)
             .map((m) =>
               m.compraItems.map((item, idx) => (
-                <div
+                <label
                   key={`${m.id}-c-${idx}`}
-                  onClick={() => {
-                    setMaterialActual(m);
-                    setSheetOpen(true);
-                  }}
-                  className="cursor-pointer hover:underline"
+                  className="flex items-center gap-2"
                 >
-                  {item}{" "}
-                  <span className="text-xs text-gray-600">
-                    ({m.nombre} - {m.asignado || "sin madrij"})
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    onChange={() => quitarItemLista(m, "compraItems", idx)}
+                  />
+                  <span
+                    onClick={() => {
+                      setMaterialActual(m);
+                      setSheetOpen(true);
+                    }}
+                    className="cursor-pointer hover:underline"
+                  >
+                    {item}{" "}
+                    <span className="text-xs text-gray-600">
+                      ({m.nombre} - {m.asignado || "sin madrij"})
+                    </span>
                   </span>
-                </div>
+                </label>
               ))
             )}
         </div>
@@ -421,19 +430,66 @@ export default function MaterialesPage() {
             .filter((m) => m.sedeItems.length > 0)
             .map((m) =>
               m.sedeItems.map((item, idx) => (
-                <div
+                <label
                   key={`${m.id}-s-${idx}`}
-                  onClick={() => {
-                    setMaterialActual(m);
-                    setSheetOpen(true);
-                  }}
-                  className="cursor-pointer hover:underline"
+                  className="flex items-center gap-2"
                 >
-                  {item}{" "}
-                  <span className="text-xs text-gray-600">
-                    ({m.nombre} - {m.asignado || "sin madrij"})
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    onChange={() => quitarItemLista(m, "sedeItems", idx)}
+                  />
+                  <span
+                    onClick={() => {
+                      setMaterialActual(m);
+                      setSheetOpen(true);
+                    }}
+                    className="cursor-pointer hover:underline"
+                  >
+                    {item}{" "}
+                    <span className="text-xs text-gray-600">
+                      ({m.nombre} - {m.asignado || "sin madrij"})
+                    </span>
                   </span>
-                </div>
+                </label>
+              ))
+            )}
+        </div>
+      </section>
+
+      {/* Material en San Miguel */}
+      <section className="space-y-2">
+        <h2 className="text-2xl font-semibold text-blue-800">Material en San Miguel</h2>
+        <div className="space-y-1">
+          {materiales.filter((m) => m.sanMiguelItems.length > 0).length === 0 && (
+            <p className="text-sm text-gray-500">Sin material</p>
+          )}
+          {materiales
+            .filter((m) => m.sanMiguelItems.length > 0)
+            .map((m) =>
+              m.sanMiguelItems.map((item, idx) => (
+                <label
+                  key={`${m.id}-sm-${idx}`}
+                  className="flex items-center gap-2"
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    onChange={() => quitarItemLista(m, "sanMiguelItems", idx)}
+                  />
+                  <span
+                    onClick={() => {
+                      setMaterialActual(m);
+                      setSheetOpen(true);
+                    }}
+                    className="cursor-pointer hover:underline"
+                  >
+                    {item}{" "}
+                    <span className="text-xs text-gray-600">
+                      ({m.nombre} - {m.asignado || "sin madrij"})
+                    </span>
+                  </span>
+                </label>
               ))
             )}
         </div>
