@@ -38,10 +38,85 @@ CREATE TABLE public.asistencias (
   sesion_id uuid,
   CONSTRAINT asistencias_pkey PRIMARY KEY (id),
   CONSTRAINT asistencias_proyecto_id_fkey FOREIGN KEY (proyecto_id) REFERENCES public.proyectos(id),
-  CONSTRAINT asistencias_sesion_id_fkey FOREIGN KEY (sesion_id) REFERENCES public.asistencia_sesiones(id),
-  CONSTRAINT asistencias_janij_id_fkey FOREIGN KEY (janij_id) REFERENCES public.janijim(id)
+  CONSTRAINT asistencias_janij_id_fkey FOREIGN KEY (janij_id) REFERENCES public.janijim(id),
+  CONSTRAINT asistencias_sesion_id_fkey FOREIGN KEY (sesion_id) REFERENCES public.asistencia_sesiones(id)
 );
 CREATE TABLE public.items_llevar (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  proyecto_id uuid,
+  nombre text NOT NULL,
+  en_san_miguel boolean DEFAULT true,
+  desde_sede boolean DEFAULT false,
+  encargado text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT items_llevar_pkey PRIMARY KEY (id),
+  CONSTRAINT items_llevar_proyecto_id_fkey FOREIGN KEY (proyecto_id) REFERENCES public.proyectos(id)
+);
+CREATE TABLE public.janijim (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  nombre text NOT NULL,
+  proyecto_id uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  activo boolean DEFAULT true,
+  CONSTRAINT janijim_pkey PRIMARY KEY (id),
+  CONSTRAINT janijim_proyecto_id_fkey FOREIGN KEY (proyecto_id) REFERENCES public.proyectos(id)
+);
+CREATE TABLE public.madrijim (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  clerk_id text NOT NULL UNIQUE,
+  email text NOT NULL,
+  nombre text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT madrijim_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.madrijim_proyectos (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  proyecto_id uuid,
+  madrij_id text NOT NULL,
+  rol text DEFAULT 'miembro'::text,
+  invitado boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT madrijim_proyectos_pkey PRIMARY KEY (id),
+  CONSTRAINT madrijim_proyectos_proyecto_id_fkey FOREIGN KEY (proyecto_id) REFERENCES public.proyectos(id)
+);
+CREATE TABLE public.material_lists (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  proyecto_id uuid,
+  titulo text NOT NULL,
+  fecha date NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT material_lists_pkey PRIMARY KEY (id),
+  CONSTRAINT material_lists_proyecto_id_fkey FOREIGN KEY (proyecto_id) REFERENCES public.proyectos(id)
+);
+CREATE TABLE public.materiales (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  proyecto_id uuid,
+  nombre text NOT NULL,
+  descripcion text DEFAULT ''::text,
+  asignado text,
+  compra boolean DEFAULT false,
+  sede boolean DEFAULT false,
+  san_miguel boolean DEFAULT false,
+  armar_en_san_miguel boolean DEFAULT false,
+  compra_items ARRAY DEFAULT ARRAY[]::text[],
+  sede_items ARRAY DEFAULT ARRAY[]::text[],
+  san_miguel_items ARRAY DEFAULT ARRAY[]::text[],
+  estado text NOT NULL DEFAULT 'por hacer'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  lista_id uuid,
+  activo boolean DEFAULT true,
+  CONSTRAINT materiales_pkey PRIMARY KEY (id),
+  CONSTRAINT materiales_lista_id_fkey FOREIGN KEY (lista_id) REFERENCES public.material_lists(id),
+  CONSTRAINT materiales_proyecto_id_fkey FOREIGN KEY (proyecto_id) REFERENCES public.proyectos(id)
+);
+CREATE TABLE public.proyectos (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  nombre text NOT NULL,
+  creador_id text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  codigo_invite uuid DEFAULT uuid_generate_v4() UNIQUE,
+  CONSTRAINT proyectos_pkey PRIMARY KEY (id)
+); (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   proyecto_id uuid,
   nombre text NOT NULL,
