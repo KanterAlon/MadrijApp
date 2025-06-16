@@ -500,6 +500,7 @@ export default function MaterialesPage() {
       </section>
 
       <Sheet
+        modal={false}
         open={sheetOpen}
         onOpenChange={(open) => {
           if (!open) setMaterialActual(null);
