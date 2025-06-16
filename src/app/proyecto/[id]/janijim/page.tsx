@@ -82,6 +82,11 @@ export default function JanijimPage() {
   const [sesionMadrij, setSesionMadrij] = useState<string>("");
   const pendingScrollId = useRef<string | null>(null);
 
+  const columnPreview = useMemo(
+    () => rows.slice(1, 6).map((r) => r[columnIndex]).filter(Boolean),
+    [rows, columnIndex]
+  );
+
   const seleccionar = useCallback(
     (id: string) => {
       setShowResults(false);
@@ -673,7 +678,7 @@ export default function JanijimPage() {
               Seleccioná qué columna contiene la lista de janijim.
             </SheetDescription>
           </SheetHeader>
-          <div className="p-4">
+          <div className="p-4 space-y-4">
             <select
               className="w-full border rounded-lg p-2"
               value={columnIndex}
@@ -685,6 +690,13 @@ export default function JanijimPage() {
                 </option>
               ))}
             </select>
+            {columnPreview.length > 0 && (
+              <ul className="list-disc ml-4 space-y-1 text-sm">
+                {columnPreview.map((n, i) => (
+                  <li key={i}>{n}</li>
+                ))}
+              </ul>
+            )}
           </div>
           <SheetFooter>
             <Button icon={<FileUp className="w-4 h-4" />} onClick={importColumn}>
@@ -699,11 +711,18 @@ export default function JanijimPage() {
           <SheetHeader>
             <SheetTitle>Confirmar importación</SheetTitle>
             <SheetDescription>
-              Se agregarán {uniqueNames.length} janijim nuevos.
+              Se importarán {uniqueNames.length + selectedDupes.length} janijim.
               {duplicateNames.length > 0 &&
-                " Seleccioná los repetidos que quieras Insertar."}
+                " Seleccioná los repetidos que quieras insertar."}
             </SheetDescription>
           </SheetHeader>
+          {uniqueNames.length > 0 && (
+            <div className="p-4 space-y-1 max-h-40 overflow-auto border-b">
+              {uniqueNames.map((n) => (
+                <div key={n}>{n}</div>
+              ))}
+            </div>
+          )}
           {duplicateNames.length > 0 && (
             <div className="p-4 space-y-2 max-h-64 overflow-auto">
               {duplicateNames.map((n) => (
