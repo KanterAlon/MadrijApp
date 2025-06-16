@@ -300,24 +300,24 @@ export default function MaterialesPage() {
             </div>
           </div>
           <div className="grid md:grid-cols-3 gap-4 p-4">
-            {estados.map((estado) => (
-              <div
-                key={estado}
-                onDrop={(e) => onDrop(e, estado)}
-                onDragOver={onDragOver}
-                className="bg-gray-100 rounded-lg p-4 min-h-[200px]"
-              >
-              <h3 className="text-lg font-semibold capitalize mb-2 text-blue-700">
-                {estado}
-              </h3>
-              <div className="space-y-2">
-                {materiales
-                  .filter(
-                    (m) =>
-                      m.estado === estado &&
-                      (!filtroAsignado || m.asignado === filtroAsignado)
-                  )
-                  .map((m) => (
+            {estados.map((estado) => {
+              const mats = materiales.filter(
+                (m) =>
+                  m.estado === estado &&
+                  (!filtroAsignado || m.asignado === filtroAsignado)
+              );
+              return (
+                <div
+                  key={estado}
+                  onDrop={(e) => onDrop(e, estado)}
+                  onDragOver={onDragOver}
+                  className="bg-gray-100 rounded-lg p-4 min-h-[200px]"
+                >
+                  <h3 className="text-lg font-semibold capitalize mb-2 text-blue-700">
+                    {mats.length} {estado}
+                  </h3>
+                  <div className="space-y-2">
+                    {mats.map((m) => (
                     <div
                       key={m.id}
                       draggable
@@ -343,13 +343,9 @@ export default function MaterialesPage() {
                       </div>
                     </div>
                   ))}
-                {materiales.filter(
-                  (m) =>
-                    m.estado === estado &&
-                    (!filtroAsignado || m.asignado === filtroAsignado)
-                ).length === 0 && (
-                  <p className="text-sm text-gray-500">Sin materiales</p>
-                )}
+                    {mats.length === 0 && (
+                      <p className="text-sm text-gray-500">Sin materiales</p>
+                    )}
                 <div className="pt-2 flex items-center gap-2">
                   <input
                     value={nuevoPorEstado[estado]}
@@ -374,7 +370,8 @@ export default function MaterialesPage() {
                 </div>
               </div>
             </div>
-          ))}
+          );
+        })}
           </div>
         </div>
       </section>
