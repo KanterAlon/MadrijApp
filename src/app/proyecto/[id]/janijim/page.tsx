@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import { toast } from "react-hot-toast";
 import useHighlightScroll from "@/hooks/useHighlightScroll";
 import {
   Sheet,
@@ -143,6 +144,7 @@ export default function JanijimPage() {
         estado: "ausente" as const,
       };
       setJanijim((prev) => [...prev, nuevo]);
+      toast.success("Janij agregado correctamente");
       pendingScrollId.current = inserted[0].id;
     } catch {
       showError("Error agregando janij");
@@ -155,6 +157,7 @@ export default function JanijimPage() {
       setJanijim((prev) =>
         prev.map((j) => (j.id === id ? { ...j, nombre } : j))
       );
+      toast.success("Janij actualizado correctamente");
     } catch {
       showError("Error renombrando janij");
     }
@@ -185,6 +188,7 @@ export default function JanijimPage() {
     try {
       await removeJanij(id);
       setJanijim((prev) => prev.filter((j) => j.id !== id));
+      toast.success("Janij eliminado");
     } catch {
       showError("Error eliminando janij");
     }
@@ -274,6 +278,7 @@ export default function JanijimPage() {
         ...prev,
         ...inserted.map((j) => ({ ...j, estado: "ausente" as const })),
       ]);
+      toast.success("Janijim importados correctamente");
     } catch {
       showError("Error importando janijim");
     }
@@ -294,6 +299,7 @@ export default function JanijimPage() {
         sesionMadrij || user.id,
         inicioIso
       );
+      toast.success("Asistencia iniciada");
       router.push(
         `/proyecto/${proyectoId}/janijim/asistencia?sesion=${sesion.id}`
       );

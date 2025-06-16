@@ -39,6 +39,7 @@ export default function NuevaListaPage() {
     setCreating(true);
     try {
       const row = await addMaterialList(proyectoId, titulo.trim(), fecha);
+      toast.success("Lista creada correctamente");
       router.push(`/proyecto/${proyectoId}/materiales/${row.id}`);
     } catch {
       showError("Error creando lista");

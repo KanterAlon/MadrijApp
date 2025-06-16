@@ -24,6 +24,7 @@ import {
   SheetFooter,
   SheetClose,
 } from "@/components/ui/sheet";
+import { toast } from "react-hot-toast";
 import {
   getMateriales,
   addMaterialEnLista,
@@ -128,6 +129,7 @@ export default function MaterialesPage() {
       .then((row) => {
         setMateriales((prev) => [...prev, rowToMaterial(row)]);
         setNuevoNombre("");
+        toast.success("Material creado");
       })
       .catch(() => showError("Error creando material"));
   };
@@ -139,6 +141,7 @@ export default function MaterialesPage() {
       .then((row) => {
         setMateriales((prev) => [...prev, rowToMaterial(row)]);
         setNuevoPorEstado((prev) => ({ ...prev, [estado]: "" }));
+        toast.success("Material creado");
       })
       .catch(() => showError("Error creando material"));
   };
@@ -200,6 +203,7 @@ export default function MaterialesPage() {
         setMateriales((prev) => prev.filter((m) => m.id !== id));
         setSheetOpen(false);
         setMaterialActual(null);
+        toast.success("Material eliminado");
       })
       .catch(() => showError("Error eliminando material"));
   };
@@ -208,7 +212,10 @@ export default function MaterialesPage() {
     if (!list) return;
     if (!(await confirmDialog("¿Eliminar lista?"))) return;
     deleteMaterialList(list)
-      .then(() => router.push("../"))
+      .then(() => {
+        toast.success("Lista eliminada");
+        router.push("../");
+      })
       .catch(() => showError("Error eliminando lista"));
   };
 

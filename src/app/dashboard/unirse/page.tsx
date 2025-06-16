@@ -41,6 +41,8 @@ export default function UnirseProyectoPage() {
       return;
     }
 
+    toast.success("Te uniste al proyecto correctamente");
+
     router.push(`/proyecto/${proyecto.id}`);
   };
 

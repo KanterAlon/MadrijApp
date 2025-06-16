@@ -11,6 +11,7 @@ import {
 import Loader from "@/components/ui/loader";
 import { Pencil, Trash2, Check, X, FolderPlus, Handshake } from "lucide-react";
 import { showError, confirmDialog } from "@/lib/alerts";
+import { toast } from "react-hot-toast";
 
 type Proyecto = {
   id: string;
@@ -57,6 +58,7 @@ export default function DashboardPage() {
       setCreados((prev) =>
         prev.map((p) => (p.id === editingId ? { ...p, nombre: name } : p))
       );
+      toast.success("Proyecto actualizado");
     } catch {
       showError("Error renombrando proyecto");
     }
@@ -70,6 +72,7 @@ export default function DashboardPage() {
     try {
       await deleteProyecto(id);
       setCreados((prev) => prev.filter((p) => p.id !== id));
+      toast.success("Proyecto eliminado");
     } catch {
       showError("Error eliminando proyecto");
     }
