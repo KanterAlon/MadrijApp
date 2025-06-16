@@ -15,6 +15,7 @@ export interface MaterialRow {
   sede_items: string[] | null;
   san_miguel_items: string[] | null;
   estado: string;
+  activo?: boolean | null;
   created_at?: string;
 }
 
@@ -39,6 +40,7 @@ export interface MaterialListRow {
 export async function getMateriales(proyectoId: string, listaId?: string) {
   let query = supabase.from("materiales").select("*");
   query = query.eq("proyecto_id", proyectoId);
+  query = query.eq("activo", true);
   if (listaId) {
     query = query.eq("lista_id", listaId);
   }
@@ -52,6 +54,7 @@ export async function getMaterialesPorLista(listaId: string) {
     .from("materiales")
     .select("*")
     .eq("lista_id", listaId)
+    .eq("activo", true)
     .order("created_at", { ascending: true });
   if (error) throw error;
   return (data as MaterialRow[]) || [];
@@ -91,7 +94,10 @@ export async function updateMaterial(id: string, updates: Partial<MaterialRow>) 
 }
 
 export async function deleteMaterial(id: string) {
-  const { error } = await supabase.from("materiales").delete().eq("id", id);
+  const { error } = await supabase
+    .from("materiales")
+    .update({ activo: false })
+    .eq("id", id);
   if (error) throw error;
 }
 
