@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { getMaterialLists, deleteMaterialList } from "@/lib/supabase/materiales";
 import { Trash2, PlusCircle } from "lucide-react";
 import { showError, confirmDialog } from "@/lib/alerts";
+import { toast } from "react-hot-toast";
 import Skeleton from "@/components/ui/skeleton";
 
 export default function MaterialesIndexPage() {
@@ -27,7 +28,10 @@ export default function MaterialesIndexPage() {
   const eliminarLista = async (id: string) => {
     if (!(await confirmDialog("¿Eliminar lista?"))) return;
     deleteMaterialList(id)
-      .then(() => setListas((prev) => prev.filter((l) => l.id !== id)))
+      .then(() => {
+        setListas((prev) => prev.filter((l) => l.id !== id));
+        toast.success("Lista eliminada");
+      })
       .catch(() => showError("Error eliminando lista"));
   };
 

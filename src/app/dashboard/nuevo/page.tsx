@@ -43,6 +43,8 @@ export default function NuevoProyectoPage() {
       return;
     }
 
+    toast.success("Proyecto creado correctamente");
+
     router.push(`/proyecto/${proyecto.id}`);
     setCreating(false);
   };
