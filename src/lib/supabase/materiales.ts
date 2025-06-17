@@ -1,5 +1,10 @@
 import { supabase } from "@/lib/supabase";
 
+export interface MaterialItem {
+  nombre: string;
+  cantidad: number;
+}
+
 export interface MaterialRow {
   id: string;
   proyecto_id: string | null;
@@ -11,9 +16,15 @@ export interface MaterialRow {
   sede: boolean | null;
   san_miguel: boolean | null;
   armar_en_san_miguel: boolean | null;
-  compra_items: string[] | null;
-  sede_items: string[] | null;
-  san_miguel_items: string[] | null;
+  compra_items: MaterialItem[] | null;
+  sede_items: MaterialItem[] | null;
+  san_miguel_items: MaterialItem[] | null;
+  compra_online_items: MaterialItem[] | null;
+  deposito_items: MaterialItem[] | null;
+  kvutza_items: MaterialItem[] | null;
+  alquiler_items: MaterialItem[] | null;
+  propios_items: MaterialItem[] | null;
+  otros_items: MaterialItem[] | null;
   estado: string;
   activo?: boolean | null;
   created_at?: string;
