@@ -16,6 +16,7 @@ import {
   Box,
   Trash2,
   Plus,
+  Minus,
   X,
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -192,6 +193,14 @@ export default function MaterialesPage() {
     });
     return out;
   }, [materiales]);
+
+  const sedeNombres = useMemo(() => {
+    const nombres = new Set<string>();
+    materiales.forEach((m) =>
+      m.sedeItems.forEach((i) => nombres.add(i.nombre))
+    );
+    return Array.from(nombres);
+  }, [materiales]);
   useEffect(() => {
     if (!proyectoId || !list) return;
     setLoading(true);
@@ -334,6 +343,19 @@ export default function MaterialesPage() {
     nuevo: Item
   ) => {
     if (!nuevo.nombre.trim() || nuevo.cantidad <= 0) return;
+    if (campo === "sedeItems") {
+      const nombre = nuevo.nombre.trim().toLowerCase();
+      for (const m of materiales) {
+        const idx = m.sedeItems.findIndex(
+          (it) => it.nombre.toLowerCase() === nombre
+        );
+        if (idx !== -1) {
+          cambiarCantidadItemLista(m, "sedeItems", idx, nuevo.cantidad);
+          toast.success("Cantidad agregada al item existente");
+          return;
+        }
+      }
+    }
     const lista = [...mat[campo], nuevo];
     actualizarMaterial(mat.id, campo, lista);
     if (campo === "compraItems") actualizarMaterial(mat.id, "compra", lista.length > 0);
@@ -367,6 +389,28 @@ export default function MaterialesPage() {
       actualizarMaterial(mat.id, "sanMiguel", flag);
       actualizarMaterial(mat.id, "armarEnSanMiguel", flag);
     }
+  };
+
+  const cambiarCantidadItemLista = (
+    mat: Material,
+    campo:
+      | "compraItems"
+      | "compraOnlineItems"
+      | "sedeItems"
+      | "depositoItems"
+      | "sanMiguelItems"
+      | "kvutzaItems"
+      | "alquilerItems"
+      | "propiosItems"
+      | "otrosItems",
+    idx: number,
+    delta: number
+  ) => {
+    const lista = [...mat[campo]];
+    const item = { ...lista[idx] };
+    item.cantidad = Math.max(1, item.cantidad + delta);
+    lista[idx] = item;
+    actualizarMaterial(mat.id, campo, lista);
   };
 
   const compras = materiales.filter((m) => m.compraItems.length > 0);
@@ -981,7 +1025,15 @@ export default function MaterialesPage() {
                         onChange={(e) => setNuevoItemGeneral(e.target.value)}
                         className="border rounded p-1 flex-1 text-sm"
                         placeholder="Nuevo item"
+                        list={tipoNuevoItem === "sede" ? "sede-suggestions" : undefined}
                       />
+                      {tipoNuevoItem === "sede" && (
+                        <datalist id="sede-suggestions">
+                          {sedeNombres.map((n) => (
+                            <option key={n} value={n} />
+                          ))}
+                        </datalist>
+                      )}
                       <Button
                         className="w-full sm:flex-1"
                         icon={<Plus className="w-4 h-4" />}
@@ -1038,6 +1090,18 @@ export default function MaterialesPage() {
                             {c.cantidad} {c.nombre}
                           </span>
                           <button
+                            onClick={() => cambiarCantidadItemLista(materialActual, "compraItems", idx, 1)}
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            <Plus size={14} />
+                          </button>
+                          <button
+                            onClick={() => cambiarCantidadItemLista(materialActual, "compraItems", idx, -1)}
+                            className="text-yellow-600 hover:text-yellow-800"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <button
                             onClick={() => quitarItemLista(materialActual, "compraItems", idx)}
                             className="text-red-600 hover:text-red-800"
                           >
@@ -1060,6 +1124,18 @@ export default function MaterialesPage() {
                           <span className="flex-1 text-sm">
                             {s.cantidad} {s.nombre}
                           </span>
+                          <button
+                            onClick={() => cambiarCantidadItemLista(materialActual, "sedeItems", idx, 1)}
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            <Plus size={14} />
+                          </button>
+                          <button
+                            onClick={() => cambiarCantidadItemLista(materialActual, "sedeItems", idx, -1)}
+                            className="text-yellow-600 hover:text-yellow-800"
+                          >
+                            <Minus size={14} />
+                          </button>
                           <button
                             onClick={() => quitarItemLista(materialActual, "sedeItems", idx)}
                             className="text-red-600 hover:text-red-800"
@@ -1084,6 +1160,18 @@ export default function MaterialesPage() {
                             {s.cantidad} {s.nombre}
                           </span>
                           <button
+                            onClick={() => cambiarCantidadItemLista(materialActual, "sanMiguelItems", idx, 1)}
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            <Plus size={14} />
+                          </button>
+                          <button
+                            onClick={() => cambiarCantidadItemLista(materialActual, "sanMiguelItems", idx, -1)}
+                            className="text-yellow-600 hover:text-yellow-800"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <button
                             onClick={() => quitarItemLista(materialActual, "sanMiguelItems", idx)}
                             className="text-red-600 hover:text-red-800"
                           >
@@ -1106,6 +1194,18 @@ export default function MaterialesPage() {
                           <span className="flex-1 text-sm">
                             {c.cantidad} {c.nombre}
                           </span>
+                          <button
+                            onClick={() => cambiarCantidadItemLista(materialActual, "compraOnlineItems", idx, 1)}
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            <Plus size={14} />
+                          </button>
+                          <button
+                            onClick={() => cambiarCantidadItemLista(materialActual, "compraOnlineItems", idx, -1)}
+                            className="text-yellow-600 hover:text-yellow-800"
+                          >
+                            <Minus size={14} />
+                          </button>
                           <button
                             onClick={() => quitarItemLista(materialActual, "compraOnlineItems", idx)}
                             className="text-red-600 hover:text-red-800"
@@ -1130,6 +1230,18 @@ export default function MaterialesPage() {
                             {s.cantidad} {s.nombre}
                           </span>
                           <button
+                            onClick={() => cambiarCantidadItemLista(materialActual, "depositoItems", idx, 1)}
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            <Plus size={14} />
+                          </button>
+                          <button
+                            onClick={() => cambiarCantidadItemLista(materialActual, "depositoItems", idx, -1)}
+                            className="text-yellow-600 hover:text-yellow-800"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <button
                             onClick={() => quitarItemLista(materialActual, "depositoItems", idx)}
                             className="text-red-600 hover:text-red-800"
                           >
@@ -1152,6 +1264,18 @@ export default function MaterialesPage() {
                           <span className="flex-1 text-sm">
                             {s.cantidad} {s.nombre}
                           </span>
+                          <button
+                            onClick={() => cambiarCantidadItemLista(materialActual, "kvutzaItems", idx, 1)}
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            <Plus size={14} />
+                          </button>
+                          <button
+                            onClick={() => cambiarCantidadItemLista(materialActual, "kvutzaItems", idx, -1)}
+                            className="text-yellow-600 hover:text-yellow-800"
+                          >
+                            <Minus size={14} />
+                          </button>
                           <button
                             onClick={() => quitarItemLista(materialActual, "kvutzaItems", idx)}
                             className="text-red-600 hover:text-red-800"
@@ -1176,6 +1300,18 @@ export default function MaterialesPage() {
                             {s.cantidad} {s.nombre}
                           </span>
                           <button
+                            onClick={() => cambiarCantidadItemLista(materialActual, "alquilerItems", idx, 1)}
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            <Plus size={14} />
+                          </button>
+                          <button
+                            onClick={() => cambiarCantidadItemLista(materialActual, "alquilerItems", idx, -1)}
+                            className="text-yellow-600 hover:text-yellow-800"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <button
                             onClick={() => quitarItemLista(materialActual, "alquilerItems", idx)}
                             className="text-red-600 hover:text-red-800"
                           >
@@ -1199,6 +1335,18 @@ export default function MaterialesPage() {
                             {s.cantidad} {s.nombre}
                           </span>
                           <button
+                            onClick={() => cambiarCantidadItemLista(materialActual, "propiosItems", idx, 1)}
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            <Plus size={14} />
+                          </button>
+                          <button
+                            onClick={() => cambiarCantidadItemLista(materialActual, "propiosItems", idx, -1)}
+                            className="text-yellow-600 hover:text-yellow-800"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <button
                             onClick={() => quitarItemLista(materialActual, "propiosItems", idx)}
                             className="text-red-600 hover:text-red-800"
                           >
@@ -1221,6 +1369,18 @@ export default function MaterialesPage() {
                           <span className="flex-1 text-sm">
                             {s.cantidad} {s.nombre}
                           </span>
+                          <button
+                            onClick={() => cambiarCantidadItemLista(materialActual, "otrosItems", idx, 1)}
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            <Plus size={14} />
+                          </button>
+                          <button
+                            onClick={() => cambiarCantidadItemLista(materialActual, "otrosItems", idx, -1)}
+                            className="text-yellow-600 hover:text-yellow-800"
+                          >
+                            <Minus size={14} />
+                          </button>
                           <button
                             onClick={() => quitarItemLista(materialActual, "otrosItems", idx)}
                             className="text-red-600 hover:text-red-800"
