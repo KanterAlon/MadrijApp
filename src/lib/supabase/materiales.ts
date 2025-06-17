@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 export interface MaterialItem {
   nombre: string;
   cantidad: number;
+  done?: boolean;
 }
 
 export interface MaterialRow {
