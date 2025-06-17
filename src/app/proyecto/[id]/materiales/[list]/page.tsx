@@ -288,15 +288,13 @@ export default function MaterialesPage() {
     if (!nuevo.nombre.trim() || nuevo.cantidad <= 0) return;
     if (campo === "sedeItems") {
       const nombre = nuevo.nombre.trim().toLowerCase();
-      for (const m of materiales) {
-        const idx = m.sedeItems.findIndex(
-          (it) => it.nombre.toLowerCase() === nombre
-        );
-        if (idx !== -1) {
-          cambiarCantidadItemLista(m, "sedeItems", idx, nuevo.cantidad);
-          toast.success("Cantidad agregada al item existente");
-          return;
-        }
+      const idx = mat.sedeItems.findIndex(
+        (it) => it.nombre.toLowerCase() === nombre
+      );
+      if (idx !== -1) {
+        cambiarCantidadItemLista(mat, "sedeItems", idx, nuevo.cantidad);
+        toast.success("Cantidad agregada al item existente");
+        return;
       }
     }
     const lista = [...mat[campo], nuevo];
@@ -576,6 +574,12 @@ export default function MaterialesPage() {
                           ({m.nombre} - {m.asignado || "sin madrij"})
                         </span>
                       </span>
+                      <button
+                        onClick={() => quitarItemLista(m, "compraItems", idx)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </label>
                   ))}
                 </div>
@@ -644,6 +648,12 @@ export default function MaterialesPage() {
                           ({m.nombre} - {m.asignado || "sin madrij"})
                         </span>
                       </span>
+                      <button
+                        onClick={() => quitarItemLista(m, "compraOnlineItems", idx)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </label>
                   ))}
                 </div>
@@ -714,6 +724,12 @@ export default function MaterialesPage() {
                           ({m.nombre} - {m.asignado || "sin madrij"})
                         </span>
                       </span>
+                      <button
+                        onClick={() => quitarItemLista(m, "sedeItems", idx)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </label>
                   ))}
                 </div>
@@ -782,6 +798,12 @@ export default function MaterialesPage() {
                           ({m.nombre} - {m.asignado || "sin madrij"})
                         </span>
                       </span>
+                      <button
+                        onClick={() => quitarItemLista(m, "depositoItems", idx)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </label>
                   ))}
                 </div>
@@ -850,6 +872,12 @@ export default function MaterialesPage() {
                           ({m.nombre} - {m.asignado || "sin madrij"})
                         </span>
                       </span>
+                      <button
+                        onClick={() => quitarItemLista(m, "sanMiguelItems", idx)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </label>
                   ))}
                 </div>
@@ -918,6 +946,12 @@ export default function MaterialesPage() {
                           ({m.nombre} - {m.asignado || "sin madrij"})
                         </span>
                       </span>
+                      <button
+                        onClick={() => quitarItemLista(m, "kvutzaItems", idx)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </label>
                   ))}
                 </div>
@@ -986,6 +1020,12 @@ export default function MaterialesPage() {
                           ({m.nombre} - {m.asignado || "sin madrij"})
                         </span>
                       </span>
+                      <button
+                        onClick={() => quitarItemLista(m, "alquilerItems", idx)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </label>
                   ))}
                 </div>
@@ -1054,6 +1094,12 @@ export default function MaterialesPage() {
                           ({m.nombre} - {m.asignado || "sin madrij"})
                         </span>
                       </span>
+                      <button
+                        onClick={() => quitarItemLista(m, "propiosItems", idx)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </label>
                   ))}
                 </div>
@@ -1122,6 +1168,12 @@ export default function MaterialesPage() {
                           ({m.nombre} - {m.asignado || "sin madrij"})
                         </span>
                       </span>
+                      <button
+                        onClick={() => quitarItemLista(m, "otrosItems", idx)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </label>
                   ))}
                 </div>
