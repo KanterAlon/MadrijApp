@@ -23,7 +23,6 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Button from "@/components/ui/button";
 import BackLink from "@/components/ui/back-link";
 import DiagonalToggle from "@/components/ui/diagonal-toggle";
-import fuzzysort from "fuzzysort";
 import {
   Sheet,
   SheetContent,
@@ -136,63 +135,6 @@ export default function MaterialesPage() {
 
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
-  const resumen = useMemo(() => {
-    const campos = [
-      "compraItems",
-      "compraOnlineItems",
-      "sedeItems",
-      "depositoItems",
-      "sanMiguelItems",
-      "kvutzaItems",
-      "alquilerItems",
-      "propiosItems",
-      "otrosItems",
-    ] as const;
-    const items: Item[] = [];
-    materiales.forEach((m) => {
-      campos.forEach((c) => {
-        items.push(...m[c]);
-      });
-    });
-    const colores = [
-      "blanco",
-      "negro",
-      "rojo",
-      "azul",
-      "verde",
-      "amarillo",
-      "rosa",
-      "morado",
-      "gris",
-    ];
-    const normalizar = (nombre: string) => {
-      const clean = nombre
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[^a-z\s]/g, "");
-      let color = "";
-      let best = 1000;
-      colores.forEach((c) => {
-        const res = fuzzysort.single(c, clean);
-        if (res && res.score < best) {
-          best = res.score;
-          color = c;
-        }
-      });
-      if (best > 2) color = "";
-      let base = clean.replace(/cartulinas?/, "cartulinas");
-      base = base.replace(color, "").replace(/\bcolor\b/, "").trim();
-      return { base: base || clean, color };
-    };
-    const out: Record<string, Record<string, number>> = {};
-    items.forEach((it) => {
-      const { base, color } = normalizar(it.nombre);
-      if (!out[base]) out[base] = {};
-      const key = color || "";
-      out[base][key] = (out[base][key] || 0) + it.cantidad;
-    });
-    return out;
-  }, [materiales]);
 
   const sedeNombres = useMemo(() => {
     const nombres = new Set<string>();
@@ -844,23 +786,7 @@ export default function MaterialesPage() {
         </section>
       )}
 
-      {Object.keys(resumen).length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-2xl font-semibold text-blue-800">Resumen total</h2>
-          <div className="space-y-1">
-            {Object.entries(resumen).map(([nombre, colores]) => (
-              <div key={nombre}>
-                <span className="font-medium capitalize">{nombre}</span>
-                <ul className="ml-4 list-disc">
-                  {Object.entries(colores).map(([c, cantidad]) => (
-                    <li key={c}>{cantidad} {c}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+
 
       <Sheet
         modal={false}
