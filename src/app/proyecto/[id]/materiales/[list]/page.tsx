@@ -355,6 +355,26 @@ export default function MaterialesPage() {
     actualizarMaterial(mat.id, campo, lista);
   };
 
+  const toggleItemDone = (
+    mat: Material,
+    campo:
+      | "compraItems"
+      | "compraOnlineItems"
+      | "sedeItems"
+      | "depositoItems"
+      | "sanMiguelItems"
+      | "kvutzaItems"
+      | "alquilerItems"
+      | "propiosItems"
+      | "otrosItems",
+    idx: number
+  ) => {
+    const lista = [...mat[campo]];
+    const item = { ...lista[idx], done: !lista[idx].done };
+    lista[idx] = item;
+    actualizarMaterial(mat.id, campo, lista);
+  };
+
   const compras = materiales.filter((m) => m.compraItems.length > 0);
   const comprasOnline = materiales.filter((m) => m.compraOnlineItems.length > 0);
   const retiros = materiales.filter((m) => m.sedeItems.length > 0);
@@ -501,29 +521,65 @@ export default function MaterialesPage() {
         <section className="space-y-2">
           <h2 className="text-2xl font-semibold text-blue-800">Cosas a comprar</h2>
           <div className="space-y-1">
-            {compras.map((m) =>
-              m.compraItems.map((item, idx) => (
-                <label key={`${m.id}-c-${idx}`} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    onChange={() => quitarItemLista(m, "compraItems", idx)}
-                  />
-                  <span
-                    onClick={() => {
-                      setMaterialActual(m);
-                      setSheetOpen(true);
-                    }}
-                    className="cursor-pointer hover:underline"
-                  >
-                    {item.cantidad} {item.nombre}{" "}
-                    <span className="text-xs text-gray-600">
-                      ({m.nombre} - {m.asignado || "sin madrij"})
-                    </span>
-                  </span>
-                </label>
-              ))
-            )}
+            {compras.map((m) => {
+              const items = m.compraItems.map((it, idx) => ({ it, idx }));
+              const pendientes = items.filter((i) => !i.it.done);
+              const hechos = items.filter((i) => i.it.done);
+              return (
+                <div key={m.id} className="space-y-1">
+                  {pendientes.map(({ it, idx }) => (
+                    <label key={`${m.id}-c-${idx}`} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!it.done}
+                        onChange={() => toggleItemDone(m, "compraItems", idx)}
+                      />
+                      <span
+                        onClick={() => {
+                          setMaterialActual(m);
+                          setSheetOpen(true);
+                        }}
+                        className="cursor-pointer hover:underline"
+                      >
+                        {it.cantidad} {it.nombre}{" "}
+                        <span className="text-xs text-gray-600">
+                          ({m.nombre} - {m.asignado || "sin madrij"})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                  {hechos.length > 0 && (
+                    <div className="ml-6 text-xs text-gray-500">Comprado</div>
+                  )}
+                  {hechos.map(({ it, idx }) => (
+                    <label
+                      key={`${m.id}-c-${idx}`}
+                      className="flex items-center gap-2 opacity-70"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!it.done}
+                        onChange={() => toggleItemDone(m, "compraItems", idx)}
+                      />
+                      <span
+                        onClick={() => {
+                          setMaterialActual(m);
+                          setSheetOpen(true);
+                        }}
+                        className="cursor-pointer hover:underline line-through"
+                      >
+                        {it.cantidad} {it.nombre}{" "}
+                        <span className="text-xs text-gray-600">
+                          ({m.nombre} - {m.asignado || "sin madrij"})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
@@ -533,29 +589,65 @@ export default function MaterialesPage() {
         <section className="space-y-2">
           <h2 className="text-2xl font-semibold text-blue-800">Comprar online</h2>
           <div className="space-y-1">
-            {comprasOnline.map((m) =>
-              m.compraOnlineItems.map((item, idx) => (
-                <label key={`${m.id}-co-${idx}`} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    onChange={() => quitarItemLista(m, "compraOnlineItems", idx)}
-                  />
-                  <span
-                    onClick={() => {
-                      setMaterialActual(m);
-                      setSheetOpen(true);
-                    }}
-                    className="cursor-pointer hover:underline"
-                  >
-                    {item.cantidad} {item.nombre}{" "}
-                    <span className="text-xs text-gray-600">
-                      ({m.nombre} - {m.asignado || "sin madrij"})
-                    </span>
-                  </span>
-                </label>
-              ))
-            )}
+            {comprasOnline.map((m) => {
+              const items = m.compraOnlineItems.map((it, idx) => ({ it, idx }));
+              const pendientes = items.filter((i) => !i.it.done);
+              const hechos = items.filter((i) => i.it.done);
+              return (
+                <div key={m.id} className="space-y-1">
+                  {pendientes.map(({ it, idx }) => (
+                    <label key={`${m.id}-co-${idx}`} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!it.done}
+                        onChange={() => toggleItemDone(m, "compraOnlineItems", idx)}
+                      />
+                      <span
+                        onClick={() => {
+                          setMaterialActual(m);
+                          setSheetOpen(true);
+                        }}
+                        className="cursor-pointer hover:underline"
+                      >
+                        {it.cantidad} {it.nombre}{" "}
+                        <span className="text-xs text-gray-600">
+                          ({m.nombre} - {m.asignado || "sin madrij"})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                  {hechos.length > 0 && (
+                    <div className="ml-6 text-xs text-gray-500">Comprado</div>
+                  )}
+                  {hechos.map(({ it, idx }) => (
+                    <label
+                      key={`${m.id}-co-${idx}`}
+                      className="flex items-center gap-2 opacity-70"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!it.done}
+                        onChange={() => toggleItemDone(m, "compraOnlineItems", idx)}
+                      />
+                      <span
+                        onClick={() => {
+                          setMaterialActual(m);
+                          setSheetOpen(true);
+                        }}
+                        className="cursor-pointer hover:underline line-through"
+                      >
+                        {it.cantidad} {it.nombre}{" "}
+                        <span className="text-xs text-gray-600">
+                          ({m.nombre} - {m.asignado || "sin madrij"})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
@@ -567,29 +659,65 @@ export default function MaterialesPage() {
             Cosas para retirar en la sede
           </h2>
           <div className="space-y-1">
-            {retiros.map((m) =>
-              m.sedeItems.map((item, idx) => (
-                <label key={`${m.id}-s-${idx}`} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    onChange={() => quitarItemLista(m, "sedeItems", idx)}
-                  />
-                  <span
-                    onClick={() => {
-                      setMaterialActual(m);
-                      setSheetOpen(true);
-                    }}
-                    className="cursor-pointer hover:underline"
-                  >
-                    {item.cantidad} {item.nombre}{" "}
-                    <span className="text-xs text-gray-600">
-                      ({m.nombre} - {m.asignado || "sin madrij"})
-                    </span>
-                  </span>
-                </label>
-              ))
-            )}
+            {retiros.map((m) => {
+              const items = m.sedeItems.map((it, idx) => ({ it, idx }));
+              const pendientes = items.filter((i) => !i.it.done);
+              const hechos = items.filter((i) => i.it.done);
+              return (
+                <div key={m.id} className="space-y-1">
+                  {pendientes.map(({ it, idx }) => (
+                    <label key={`${m.id}-s-${idx}`} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!it.done}
+                        onChange={() => toggleItemDone(m, "sedeItems", idx)}
+                      />
+                      <span
+                        onClick={() => {
+                          setMaterialActual(m);
+                          setSheetOpen(true);
+                        }}
+                        className="cursor-pointer hover:underline"
+                      >
+                        {it.cantidad} {it.nombre}{" "}
+                        <span className="text-xs text-gray-600">
+                          ({m.nombre} - {m.asignado || "sin madrij"})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                  {hechos.length > 0 && (
+                    <div className="ml-6 text-xs text-gray-500">Retirado</div>
+                  )}
+                  {hechos.map(({ it, idx }) => (
+                    <label
+                      key={`${m.id}-s-${idx}`}
+                      className="flex items-center gap-2 opacity-70"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!it.done}
+                        onChange={() => toggleItemDone(m, "sedeItems", idx)}
+                      />
+                      <span
+                        onClick={() => {
+                          setMaterialActual(m);
+                          setSheetOpen(true);
+                        }}
+                        className="cursor-pointer hover:underline line-through"
+                      >
+                        {it.cantidad} {it.nombre}{" "}
+                        <span className="text-xs text-gray-600">
+                          ({m.nombre} - {m.asignado || "sin madrij"})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
@@ -599,29 +727,65 @@ export default function MaterialesPage() {
         <section className="space-y-2">
           <h2 className="text-2xl font-semibold text-blue-800">Retirar del depósito</h2>
           <div className="space-y-1">
-            {deposito.map((m) =>
-              m.depositoItems.map((item, idx) => (
-                <label key={`${m.id}-d-${idx}`} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    onChange={() => quitarItemLista(m, "depositoItems", idx)}
-                  />
-                  <span
-                    onClick={() => {
-                      setMaterialActual(m);
-                      setSheetOpen(true);
-                    }}
-                    className="cursor-pointer hover:underline"
-                  >
-                    {item.cantidad} {item.nombre}{" "}
-                    <span className="text-xs text-gray-600">
-                      ({m.nombre} - {m.asignado || "sin madrij"})
-                    </span>
-                  </span>
-                </label>
-              ))
-            )}
+            {deposito.map((m) => {
+              const items = m.depositoItems.map((it, idx) => ({ it, idx }));
+              const pendientes = items.filter((i) => !i.it.done);
+              const hechos = items.filter((i) => i.it.done);
+              return (
+                <div key={m.id} className="space-y-1">
+                  {pendientes.map(({ it, idx }) => (
+                    <label key={`${m.id}-d-${idx}`} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!it.done}
+                        onChange={() => toggleItemDone(m, "depositoItems", idx)}
+                      />
+                      <span
+                        onClick={() => {
+                          setMaterialActual(m);
+                          setSheetOpen(true);
+                        }}
+                        className="cursor-pointer hover:underline"
+                      >
+                        {it.cantidad} {it.nombre}{" "}
+                        <span className="text-xs text-gray-600">
+                          ({m.nombre} - {m.asignado || "sin madrij"})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                  {hechos.length > 0 && (
+                    <div className="ml-6 text-xs text-gray-500">Retirado</div>
+                  )}
+                  {hechos.map(({ it, idx }) => (
+                    <label
+                      key={`${m.id}-d-${idx}`}
+                      className="flex items-center gap-2 opacity-70"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!it.done}
+                        onChange={() => toggleItemDone(m, "depositoItems", idx)}
+                      />
+                      <span
+                        onClick={() => {
+                          setMaterialActual(m);
+                          setSheetOpen(true);
+                        }}
+                        className="cursor-pointer hover:underline line-through"
+                      >
+                        {it.cantidad} {it.nombre}{" "}
+                        <span className="text-xs text-gray-600">
+                          ({m.nombre} - {m.asignado || "sin madrij"})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
@@ -631,29 +795,65 @@ export default function MaterialesPage() {
         <section className="space-y-2">
           <h2 className="text-2xl font-semibold text-blue-800">Material en San Miguel</h2>
           <div className="space-y-1">
-            {sanMiguelPend.map((m) =>
-              m.sanMiguelItems.map((item, idx) => (
-                <label key={`${m.id}-sm-${idx}`} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    onChange={() => quitarItemLista(m, "sanMiguelItems", idx)}
-                  />
-                  <span
-                    onClick={() => {
-                      setMaterialActual(m);
-                      setSheetOpen(true);
-                    }}
-                    className="cursor-pointer hover:underline"
-                  >
-                    {item.cantidad} {item.nombre}{" "}
-                    <span className="text-xs text-gray-600">
-                      ({m.nombre} - {m.asignado || "sin madrij"})
-                    </span>
-                  </span>
-                </label>
-              ))
-            )}
+            {sanMiguelPend.map((m) => {
+              const items = m.sanMiguelItems.map((it, idx) => ({ it, idx }));
+              const pendientes = items.filter((i) => !i.it.done);
+              const hechos = items.filter((i) => i.it.done);
+              return (
+                <div key={m.id} className="space-y-1">
+                  {pendientes.map(({ it, idx }) => (
+                    <label key={`${m.id}-sm-${idx}`} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!it.done}
+                        onChange={() => toggleItemDone(m, "sanMiguelItems", idx)}
+                      />
+                      <span
+                        onClick={() => {
+                          setMaterialActual(m);
+                          setSheetOpen(true);
+                        }}
+                        className="cursor-pointer hover:underline"
+                      >
+                        {it.cantidad} {it.nombre}{" "}
+                        <span className="text-xs text-gray-600">
+                          ({m.nombre} - {m.asignado || "sin madrij"})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                  {hechos.length > 0 && (
+                    <div className="ml-6 text-xs text-gray-500">Retirado</div>
+                  )}
+                  {hechos.map(({ it, idx }) => (
+                    <label
+                      key={`${m.id}-sm-${idx}`}
+                      className="flex items-center gap-2 opacity-70"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!it.done}
+                        onChange={() => toggleItemDone(m, "sanMiguelItems", idx)}
+                      />
+                      <span
+                        onClick={() => {
+                          setMaterialActual(m);
+                          setSheetOpen(true);
+                        }}
+                        className="cursor-pointer hover:underline line-through"
+                      >
+                        {it.cantidad} {it.nombre}{" "}
+                        <span className="text-xs text-gray-600">
+                          ({m.nombre} - {m.asignado || "sin madrij"})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
@@ -663,29 +863,65 @@ export default function MaterialesPage() {
         <section className="space-y-2">
           <h2 className="text-2xl font-semibold text-blue-800">Pedir a otra kvutzá</h2>
           <div className="space-y-1">
-            {kvutza.map((m) =>
-              m.kvutzaItems.map((item, idx) => (
-                <label key={`${m.id}-k-${idx}`} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    onChange={() => quitarItemLista(m, "kvutzaItems", idx)}
-                  />
-                  <span
-                    onClick={() => {
-                      setMaterialActual(m);
-                      setSheetOpen(true);
-                    }}
-                    className="cursor-pointer hover:underline"
-                  >
-                    {item.cantidad} {item.nombre}{" "}
-                    <span className="text-xs text-gray-600">
-                      ({m.nombre} - {m.asignado || "sin madrij"})
-                    </span>
-                  </span>
-                </label>
-              ))
-            )}
+            {kvutza.map((m) => {
+              const items = m.kvutzaItems.map((it, idx) => ({ it, idx }));
+              const pendientes = items.filter((i) => !i.it.done);
+              const hechos = items.filter((i) => i.it.done);
+              return (
+                <div key={m.id} className="space-y-1">
+                  {pendientes.map(({ it, idx }) => (
+                    <label key={`${m.id}-k-${idx}`} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!it.done}
+                        onChange={() => toggleItemDone(m, "kvutzaItems", idx)}
+                      />
+                      <span
+                        onClick={() => {
+                          setMaterialActual(m);
+                          setSheetOpen(true);
+                        }}
+                        className="cursor-pointer hover:underline"
+                      >
+                        {it.cantidad} {it.nombre}{" "}
+                        <span className="text-xs text-gray-600">
+                          ({m.nombre} - {m.asignado || "sin madrij"})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                  {hechos.length > 0 && (
+                    <div className="ml-6 text-xs text-gray-500">Retirado</div>
+                  )}
+                  {hechos.map(({ it, idx }) => (
+                    <label
+                      key={`${m.id}-k-${idx}`}
+                      className="flex items-center gap-2 opacity-70"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!it.done}
+                        onChange={() => toggleItemDone(m, "kvutzaItems", idx)}
+                      />
+                      <span
+                        onClick={() => {
+                          setMaterialActual(m);
+                          setSheetOpen(true);
+                        }}
+                        className="cursor-pointer hover:underline line-through"
+                      >
+                        {it.cantidad} {it.nombre}{" "}
+                        <span className="text-xs text-gray-600">
+                          ({m.nombre} - {m.asignado || "sin madrij"})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
@@ -695,29 +931,65 @@ export default function MaterialesPage() {
         <section className="space-y-2">
           <h2 className="text-2xl font-semibold text-blue-800">Material para alquilar</h2>
           <div className="space-y-1">
-            {alquiler.map((m) =>
-              m.alquilerItems.map((item, idx) => (
-                <label key={`${m.id}-a-${idx}`} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    onChange={() => quitarItemLista(m, "alquilerItems", idx)}
-                  />
-                  <span
-                    onClick={() => {
-                      setMaterialActual(m);
-                      setSheetOpen(true);
-                    }}
-                    className="cursor-pointer hover:underline"
-                  >
-                    {item.cantidad} {item.nombre}{" "}
-                    <span className="text-xs text-gray-600">
-                      ({m.nombre} - {m.asignado || "sin madrij"})
-                    </span>
-                  </span>
-                </label>
-              ))
-            )}
+            {alquiler.map((m) => {
+              const items = m.alquilerItems.map((it, idx) => ({ it, idx }));
+              const pendientes = items.filter((i) => !i.it.done);
+              const hechos = items.filter((i) => i.it.done);
+              return (
+                <div key={m.id} className="space-y-1">
+                  {pendientes.map(({ it, idx }) => (
+                    <label key={`${m.id}-a-${idx}`} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!it.done}
+                        onChange={() => toggleItemDone(m, "alquilerItems", idx)}
+                      />
+                      <span
+                        onClick={() => {
+                          setMaterialActual(m);
+                          setSheetOpen(true);
+                        }}
+                        className="cursor-pointer hover:underline"
+                      >
+                        {it.cantidad} {it.nombre}{" "}
+                        <span className="text-xs text-gray-600">
+                          ({m.nombre} - {m.asignado || "sin madrij"})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                  {hechos.length > 0 && (
+                    <div className="ml-6 text-xs text-gray-500">Retirado</div>
+                  )}
+                  {hechos.map(({ it, idx }) => (
+                    <label
+                      key={`${m.id}-a-${idx}`}
+                      className="flex items-center gap-2 opacity-70"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!it.done}
+                        onChange={() => toggleItemDone(m, "alquilerItems", idx)}
+                      />
+                      <span
+                        onClick={() => {
+                          setMaterialActual(m);
+                          setSheetOpen(true);
+                        }}
+                        className="cursor-pointer hover:underline line-through"
+                      >
+                        {it.cantidad} {it.nombre}{" "}
+                        <span className="text-xs text-gray-600">
+                          ({m.nombre} - {m.asignado || "sin madrij"})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
@@ -727,29 +999,65 @@ export default function MaterialesPage() {
         <section className="space-y-2">
           <h2 className="text-2xl font-semibold text-blue-800">Llevar desde casa</h2>
           <div className="space-y-1">
-            {propios.map((m) =>
-              m.propiosItems.map((item, idx) => (
-                <label key={`${m.id}-p-${idx}`} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    onChange={() => quitarItemLista(m, "propiosItems", idx)}
-                  />
-                  <span
-                    onClick={() => {
-                      setMaterialActual(m);
-                      setSheetOpen(true);
-                    }}
-                    className="cursor-pointer hover:underline"
-                  >
-                    {item.cantidad} {item.nombre}{" "}
-                    <span className="text-xs text-gray-600">
-                      ({m.nombre} - {m.asignado || "sin madrij"})
-                    </span>
-                  </span>
-                </label>
-              ))
-            )}
+            {propios.map((m) => {
+              const items = m.propiosItems.map((it, idx) => ({ it, idx }));
+              const pendientes = items.filter((i) => !i.it.done);
+              const hechos = items.filter((i) => i.it.done);
+              return (
+                <div key={m.id} className="space-y-1">
+                  {pendientes.map(({ it, idx }) => (
+                    <label key={`${m.id}-p-${idx}`} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!it.done}
+                        onChange={() => toggleItemDone(m, "propiosItems", idx)}
+                      />
+                      <span
+                        onClick={() => {
+                          setMaterialActual(m);
+                          setSheetOpen(true);
+                        }}
+                        className="cursor-pointer hover:underline"
+                      >
+                        {it.cantidad} {it.nombre}{" "}
+                        <span className="text-xs text-gray-600">
+                          ({m.nombre} - {m.asignado || "sin madrij"})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                  {hechos.length > 0 && (
+                    <div className="ml-6 text-xs text-gray-500">Retirado</div>
+                  )}
+                  {hechos.map(({ it, idx }) => (
+                    <label
+                      key={`${m.id}-p-${idx}`}
+                      className="flex items-center gap-2 opacity-70"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!it.done}
+                        onChange={() => toggleItemDone(m, "propiosItems", idx)}
+                      />
+                      <span
+                        onClick={() => {
+                          setMaterialActual(m);
+                          setSheetOpen(true);
+                        }}
+                        className="cursor-pointer hover:underline line-through"
+                      >
+                        {it.cantidad} {it.nombre}{" "}
+                        <span className="text-xs text-gray-600">
+                          ({m.nombre} - {m.asignado || "sin madrij"})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
@@ -759,29 +1067,65 @@ export default function MaterialesPage() {
         <section className="space-y-2">
           <h2 className="text-2xl font-semibold text-blue-800">Otros materiales</h2>
           <div className="space-y-1">
-            {otros.map((m) =>
-              m.otrosItems.map((item, idx) => (
-                <label key={`${m.id}-o-${idx}`} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    onChange={() => quitarItemLista(m, "otrosItems", idx)}
-                  />
-                  <span
-                    onClick={() => {
-                      setMaterialActual(m);
-                      setSheetOpen(true);
-                    }}
-                    className="cursor-pointer hover:underline"
-                  >
-                    {item.cantidad} {item.nombre}{" "}
-                    <span className="text-xs text-gray-600">
-                      ({m.nombre} - {m.asignado || "sin madrij"})
-                    </span>
-                  </span>
-                </label>
-              ))
-            )}
+            {otros.map((m) => {
+              const items = m.otrosItems.map((it, idx) => ({ it, idx }));
+              const pendientes = items.filter((i) => !i.it.done);
+              const hechos = items.filter((i) => i.it.done);
+              return (
+                <div key={m.id} className="space-y-1">
+                  {pendientes.map(({ it, idx }) => (
+                    <label key={`${m.id}-o-${idx}`} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!it.done}
+                        onChange={() => toggleItemDone(m, "otrosItems", idx)}
+                      />
+                      <span
+                        onClick={() => {
+                          setMaterialActual(m);
+                          setSheetOpen(true);
+                        }}
+                        className="cursor-pointer hover:underline"
+                      >
+                        {it.cantidad} {it.nombre}{" "}
+                        <span className="text-xs text-gray-600">
+                          ({m.nombre} - {m.asignado || "sin madrij"})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                  {hechos.length > 0 && (
+                    <div className="ml-6 text-xs text-gray-500">Retirado</div>
+                  )}
+                  {hechos.map(({ it, idx }) => (
+                    <label
+                      key={`${m.id}-o-${idx}`}
+                      className="flex items-center gap-2 opacity-70"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!it.done}
+                        onChange={() => toggleItemDone(m, "otrosItems", idx)}
+                      />
+                      <span
+                        onClick={() => {
+                          setMaterialActual(m);
+                          setSheetOpen(true);
+                        }}
+                        className="cursor-pointer hover:underline line-through"
+                      >
+                        {it.cantidad} {it.nombre}{" "}
+                        <span className="text-xs text-gray-600">
+                          ({m.nombre} - {m.asignado || "sin madrij"})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
