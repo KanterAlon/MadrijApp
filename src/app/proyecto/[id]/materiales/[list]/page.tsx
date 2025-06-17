@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import {
@@ -8,6 +8,12 @@ import {
   ShoppingCart,
   Building2,
   Tent,
+  Warehouse,
+  Laptop,
+  Users,
+  Handshake,
+  House,
+  Box,
   Trash2,
   Plus,
   X,
@@ -16,6 +22,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Button from "@/components/ui/button";
 import BackLink from "@/components/ui/back-link";
 import DiagonalToggle from "@/components/ui/diagonal-toggle";
+import fuzzysort from "fuzzysort";
 import {
   Sheet,
   SheetContent,
@@ -40,6 +47,11 @@ import Loader from "@/components/ui/loader";
 export default function MaterialesPage() {
   type Estado = "por hacer" | "en proceso" | "realizado";
 
+  interface Item {
+    nombre: string;
+    cantidad: number;
+  }
+
   interface Material {
     id: string;
     nombre: string;
@@ -49,9 +61,15 @@ export default function MaterialesPage() {
     sede: boolean;
     sanMiguel: boolean;
     armarEnSanMiguel: boolean;
-    compraItems: string[];
-    sedeItems: string[];
-    sanMiguelItems: string[];
+    compraItems: Item[];
+    compraOnlineItems: Item[];
+    sedeItems: Item[];
+    depositoItems: Item[];
+    sanMiguelItems: Item[];
+    kvutzaItems: Item[];
+    alquilerItems: Item[];
+    propiosItems: Item[];
+    otrosItems: Item[];
     estado: Estado;
   }
 
@@ -66,8 +84,14 @@ export default function MaterialesPage() {
       sanMiguel: row.san_miguel || false,
       armarEnSanMiguel: row.armar_en_san_miguel || false,
       compraItems: row.compra_items || [],
+      compraOnlineItems: row.compra_online_items || [],
       sedeItems: row.sede_items || [],
+      depositoItems: row.deposito_items || [],
       sanMiguelItems: row.san_miguel_items || [],
+      kvutzaItems: row.kvutza_items || [],
+      alquilerItems: row.alquiler_items || [],
+      propiosItems: row.propios_items || [],
+      otrosItems: row.otros_items || [],
       estado: (row.estado as Estado) || "por hacer",
     }),
     []
@@ -89,7 +113,19 @@ export default function MaterialesPage() {
 
   const [madrijes, setMadrijes] = useState<{ clerk_id: string; nombre: string }[]>([]);
   const [nuevoItemGeneral, setNuevoItemGeneral] = useState("");
-  const [tipoNuevoItem, setTipoNuevoItem] = useState<"compra" | "sede" | "sanMiguel">("compra");
+  const [cantidadNuevoItem, setCantidadNuevoItem] = useState(1);
+  const [tipoNuevoItem, setTipoNuevoItem] =
+    useState<
+      | "compra"
+      | "compraOnline"
+      | "sede"
+      | "deposito"
+      | "sanMiguel"
+      | "kvutza"
+      | "alquiler"
+      | "propios"
+      | "otros"
+    >("compra");
   const [mostrarAgregar, setMostrarAgregar] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -99,6 +135,63 @@ export default function MaterialesPage() {
 
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
+  const resumen = useMemo(() => {
+    const campos = [
+      "compraItems",
+      "compraOnlineItems",
+      "sedeItems",
+      "depositoItems",
+      "sanMiguelItems",
+      "kvutzaItems",
+      "alquilerItems",
+      "propiosItems",
+      "otrosItems",
+    ] as const;
+    const items: Item[] = [];
+    materiales.forEach((m) => {
+      campos.forEach((c) => {
+        items.push(...m[c]);
+      });
+    });
+    const colores = [
+      "blanco",
+      "negro",
+      "rojo",
+      "azul",
+      "verde",
+      "amarillo",
+      "rosa",
+      "morado",
+      "gris",
+    ];
+    const normalizar = (nombre: string) => {
+      const clean = nombre
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[^a-z\s]/g, "");
+      let color = "";
+      let best = 1000;
+      colores.forEach((c) => {
+        const res = fuzzysort.single(c, clean);
+        if (res && res.score < best) {
+          best = res.score;
+          color = c;
+        }
+      });
+      if (best > 2) color = "";
+      let base = clean.replace(/cartulinas?/, "cartulinas");
+      base = base.replace(color, "").replace(/\bcolor\b/, "").trim();
+      return { base: base || clean, color };
+    };
+    const out: Record<string, Record<string, number>> = {};
+    items.forEach((it) => {
+      const { base, color } = normalizar(it.nombre);
+      if (!out[base]) out[base] = {};
+      const key = color || "";
+      out[base][key] = (out[base][key] || 0) + it.cantidad;
+    });
+    return out;
+  }, [materiales]);
   useEffect(() => {
     if (!proyectoId || !list) return;
     setLoading(true);
@@ -186,8 +279,14 @@ export default function MaterialesPage() {
       sanMiguel: "san_miguel",
       armarEnSanMiguel: "armar_en_san_miguel",
       compraItems: "compra_items",
+      compraOnlineItems: "compra_online_items",
       sedeItems: "sede_items",
+      depositoItems: "deposito_items",
       sanMiguelItems: "san_miguel_items",
+      kvutzaItems: "kvutza_items",
+      alquilerItems: "alquiler_items",
+      propiosItems: "propios_items",
+      otrosItems: "otros_items",
       estado: "estado",
     };
     updateMaterial(id, { [map[campo]]: valor } as Partial<MaterialRow>).catch(() =>
@@ -222,11 +321,20 @@ export default function MaterialesPage() {
 
   const agregarItemLista = (
     mat: Material,
-    campo: "compraItems" | "sedeItems" | "sanMiguelItems",
-    nuevo: string
+    campo:
+      | "compraItems"
+      | "compraOnlineItems"
+      | "sedeItems"
+      | "depositoItems"
+      | "sanMiguelItems"
+      | "kvutzaItems"
+      | "alquilerItems"
+      | "propiosItems"
+      | "otrosItems",
+    nuevo: Item
   ) => {
-    if (!nuevo.trim()) return;
-    const lista = [...mat[campo], nuevo.trim()];
+    if (!nuevo.nombre.trim() || nuevo.cantidad <= 0) return;
+    const lista = [...mat[campo], nuevo];
     actualizarMaterial(mat.id, campo, lista);
     if (campo === "compraItems") actualizarMaterial(mat.id, "compra", lista.length > 0);
     if (campo === "sedeItems") actualizarMaterial(mat.id, "sede", lista.length > 0);
@@ -238,7 +346,16 @@ export default function MaterialesPage() {
 
   const quitarItemLista = (
     mat: Material,
-    campo: "compraItems" | "sedeItems" | "sanMiguelItems",
+    campo:
+      | "compraItems"
+      | "compraOnlineItems"
+      | "sedeItems"
+      | "depositoItems"
+      | "sanMiguelItems"
+      | "kvutzaItems"
+      | "alquilerItems"
+      | "propiosItems"
+      | "otrosItems",
     idx: number
   ) => {
     const lista = mat[campo].filter((_, i) => i !== idx);
@@ -251,6 +368,16 @@ export default function MaterialesPage() {
       actualizarMaterial(mat.id, "armarEnSanMiguel", flag);
     }
   };
+
+  const compras = materiales.filter((m) => m.compraItems.length > 0);
+  const comprasOnline = materiales.filter((m) => m.compraOnlineItems.length > 0);
+  const retiros = materiales.filter((m) => m.sedeItems.length > 0);
+  const deposito = materiales.filter((m) => m.depositoItems.length > 0);
+  const sanMiguelPend = materiales.filter((m) => m.sanMiguelItems.length > 0);
+  const kvutza = materiales.filter((m) => m.kvutzaItems.length > 0);
+  const alquiler = materiales.filter((m) => m.alquilerItems.length > 0);
+  const propios = materiales.filter((m) => m.propiosItems.length > 0);
+  const otros = materiales.filter((m) => m.otrosItems.length > 0);
 
   return (
     <div className="space-y-8">
@@ -384,20 +511,13 @@ export default function MaterialesPage() {
       </section>
 
       {/* Cosas a comprar */}
-      <section className="space-y-2">
-        <h2 className="text-2xl font-semibold text-blue-800">Cosas a comprar</h2>
-        <div className="space-y-1">
-          {materiales.filter((m) => m.compraItems.length > 0).length === 0 && (
-            <p className="text-sm text-gray-500">Sin compras</p>
-          )}
-          {materiales
-            .filter((m) => m.compraItems.length > 0)
-            .map((m) =>
+      {compras.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-2xl font-semibold text-blue-800">Cosas a comprar</h2>
+          <div className="space-y-1">
+            {compras.map((m) =>
               m.compraItems.map((item, idx) => (
-                <label
-                  key={`${m.id}-c-${idx}`}
-                  className="flex items-center gap-2"
-                >
+                <label key={`${m.id}-c-${idx}`} className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     className="h-4 w-4"
@@ -410,7 +530,7 @@ export default function MaterialesPage() {
                     }}
                     className="cursor-pointer hover:underline"
                   >
-                    {item}{" "}
+                    {item.cantidad} {item.nombre}{" "}
                     <span className="text-xs text-gray-600">
                       ({m.nombre} - {m.asignado || "sin madrij"})
                     </span>
@@ -418,26 +538,52 @@ export default function MaterialesPage() {
                 </label>
               ))
             )}
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
+
+      {/* Compras online */}
+      {comprasOnline.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-2xl font-semibold text-blue-800">Comprar online</h2>
+          <div className="space-y-1">
+            {comprasOnline.map((m) =>
+              m.compraOnlineItems.map((item, idx) => (
+                <label key={`${m.id}-co-${idx}`} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    onChange={() => quitarItemLista(m, "compraOnlineItems", idx)}
+                  />
+                  <span
+                    onClick={() => {
+                      setMaterialActual(m);
+                      setSheetOpen(true);
+                    }}
+                    className="cursor-pointer hover:underline"
+                  >
+                    {item.cantidad} {item.nombre}{" "}
+                    <span className="text-xs text-gray-600">
+                      ({m.nombre} - {m.asignado || "sin madrij"})
+                    </span>
+                  </span>
+                </label>
+              ))
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Cosas para retirar en la sede */}
-      <section className="space-y-2">
-        <h2 className="text-2xl font-semibold text-blue-800">
-          Cosas para retirar en la sede
-        </h2>
-        <div className="space-y-1">
-          {materiales.filter((m) => m.sedeItems.length > 0).length === 0 && (
-            <p className="text-sm text-gray-500">Sin retiros</p>
-          )}
-          {materiales
-            .filter((m) => m.sedeItems.length > 0)
-            .map((m) =>
+      {retiros.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-2xl font-semibold text-blue-800">
+            Cosas para retirar en la sede
+          </h2>
+          <div className="space-y-1">
+            {retiros.map((m) =>
               m.sedeItems.map((item, idx) => (
-                <label
-                  key={`${m.id}-s-${idx}`}
-                  className="flex items-center gap-2"
-                >
+                <label key={`${m.id}-s-${idx}`} className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     className="h-4 w-4"
@@ -450,7 +596,7 @@ export default function MaterialesPage() {
                     }}
                     className="cursor-pointer hover:underline"
                   >
-                    {item}{" "}
+                    {item.cantidad} {item.nombre}{" "}
                     <span className="text-xs text-gray-600">
                       ({m.nombre} - {m.asignado || "sin madrij"})
                     </span>
@@ -458,24 +604,50 @@ export default function MaterialesPage() {
                 </label>
               ))
             )}
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
+
+      {/* Retirar del depósito */}
+      {deposito.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-2xl font-semibold text-blue-800">Retirar del depósito</h2>
+          <div className="space-y-1">
+            {deposito.map((m) =>
+              m.depositoItems.map((item, idx) => (
+                <label key={`${m.id}-d-${idx}`} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    onChange={() => quitarItemLista(m, "depositoItems", idx)}
+                  />
+                  <span
+                    onClick={() => {
+                      setMaterialActual(m);
+                      setSheetOpen(true);
+                    }}
+                    className="cursor-pointer hover:underline"
+                  >
+                    {item.cantidad} {item.nombre}{" "}
+                    <span className="text-xs text-gray-600">
+                      ({m.nombre} - {m.asignado || "sin madrij"})
+                    </span>
+                  </span>
+                </label>
+              ))
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Material en San Miguel */}
-      <section className="space-y-2">
-        <h2 className="text-2xl font-semibold text-blue-800">Material en San Miguel</h2>
-        <div className="space-y-1">
-          {materiales.filter((m) => m.sanMiguelItems.length > 0).length === 0 && (
-            <p className="text-sm text-gray-500">Sin material</p>
-          )}
-          {materiales
-            .filter((m) => m.sanMiguelItems.length > 0)
-            .map((m) =>
+      {sanMiguelPend.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-2xl font-semibold text-blue-800">Material en San Miguel</h2>
+          <div className="space-y-1">
+            {sanMiguelPend.map((m) =>
               m.sanMiguelItems.map((item, idx) => (
-                <label
-                  key={`${m.id}-sm-${idx}`}
-                  className="flex items-center gap-2"
-                >
+                <label key={`${m.id}-sm-${idx}`} className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     className="h-4 w-4"
@@ -488,7 +660,7 @@ export default function MaterialesPage() {
                     }}
                     className="cursor-pointer hover:underline"
                   >
-                    {item}{" "}
+                    {item.cantidad} {item.nombre}{" "}
                     <span className="text-xs text-gray-600">
                       ({m.nombre} - {m.asignado || "sin madrij"})
                     </span>
@@ -496,8 +668,155 @@ export default function MaterialesPage() {
                 </label>
               ))
             )}
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
+
+      {/* Pedir a otra kvutzá */}
+      {kvutza.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-2xl font-semibold text-blue-800">Pedir a otra kvutzá</h2>
+          <div className="space-y-1">
+            {kvutza.map((m) =>
+              m.kvutzaItems.map((item, idx) => (
+                <label key={`${m.id}-k-${idx}`} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    onChange={() => quitarItemLista(m, "kvutzaItems", idx)}
+                  />
+                  <span
+                    onClick={() => {
+                      setMaterialActual(m);
+                      setSheetOpen(true);
+                    }}
+                    className="cursor-pointer hover:underline"
+                  >
+                    {item.cantidad} {item.nombre}{" "}
+                    <span className="text-xs text-gray-600">
+                      ({m.nombre} - {m.asignado || "sin madrij"})
+                    </span>
+                  </span>
+                </label>
+              ))
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Material para alquilar */}
+      {alquiler.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-2xl font-semibold text-blue-800">Material para alquilar</h2>
+          <div className="space-y-1">
+            {alquiler.map((m) =>
+              m.alquilerItems.map((item, idx) => (
+                <label key={`${m.id}-a-${idx}`} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    onChange={() => quitarItemLista(m, "alquilerItems", idx)}
+                  />
+                  <span
+                    onClick={() => {
+                      setMaterialActual(m);
+                      setSheetOpen(true);
+                    }}
+                    className="cursor-pointer hover:underline"
+                  >
+                    {item.cantidad} {item.nombre}{" "}
+                    <span className="text-xs text-gray-600">
+                      ({m.nombre} - {m.asignado || "sin madrij"})
+                    </span>
+                  </span>
+                </label>
+              ))
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Llevar desde casa */}
+      {propios.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-2xl font-semibold text-blue-800">Llevar desde casa</h2>
+          <div className="space-y-1">
+            {propios.map((m) =>
+              m.propiosItems.map((item, idx) => (
+                <label key={`${m.id}-p-${idx}`} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    onChange={() => quitarItemLista(m, "propiosItems", idx)}
+                  />
+                  <span
+                    onClick={() => {
+                      setMaterialActual(m);
+                      setSheetOpen(true);
+                    }}
+                    className="cursor-pointer hover:underline"
+                  >
+                    {item.cantidad} {item.nombre}{" "}
+                    <span className="text-xs text-gray-600">
+                      ({m.nombre} - {m.asignado || "sin madrij"})
+                    </span>
+                  </span>
+                </label>
+              ))
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Otros materiales */}
+      {otros.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-2xl font-semibold text-blue-800">Otros materiales</h2>
+          <div className="space-y-1">
+            {otros.map((m) =>
+              m.otrosItems.map((item, idx) => (
+                <label key={`${m.id}-o-${idx}`} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    onChange={() => quitarItemLista(m, "otrosItems", idx)}
+                  />
+                  <span
+                    onClick={() => {
+                      setMaterialActual(m);
+                      setSheetOpen(true);
+                    }}
+                    className="cursor-pointer hover:underline"
+                  >
+                    {item.cantidad} {item.nombre}{" "}
+                    <span className="text-xs text-gray-600">
+                      ({m.nombre} - {m.asignado || "sin madrij"})
+                    </span>
+                  </span>
+                </label>
+              ))
+            )}
+          </div>
+        </section>
+      )}
+
+      {Object.keys(resumen).length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-2xl font-semibold text-blue-800">Resumen total</h2>
+          <div className="space-y-1">
+            {Object.entries(resumen).map(([nombre, colores]) => (
+              <div key={nombre}>
+                <span className="font-medium capitalize">{nombre}</span>
+                <ul className="ml-4 list-disc">
+                  {Object.entries(colores).map(([c, cantidad]) => (
+                    <li key={c}>{cantidad} {c}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <Sheet
         modal={false}
@@ -563,7 +882,17 @@ export default function MaterialesPage() {
                           setMenuOpen(false);
                         }}
                       >
-                        <ShoppingCart className="w-4 h-4" /> Comprar
+                        <ShoppingCart className="w-4 h-4" /> Comprar en comercio
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 outline-none hover:bg-gray-100 focus:bg-gray-100"
+                        onSelect={() => {
+                          setTipoNuevoItem("compraOnline");
+                          setMostrarAgregar(true);
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <Laptop className="w-4 h-4" /> Comprar online
                       </DropdownMenu.Item>
                       <DropdownMenu.Item
                         className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 outline-none hover:bg-gray-100 focus:bg-gray-100"
@@ -578,6 +907,16 @@ export default function MaterialesPage() {
                       <DropdownMenu.Item
                         className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 outline-none hover:bg-gray-100 focus:bg-gray-100"
                         onSelect={() => {
+                          setTipoNuevoItem("deposito");
+                          setMostrarAgregar(true);
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <Warehouse className="w-4 h-4" /> Retirar del depósito
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 outline-none hover:bg-gray-100 focus:bg-gray-100"
+                        onSelect={() => {
                           setTipoNuevoItem("sanMiguel");
                           setMostrarAgregar(true);
                           setMenuOpen(false);
@@ -585,10 +924,58 @@ export default function MaterialesPage() {
                       >
                         <Tent className="w-4 h-4" /> Buscar en San Miguel
                       </DropdownMenu.Item>
+                      <DropdownMenu.Item
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 outline-none hover:bg-gray-100 focus:bg-gray-100"
+                        onSelect={() => {
+                          setTipoNuevoItem("kvutza");
+                          setMostrarAgregar(true);
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <Users className="w-4 h-4" /> Pedir a otra kvutzá
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 outline-none hover:bg-gray-100 focus:bg-gray-100"
+                        onSelect={() => {
+                          setTipoNuevoItem("alquiler");
+                          setMostrarAgregar(true);
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <Handshake className="w-4 h-4" /> Alquilar
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 outline-none hover:bg-gray-100 focus:bg-gray-100"
+                        onSelect={() => {
+                          setTipoNuevoItem("propios");
+                          setMostrarAgregar(true);
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <House className="w-4 h-4" /> Llevar de casa
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 outline-none hover:bg-gray-100 focus:bg-gray-100"
+                        onSelect={() => {
+                          setTipoNuevoItem("otros");
+                          setMostrarAgregar(true);
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <Box className="w-4 h-4" /> Otro
+                      </DropdownMenu.Item>
                     </DropdownMenu.Content>
                   </DropdownMenu.Root>
                   {mostrarAgregar && (
                     <div className="flex flex-col gap-2 mt-2 sm:flex-row">
+                      <input
+                        type="number"
+                        min={1}
+                        value={cantidadNuevoItem}
+                        onChange={(e) => setCantidadNuevoItem(Number(e.target.value))}
+                        className="border rounded p-1 w-16 text-sm"
+                        placeholder="Cant."
+                      />
                       <input
                         value={nuevoItemGeneral}
                         onChange={(e) => setNuevoItemGeneral(e.target.value)}
@@ -599,14 +986,30 @@ export default function MaterialesPage() {
                         className="w-full sm:flex-1"
                         icon={<Plus className="w-4 h-4" />}
                         onClick={() => {
-                          const campo: "compraItems" | "sedeItems" | "sanMiguelItems" =
+                          const campo =
                             tipoNuevoItem === "compra"
                               ? "compraItems"
+                              : tipoNuevoItem === "compraOnline"
+                              ? "compraOnlineItems"
                               : tipoNuevoItem === "sede"
                               ? "sedeItems"
-                              : "sanMiguelItems";
-                          agregarItemLista(materialActual, campo, nuevoItemGeneral);
+                              : tipoNuevoItem === "deposito"
+                              ? "depositoItems"
+                              : tipoNuevoItem === "sanMiguel"
+                              ? "sanMiguelItems"
+                              : tipoNuevoItem === "kvutza"
+                              ? "kvutzaItems"
+                              : tipoNuevoItem === "alquiler"
+                              ? "alquilerItems"
+                              : tipoNuevoItem === "propios"
+                              ? "propiosItems"
+                              : "otrosItems";
+                          agregarItemLista(materialActual, campo, {
+                            nombre: nuevoItemGeneral,
+                            cantidad: cantidadNuevoItem,
+                          });
                           setNuevoItemGeneral("");
+                          setCantidadNuevoItem(1);
                           setMostrarAgregar(false);
                         }}
                       >
@@ -631,7 +1034,9 @@ export default function MaterialesPage() {
                     <div className="mt-2 space-y-1">
                       {materialActual.compraItems.map((c, idx) => (
                         <div key={idx} className="flex items-center gap-2">
-                          <span className="flex-1 text-sm">{c}</span>
+                          <span className="flex-1 text-sm">
+                            {c.cantidad} {c.nombre}
+                          </span>
                           <button
                             onClick={() => quitarItemLista(materialActual, "compraItems", idx)}
                             className="text-red-600 hover:text-red-800"
@@ -652,7 +1057,9 @@ export default function MaterialesPage() {
                     <div className="mt-2 space-y-1">
                       {materialActual.sedeItems.map((s, idx) => (
                         <div key={idx} className="flex items-center gap-2">
-                          <span className="flex-1 text-sm">{s}</span>
+                          <span className="flex-1 text-sm">
+                            {s.cantidad} {s.nombre}
+                          </span>
                           <button
                             onClick={() => quitarItemLista(materialActual, "sedeItems", idx)}
                             className="text-red-600 hover:text-red-800"
@@ -673,9 +1080,149 @@ export default function MaterialesPage() {
                     <div className="mt-2 space-y-1">
                       {materialActual.sanMiguelItems.map((s, idx) => (
                         <div key={idx} className="flex items-center gap-2">
-                          <span className="flex-1 text-sm">{s}</span>
+                          <span className="flex-1 text-sm">
+                            {s.cantidad} {s.nombre}
+                          </span>
                           <button
                             onClick={() => quitarItemLista(materialActual, "sanMiguelItems", idx)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+
+                {materialActual.compraOnlineItems.length > 0 && (
+                  <details className="border rounded p-2">
+                    <summary className="cursor-pointer flex items-center gap-2">
+                      <Laptop className="w-4 h-4" /> Compras online
+                    </summary>
+                    <div className="mt-2 space-y-1">
+                      {materialActual.compraOnlineItems.map((c, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <span className="flex-1 text-sm">
+                            {c.cantidad} {c.nombre}
+                          </span>
+                          <button
+                            onClick={() => quitarItemLista(materialActual, "compraOnlineItems", idx)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+
+                {materialActual.depositoItems.length > 0 && (
+                  <details className="border rounded p-2">
+                    <summary className="cursor-pointer flex items-center gap-2">
+                      <Warehouse className="w-4 h-4" /> Retiro del depósito
+                    </summary>
+                    <div className="mt-2 space-y-1">
+                      {materialActual.depositoItems.map((s, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <span className="flex-1 text-sm">
+                            {s.cantidad} {s.nombre}
+                          </span>
+                          <button
+                            onClick={() => quitarItemLista(materialActual, "depositoItems", idx)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+
+                {materialActual.kvutzaItems.length > 0 && (
+                  <details className="border rounded p-2">
+                    <summary className="cursor-pointer flex items-center gap-2">
+                      <Users className="w-4 h-4" /> Pedir a otra kvutzá
+                    </summary>
+                    <div className="mt-2 space-y-1">
+                      {materialActual.kvutzaItems.map((s, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <span className="flex-1 text-sm">
+                            {s.cantidad} {s.nombre}
+                          </span>
+                          <button
+                            onClick={() => quitarItemLista(materialActual, "kvutzaItems", idx)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+
+                {materialActual.alquilerItems.length > 0 && (
+                  <details className="border rounded p-2">
+                    <summary className="cursor-pointer flex items-center gap-2">
+                      <Handshake className="w-4 h-4" /> Material para alquilar
+                    </summary>
+                    <div className="mt-2 space-y-1">
+                      {materialActual.alquilerItems.map((s, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <span className="flex-1 text-sm">
+                            {s.cantidad} {s.nombre}
+                          </span>
+                          <button
+                            onClick={() => quitarItemLista(materialActual, "alquilerItems", idx)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+
+                {materialActual.propiosItems.length > 0 && (
+                  <details className="border rounded p-2">
+                    <summary className="cursor-pointer flex items-center gap-2">
+                      <House className="w-4 h-4" /> Llevar desde casa
+                    </summary>
+                    <div className="mt-2 space-y-1">
+                      {materialActual.propiosItems.map((s, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <span className="flex-1 text-sm">
+                            {s.cantidad} {s.nombre}
+                          </span>
+                          <button
+                            onClick={() => quitarItemLista(materialActual, "propiosItems", idx)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+
+                {materialActual.otrosItems.length > 0 && (
+                  <details className="border rounded p-2">
+                    <summary className="cursor-pointer flex items-center gap-2">
+                      <Box className="w-4 h-4" /> Otros materiales
+                    </summary>
+                    <div className="mt-2 space-y-1">
+                      {materialActual.otrosItems.map((s, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <span className="flex-1 text-sm">
+                            {s.cantidad} {s.nombre}
+                          </span>
+                          <button
+                            onClick={() => quitarItemLista(materialActual, "otrosItems", idx)}
                             className="text-red-600 hover:text-red-800"
                           >
                             <Trash2 size={14} />
