@@ -50,6 +50,7 @@ export default function MaterialesPage() {
   interface Item {
     nombre: string;
     cantidad: number;
+    done?: boolean;
   }
 
   interface Material {
