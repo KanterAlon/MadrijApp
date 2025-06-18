@@ -160,6 +160,47 @@ export default function MaterialesPage() {
       .finally(() => setLoading(false));
   }, [proyectoId, list, rowToMaterial]);
 
+  interface AggregatedItem {
+    nombre: string;
+    total: number;
+    done: boolean;
+    detalles: {
+      materialId: string;
+      materialNombre: string;
+      cantidad: number;
+      index: number;
+    }[];
+  }
+
+  const aggregatedSede = useMemo<AggregatedItem[]>(() => {
+    const map = new Map<string, AggregatedItem>();
+    materiales.forEach((m) => {
+      m.sedeItems.forEach((it, idx) => {
+        const key = it.nombre.toLowerCase();
+        if (!map.has(key)) {
+          map.set(key, {
+            nombre: it.nombre,
+            total: 0,
+            done: true,
+            detalles: [],
+          });
+        }
+        const entry = map.get(key)!;
+        entry.total += it.cantidad;
+        entry.done = entry.done && !!it.done;
+        entry.detalles.push({
+          materialId: m.id,
+          materialNombre: m.nombre,
+          cantidad: it.cantidad,
+          index: idx,
+        });
+      });
+    });
+    return Array.from(map.values()).sort((a, b) =>
+      a.nombre.localeCompare(b.nombre)
+    );
+  }, [materiales]);
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -374,6 +415,27 @@ export default function MaterialesPage() {
     actualizarMaterial(mat.id, campo, lista);
   };
 
+  const setItemDone = (
+    mat: Material,
+    campo:
+      | "compraItems"
+      | "compraOnlineItems"
+      | "sedeItems"
+      | "depositoItems"
+      | "sanMiguelItems"
+      | "kvutzaItems"
+      | "alquilerItems"
+      | "propiosItems"
+      | "otrosItems",
+    idx: number,
+    value: boolean
+  ) => {
+    const lista = [...mat[campo]];
+    const item = { ...lista[idx], done: value };
+    lista[idx] = item;
+    actualizarMaterial(mat.id, campo, lista);
+  };
+
   const compras = materiales.filter((m) => m.compraItems.length > 0);
   const comprasOnline = materiales.filter((m) => m.compraOnlineItems.length > 0);
   const retiros = materiales.filter((m) => m.sedeItems.length > 0);
@@ -383,6 +445,7 @@ export default function MaterialesPage() {
   const alquiler = materiales.filter((m) => m.alquilerItems.length > 0);
   const propios = materiales.filter((m) => m.propiosItems.length > 0);
   const otros = materiales.filter((m) => m.otrosItems.length > 0);
+
 
   return (
     <div className="space-y-8">
@@ -589,6 +652,7 @@ export default function MaterialesPage() {
         </section>
       )}
 
+
       {/* Compras online */}
       {comprasOnline.length > 0 && (
         <section className="space-y-2">
@@ -735,6 +799,72 @@ export default function MaterialesPage() {
                 </div>
               );
             })}
+          </div>
+        </section>
+      )}
+
+      {aggregatedSede.length > 0 && (
+        <section className="space-y-2">
+          <h3 className="text-xl font-semibold text-blue-800">
+            Lista completa (sede)
+          </h3>
+          <div className="space-y-1">
+            {aggregatedSede
+              .filter((a) => !a.done)
+              .map((a) => (
+                <label key={a.nombre} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={a.done}
+                    onChange={() => {
+                      a.detalles.forEach((d) => {
+                        const mat = materiales.find((m) => m.id === d.materialId);
+                        if (mat) setItemDone(mat, "sedeItems", d.index, !a.done);
+                      });
+                    }}
+                  />
+                  <span className="cursor-pointer hover:underline">
+                    {a.total} {a.nombre}{" "}
+                    <span className="text-xs text-gray-600">
+                      {a.detalles
+                        .map((d) => `${d.cantidad} para ${d.materialNombre}`)
+                        .join(", ")}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            {aggregatedSede.filter((a) => a.done).length > 0 && (
+              <div className="ml-6 text-xs text-gray-500">Retirado</div>
+            )}
+            {aggregatedSede
+              .filter((a) => a.done)
+              .map((a) => (
+                <label
+                  key={a.nombre}
+                  className="flex items-center gap-2 opacity-70"
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={a.done}
+                    onChange={() => {
+                      a.detalles.forEach((d) => {
+                        const mat = materiales.find((m) => m.id === d.materialId);
+                        if (mat) setItemDone(mat, "sedeItems", d.index, !a.done);
+                      });
+                    }}
+                  />
+                  <span className="cursor-pointer hover:underline line-through">
+                    {a.total} {a.nombre}{" "}
+                    <span className="text-xs text-gray-600">
+                      {a.detalles
+                        .map((d) => `${d.cantidad} para ${d.materialNombre}`)
+                        .join(", ")}
+                    </span>
+                  </span>
+                </label>
+              ))}
           </div>
         </section>
       )}
