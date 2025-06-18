@@ -160,6 +160,47 @@ export default function MaterialesPage() {
       .finally(() => setLoading(false));
   }, [proyectoId, list, rowToMaterial]);
 
+  interface AggregatedItem {
+    nombre: string;
+    total: number;
+    done: boolean;
+    detalles: {
+      materialId: string;
+      materialNombre: string;
+      cantidad: number;
+      index: number;
+    }[];
+  }
+
+  const aggregatedSede = useMemo<AggregatedItem[]>(() => {
+    const map = new Map<string, AggregatedItem>();
+    materiales.forEach((m) => {
+      m.sedeItems.forEach((it, idx) => {
+        const key = it.nombre.toLowerCase();
+        if (!map.has(key)) {
+          map.set(key, {
+            nombre: it.nombre,
+            total: 0,
+            done: true,
+            detalles: [],
+          });
+        }
+        const entry = map.get(key)!;
+        entry.total += it.cantidad;
+        entry.done = entry.done && !!it.done;
+        entry.detalles.push({
+          materialId: m.id,
+          materialNombre: m.nombre,
+          cantidad: it.cantidad,
+          index: idx,
+        });
+      });
+    });
+    return Array.from(map.values()).sort((a, b) =>
+      a.nombre.localeCompare(b.nombre)
+    );
+  }, [materiales]);
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -374,15 +415,37 @@ export default function MaterialesPage() {
     actualizarMaterial(mat.id, campo, lista);
   };
 
+  const setItemDone = (
+    mat: Material,
+    campo:
+      | "compraItems"
+      | "compraOnlineItems"
+      | "sedeItems"
+      | "depositoItems"
+      | "sanMiguelItems"
+      | "kvutzaItems"
+      | "alquilerItems"
+      | "propiosItems"
+      | "otrosItems",
+    idx: number,
+    value: boolean
+  ) => {
+    const lista = [...mat[campo]];
+    const item = { ...lista[idx], done: value };
+    lista[idx] = item;
+    actualizarMaterial(mat.id, campo, lista);
+  };
+
   const compras = materiales.filter((m) => m.compraItems.length > 0);
   const comprasOnline = materiales.filter((m) => m.compraOnlineItems.length > 0);
-  const retiros = materiales.filter((m) => m.sedeItems.length > 0);
+  // items to retirar en la sede are aggregated across materiales
   const deposito = materiales.filter((m) => m.depositoItems.length > 0);
   const sanMiguelPend = materiales.filter((m) => m.sanMiguelItems.length > 0);
   const kvutza = materiales.filter((m) => m.kvutzaItems.length > 0);
   const alquiler = materiales.filter((m) => m.alquilerItems.length > 0);
   const propios = materiales.filter((m) => m.propiosItems.length > 0);
   const otros = materiales.filter((m) => m.otrosItems.length > 0);
+
 
   return (
     <div className="space-y-8">
@@ -589,6 +652,7 @@ export default function MaterialesPage() {
         </section>
       )}
 
+
       {/* Compras online */}
       {comprasOnline.length > 0 && (
         <section className="space-y-2">
@@ -664,77 +728,68 @@ export default function MaterialesPage() {
       )}
 
       {/* Cosas para retirar en la sede */}
-      {retiros.length > 0 && (
+      {aggregatedSede.length > 0 && (
         <section className="space-y-2">
           <h2 className="text-2xl font-semibold text-blue-800">
             Cosas para retirar en la sede
           </h2>
           <div className="space-y-1">
-            {retiros.map((m) => {
-              const items = m.sedeItems.map((it, idx) => ({ it, idx }));
-              const pendientes = items.filter((i) => !i.it.done);
-              const hechos = items.filter((i) => i.it.done);
-              return (
-                <div key={m.id} className="space-y-1">
-                  {pendientes.map(({ it, idx }) => (
-                    <label key={`${m.id}-s-${idx}`} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4"
-                        checked={!!it.done}
-                        onChange={() => toggleItemDone(m, "sedeItems", idx)}
-                      />
-                      <span
-                        onClick={() => {
-                          setMaterialActual(m);
-                          setSheetOpen(true);
-                        }}
-                        className="cursor-pointer hover:underline"
-                      >
-                        {it.cantidad} {it.nombre}{" "}
-                        <span className="text-xs text-gray-600">
-                          ({m.nombre} - {m.asignado || "sin madrij"})
-                        </span>
-                      </span>
-                    </label>
-                  ))}
-                  {hechos.length > 0 && (
-                    <div className="ml-6 text-xs text-gray-500">Retirado</div>
-                  )}
-                  {hechos.map(({ it, idx }) => (
-                    <label
-                      key={`${m.id}-s-${idx}`}
-                      className="flex items-center gap-2 opacity-70"
-                    >
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4"
-                        checked={!!it.done}
-                        onChange={() => toggleItemDone(m, "sedeItems", idx)}
-                      />
-                      <span
-                        onClick={() => {
-                          setMaterialActual(m);
-                          setSheetOpen(true);
-                        }}
-                        className="cursor-pointer hover:underline line-through"
-                      >
-                        {it.cantidad} {it.nombre}{" "}
-                        <span className="text-xs text-gray-600">
-                          ({m.nombre} - {m.asignado || "sin madrij"})
-                        </span>
-                      </span>
-                      <button
-                        onClick={() => quitarItemLista(m, "sedeItems", idx)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </label>
-                  ))}
-                </div>
-              );
-            })}
+            {aggregatedSede
+              .filter((a) => !a.done)
+              .map((a) => (
+                <label key={a.nombre} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={a.done}
+                    onChange={() => {
+                      a.detalles.forEach((d) => {
+                        const mat = materiales.find((m) => m.id === d.materialId);
+                        if (mat) setItemDone(mat, "sedeItems", d.index, !a.done);
+                      });
+                    }}
+                  />
+                  <span className="cursor-pointer hover:underline">
+                    {a.total} {a.nombre}{" "}
+                    <span className="text-xs text-gray-600">
+                      {a.detalles
+                        .map((d) => `${d.cantidad} para ${d.materialNombre}`)
+                        .join(", ")}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            {aggregatedSede.filter((a) => a.done).length > 0 && (
+              <div className="ml-6 text-xs text-gray-500">Retirado</div>
+            )}
+            {aggregatedSede
+              .filter((a) => a.done)
+              .map((a) => (
+                <label
+                  key={a.nombre}
+                  className="flex items-center gap-2 opacity-70"
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={a.done}
+                    onChange={() => {
+                      a.detalles.forEach((d) => {
+                        const mat = materiales.find((m) => m.id === d.materialId);
+                        if (mat) setItemDone(mat, "sedeItems", d.index, !a.done);
+                      });
+                    }}
+                  />
+                  <span className="cursor-pointer hover:underline line-through">
+                    {a.total} {a.nombre}{" "}
+                    <span className="text-xs text-gray-600">
+                      {a.detalles
+                        .map((d) => `${d.cantidad} para ${d.materialNombre}`)
+                        .join(", ")}
+                    </span>
+                  </span>
+                </label>
+              ))}
           </div>
         </section>
       )}
