@@ -373,6 +373,13 @@ export default function MaterialesPage() {
     }
   };
 
+  const eliminarItemSedeAggregado = (a: AggregatedItem) => {
+    a.detalles.forEach((d) => {
+      const mat = materiales.find((m) => m.id === d.materialId);
+      if (mat) quitarItemLista(mat, "sedeItems", d.index);
+    });
+  };
+
   const cambiarCantidadItemLista = (
     mat: Material,
     campo:
@@ -765,10 +772,7 @@ export default function MaterialesPage() {
             {aggregatedSede
               .filter((a) => a.done)
               .map((a) => (
-                <label
-                  key={a.nombre}
-                  className="flex items-center gap-2 opacity-70"
-                >
+                <div key={a.nombre} className="flex items-center gap-2 opacity-70">
                   <input
                     type="checkbox"
                     className="h-4 w-4"
@@ -780,7 +784,7 @@ export default function MaterialesPage() {
                       });
                     }}
                   />
-                  <span className="cursor-pointer hover:underline line-through">
+                  <span className="cursor-pointer hover:underline line-through flex-1">
                     {a.total} {a.nombre}{" "}
                     <span className="text-xs text-gray-600">
                       {a.detalles
@@ -788,77 +792,18 @@ export default function MaterialesPage() {
                         .join(", ")}
                     </span>
                   </span>
-                </label>
+                  <button
+                    onClick={() => eliminarItemSedeAggregado(a)}
+                    className="text-red-600 hover:text-red-800"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               ))}
           </div>
         </section>
       )}
 
-      {aggregatedSede.length > 0 && (
-        <section className="space-y-2">
-          <h3 className="text-xl font-semibold text-blue-800">
-            Lista completa (sede)
-          </h3>
-          <div className="space-y-1">
-            {aggregatedSede
-              .filter((a) => !a.done)
-              .map((a) => (
-                <label key={a.nombre} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    checked={a.done}
-                    onChange={() => {
-                      a.detalles.forEach((d) => {
-                        const mat = materiales.find((m) => m.id === d.materialId);
-                        if (mat) setItemDone(mat, "sedeItems", d.index, !a.done);
-                      });
-                    }}
-                  />
-                  <span className="cursor-pointer hover:underline">
-                    {a.total} {a.nombre}{" "}
-                    <span className="text-xs text-gray-600">
-                      {a.detalles
-                        .map((d) => `${d.cantidad} para ${d.materialNombre}`)
-                        .join(", ")}
-                    </span>
-                  </span>
-                </label>
-              ))}
-            {aggregatedSede.filter((a) => a.done).length > 0 && (
-              <div className="ml-6 text-xs text-gray-500">Retirado</div>
-            )}
-            {aggregatedSede
-              .filter((a) => a.done)
-              .map((a) => (
-                <label
-                  key={a.nombre}
-                  className="flex items-center gap-2 opacity-70"
-                >
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    checked={a.done}
-                    onChange={() => {
-                      a.detalles.forEach((d) => {
-                        const mat = materiales.find((m) => m.id === d.materialId);
-                        if (mat) setItemDone(mat, "sedeItems", d.index, !a.done);
-                      });
-                    }}
-                  />
-                  <span className="cursor-pointer hover:underline line-through">
-                    {a.total} {a.nombre}{" "}
-                    <span className="text-xs text-gray-600">
-                      {a.detalles
-                        .map((d) => `${d.cantidad} para ${d.materialNombre}`)
-                        .join(", ")}
-                    </span>
-                  </span>
-                </label>
-              ))}
-          </div>
-        </section>
-      )}
 
       {/* Retirar del depósito */}
       {deposito.length > 0 && (
