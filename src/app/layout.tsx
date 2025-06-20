@@ -15,6 +15,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <ClerkProvider>
       <html lang="es">
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+        </head>
         <body className="antialiased bg-gray-50 text-gray-800">
           <ClientBootstrap />
           <ToastProvider />

@@ -1328,7 +1328,11 @@ export default function MaterialesPage() {
 
 
       <Sheet open={importOpen} onOpenChange={setImportOpen}>
-        <SheetContent side="bottom" className="w-full">
+        <SheetContent
+          side="bottom"
+          className="w-full"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <SheetHeader>
             <SheetTitle>Importar materiales</SheetTitle>
             <SheetDescription>
@@ -1348,7 +1352,11 @@ export default function MaterialesPage() {
       </Sheet>
 
       <Sheet open={columnOpen} onOpenChange={setColumnOpen}>
-        <SheetContent side="bottom" className="w-full">
+        <SheetContent
+          side="bottom"
+          className="w-full"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <SheetHeader>
             <SheetTitle>Elegí las columnas</SheetTitle>
             <SheetDescription>
@@ -1419,6 +1427,7 @@ export default function MaterialesPage() {
         <SheetContent
           side={isDesktop ? "right" : "bottom"}
           className="w-full sm:w-96 h-dvh"
+          onOpenAutoFocus={(e) => e.preventDefault()}
         >
           {materialActual && (
             <div className="flex flex-col h-full">
