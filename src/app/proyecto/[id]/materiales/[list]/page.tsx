@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import {
@@ -18,6 +18,7 @@ import {
   Plus,
   Minus,
   X,
+  FileUp,
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Button from "@/components/ui/button";
@@ -30,6 +31,7 @@ import {
   SheetTitle,
   SheetFooter,
   SheetClose,
+  SheetDescription,
 } from "@/components/ui/sheet";
 import { toast } from "react-hot-toast";
 import {
@@ -43,6 +45,7 @@ import {
 import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
 import { showError, confirmDialog } from "@/lib/alerts";
 import Loader from "@/components/ui/loader";
+import { parseSpreadsheetFile } from "@/lib/utils";
 
 export default function MaterialesPage() {
   type Estado = "por hacer" | "en proceso" | "realizado";
@@ -135,6 +138,26 @@ export default function MaterialesPage() {
   const [filtroAsignado, setFiltroAsignado] = useState("");
 
   const isDesktop = useMediaQuery("(min-width: 640px)");
+
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [columnOpen, setColumnOpen] = useState(false);
+  const [rows, setRows] = useState<string[][]>([]);
+  const [columns, setColumns] = useState<string[]>([]);
+  const [titleIndex, setTitleIndex] = useState(0);
+  const [descIndex, setDescIndex] = useState(1);
+
+  const namePreview = useMemo(
+    () => rows.slice(1, 6).map((r) => r[titleIndex]).filter(Boolean),
+    [rows, titleIndex]
+  );
+  const descPreview = useMemo(
+    () =>
+      descIndex >= 0
+        ? rows.slice(1, 6).map((r) => r[descIndex]).filter(Boolean)
+        : [],
+    [rows, descIndex]
+  );
 
 
   const sedeNombres = useMemo(() => {
@@ -230,6 +253,47 @@ export default function MaterialesPage() {
         toast.success("Material creado");
       })
       .catch(() => showError("Error creando material"));
+  };
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const data = await parseSpreadsheetFile(file);
+      setRows(data);
+      setColumns(data[0] || []);
+      setTitleIndex(0);
+      setDescIndex(data[0]?.length > 1 ? 1 : -1);
+      setImportOpen(false);
+      setColumnOpen(true);
+    } catch {
+      showError("Error leyendo el archivo");
+    }
+    e.target.value = "";
+  };
+
+  const importMaterials = async () => {
+    if (!list) return;
+    const items = rows.slice(1).map((r) => ({
+      nombre: r[titleIndex]?.trim(),
+      descripcion: descIndex >= 0 ? r[descIndex]?.trim() || "" : "",
+    }));
+    for (const it of items) {
+      if (!it.nombre) continue;
+      try {
+        const row = await addMaterialEnLista(list, it.nombre, proyectoId);
+        if (it.descripcion) {
+          await updateMaterial(row.id, { descripcion: it.descripcion });
+          row.descripcion = it.descripcion;
+        }
+        setMateriales((prev) => [...prev, rowToMaterial(row)]);
+      } catch {
+        showError("Error importando materiales");
+        break;
+      }
+    }
+    toast.success("Materiales importados");
+    setColumnOpen(false);
   };
 
 
@@ -485,6 +549,19 @@ export default function MaterialesPage() {
           <Button onClick={crearMaterial} icon={<Plus className="w-4 h-4" />}>
             Agregar
           </Button>
+          <Button
+            onClick={() => setImportOpen(true)}
+            icon={<FileUp className="w-4 h-4" />}
+          >
+            Importar
+          </Button>
+          <input
+            type="file"
+            accept=".csv,.xlsx,.xls"
+            onChange={handleFile}
+            ref={fileInput}
+            className="hidden"
+          />
         </div>
         <div className="bg-white rounded-lg shadow">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border-b gap-2">
@@ -1250,6 +1327,86 @@ export default function MaterialesPage() {
       )}
 
 
+      <Sheet open={importOpen} onOpenChange={setImportOpen}>
+        <SheetContent side="bottom" className="w-full">
+          <SheetHeader>
+            <SheetTitle>Importar materiales</SheetTitle>
+            <SheetDescription>
+              Seleccioná un archivo CSV/Excel con los materiales.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="p-4">
+            <Button
+              className="w-full"
+              icon={<FileUp className="w-4 h-4" />}
+              onClick={() => fileInput.current?.click()}
+            >
+              Seleccionar archivo
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={columnOpen} onOpenChange={setColumnOpen}>
+        <SheetContent side="bottom" className="w-full">
+          <SheetHeader>
+            <SheetTitle>Elegí las columnas</SheetTitle>
+            <SheetDescription>
+              Indicá qué columnas contienen el nombre y la descripción.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="p-4 space-y-4">
+            <div>
+              <label className="text-sm block mb-1">Nombre</label>
+              <select
+                className="w-full border rounded-lg p-2"
+                value={titleIndex}
+                onChange={(e) => setTitleIndex(Number(e.target.value))}
+              >
+                {columns.map((c, i) => (
+                  <option key={i} value={i}>
+                    {c || `Columna ${i + 1}`}
+                  </option>
+                ))}
+              </select>
+              {namePreview.length > 0 && (
+                <ul className="list-disc ml-4 space-y-1 text-sm mt-1">
+                  {namePreview.map((n, i) => (
+                    <li key={i}>{n}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div>
+              <label className="text-sm block mb-1">Descripción</label>
+              <select
+                className="w-full border rounded-lg p-2"
+                value={descIndex}
+                onChange={(e) => setDescIndex(Number(e.target.value))}
+              >
+                <option value={-1}>Ninguna</option>
+                {columns.map((c, i) => (
+                  <option key={i} value={i}>
+                    {c || `Columna ${i + 1}`}
+                  </option>
+                ))}
+              </select>
+              {descIndex >= 0 && descPreview.length > 0 && (
+                <ul className="list-disc ml-4 space-y-1 text-sm mt-1">
+                  {descPreview.map((d, i) => (
+                    <li key={i}>{d}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+          <SheetFooter>
+            <Button icon={<FileUp className="w-4 h-4" />} onClick={importMaterials}>
+              Insertar
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <Sheet
         modal={false}
