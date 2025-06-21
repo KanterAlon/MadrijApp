@@ -50,6 +50,7 @@ export default function AsistenciaPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [showTopButton, setShowTopButton] = useState(false);
   const [connected, setConnected] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const { highlightId, scrollTo } = useHighlightScroll({ prefix: "janij-" });
   const esCreador = user?.id === sesion?.madrij_id;
 
@@ -67,6 +68,7 @@ export default function AsistenciaPage() {
 
   useEffect(() => {
     if (!sesionId) return;
+    setLoadError(false);
     Promise.all([
       getSesion(sesionId),
       getJanijim(proyectoId),
@@ -81,6 +83,7 @@ export default function AsistenciaPage() {
         });
         setEstado(m);
       })
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
   }, [sesionId, proyectoId]);
 
@@ -237,6 +240,14 @@ export default function AsistenciaPage() {
     return (
       <div className="flex justify-center py-8">
         <Loader className="h-6 w-6" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex justify-center py-8">
+        <p className="text-red-600">Error al conectar con Supabase</p>
       </div>
     );
   }
