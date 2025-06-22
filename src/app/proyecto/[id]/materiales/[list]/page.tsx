@@ -524,7 +524,7 @@ export default function MaterialesPage() {
         href={`/proyecto/${proyectoId}/materiales`}
         className="inline-flex"
       />
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-3xl font-bold flex items-center gap-2 text-blue-900">
           <FolderKanban className="w-7 h-7" /> Organización de Materiales
         </h1>
@@ -539,7 +539,7 @@ export default function MaterialesPage() {
 
       {/* Cosas para hacer */}
       <section className="space-y-4">
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-2">
           <input
             value={nuevoNombre}
             onChange={(e) => setNuevoNombre(e.target.value)}
@@ -585,7 +585,7 @@ export default function MaterialesPage() {
               </select>
             </div>
           </div>
-          <div className="grid md:grid-cols-3 gap-4 p-4">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 p-4">
             {estados.map((estado) => {
               const mats = materiales.filter(
                 (m) =>
@@ -632,7 +632,7 @@ export default function MaterialesPage() {
                     {mats.length === 0 && (
                       <p className="text-sm text-gray-500">Sin materiales</p>
                     )}
-                <div className="pt-2 flex items-center gap-2">
+                <div className="pt-2 flex flex-wrap items-center gap-2">
                   <input
                     value={nuevoPorEstado[estado]}
                     onChange={(e) =>
@@ -1468,7 +1468,7 @@ export default function MaterialesPage() {
                     <DropdownMenu.Content
                       align="start"
                       sideOffset={4}
-                      className="z-20 w-52 rounded-md border border-gray-200 bg-white p-1 shadow-lg focus:outline-none"
+                      className="z-20 w-48 sm:w-52 rounded-md border border-gray-200 bg-white p-1 shadow-lg focus:outline-none"
                     >
                       <DropdownMenu.Label className="px-2 py-1 text-sm font-medium text-gray-600">
                         ¿Qué necesitás?
