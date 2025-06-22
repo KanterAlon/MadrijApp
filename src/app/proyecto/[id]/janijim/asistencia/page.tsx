@@ -49,8 +49,6 @@ export default function AsistenciaPage() {
   const [aiResults, setAiResults] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [showTopButton, setShowTopButton] = useState(false);
-  const [connected, setConnected] = useState(true);
-  const [loadError, setLoadError] = useState(false);
   const { highlightId, scrollTo } = useHighlightScroll({ prefix: "janij-" });
   const esCreador = user?.id === sesion?.madrij_id;
 
@@ -68,7 +66,6 @@ export default function AsistenciaPage() {
 
   useEffect(() => {
     if (!sesionId) return;
-    setLoadError(false);
     Promise.all([
       getSesion(sesionId),
       getJanijim(proyectoId),
@@ -83,7 +80,6 @@ export default function AsistenciaPage() {
         });
         setEstado(m);
       })
-      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
   }, [sesionId, proyectoId]);
 
@@ -194,9 +190,7 @@ export default function AsistenciaPage() {
   // el estado esté siempre sincronizado, incluso si se pierde un evento
   useEffect(() => {
     if (!sesionId) return;
-    setConnected(supabase.realtime.isConnected());
     const id = setInterval(() => {
-      setConnected(supabase.realtime.isConnected());
       Promise.all([getSesion(sesionId), getAsistencias(sesionId)])
         .then(([s, a]) => {
           if (s) {
@@ -240,14 +234,6 @@ export default function AsistenciaPage() {
     return (
       <div className="flex justify-center py-8">
         <Loader className="h-6 w-6" />
-      </div>
-    );
-  }
-
-  if (loadError) {
-    return (
-      <div className="flex justify-center py-8">
-        <p className="text-red-600">Error al conectar con Supabase</p>
       </div>
     );
   }
@@ -301,11 +287,6 @@ export default function AsistenciaPage() {
 
   return (
     <div className="relative">
-      {!connected && (
-        <div className="fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-1 z-20">
-          Conexión con Supabase perdida
-        </div>
-      )}
       {updating && (
         <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10">
           <Loader className="h-6 w-6" />
