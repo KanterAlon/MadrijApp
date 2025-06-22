@@ -223,7 +223,9 @@ export default function AsistenciaPage() {
       await marcarAsistencia(sesionId, proyectoId, janijId, user.id, nuevo);
       // No se necesita broadcast
     } catch (e) {
-      console.error(e);
+      console.error("Error marcando asistencia", e);
+      // revert state if operation fails
+      setEstado((p) => ({ ...p, [janijId]: !nuevo }));
     }
   };
 
