@@ -126,3 +126,9 @@
     @apply cursor-pointer disabled:cursor-not-allowed;
   }
 }
+
+@layer base {
+  html {
+    @apply scroll-smooth touch-manipulation;
+  }
+}

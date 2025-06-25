@@ -24,7 +24,10 @@ export default function MobileMenu({ proyectoId }: MobileMenuProps) {
   const pathname = usePathname();
 
   return (
-    <div className="md:hidden p-4 bg-white shadow-md flex items-center justify-between">
+    <div
+      className="md:hidden fixed top-0 inset-x-0 z-20 p-4 bg-white/90 shadow-md backdrop-blur flex items-center justify-between"
+      style={{ WebkitBackdropFilter: "blur(8px)" }}
+    >
       <div className="flex items-center gap-4">
         <Sheet>
           <SheetTrigger aria-label="Abrir men\u00fa de navegaci\u00f3n">

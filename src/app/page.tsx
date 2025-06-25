@@ -51,9 +51,12 @@ export default function HomePage() {
       <SignInButton mode="modal" withSignUp forceRedirectUrl="/dashboard" signUpForceRedirectUrl="/dashboard">
         <Button icon={<LogIn className="w-4 h-4" />}>Iniciar sesión</Button>
       </SignInButton>
-      <section className="mt-12 grid gap-6 w-full max-w-5xl md:grid-cols-3">
+      <section className="mt-12 grid gap-6 w-full max-w-5xl sm:grid-cols-2 md:grid-cols-3">
         {features.map(({ icon: Icon, title, desc }) => (
-          <div key={title} className="flex flex-col items-center bg-white/60 backdrop-blur rounded-lg p-6 shadow">
+          <div
+            key={title}
+            className="flex flex-col items-center bg-white/60 backdrop-blur rounded-xl p-6 shadow-md"
+          >
             <Icon className="w-10 h-10 text-blue-600 mb-4" />
             <h3 className="text-lg font-semibold mb-2">{title}</h3>
             <p className="text-sm text-gray-600">{desc}</p>
