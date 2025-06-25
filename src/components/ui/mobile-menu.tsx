@@ -13,23 +13,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { UserButton } from "@clerk/nextjs";
+import { navigationLinks as links } from "@/lib/navigationLinks";
 
 type MobileMenuProps = {
   proyectoId: string;
 };
 
-const links = [
-  { href: "/dashboard", label: "Mis Proyectos" },
-  { href: "", label: "Inicio" },
-  { href: "janijim", label: "Janijim" },
-  { href: "materiales", label: "Materiales" },
-  { href: "notas", label: "Notas" },
-  { href: "calendario", label: "Calendario" },
-  { href: "tareas", label: "Tareas" },
-  { href: "planificaciones", label: "Planificaciones" },
-  { href: "actividades", label: "Actividades" },
-  { href: "chatbot", label: "Chatbot" },
-];
 
 export default function MobileMenu({ proyectoId }: MobileMenuProps) {
   const pathname = usePathname();

@@ -4,31 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { UserButton } from "@clerk/nextjs";
-import {
-  ClipboardList,
-  Book,
-  Calendar,
-  CheckSquare,
-  PencilRuler,
-  PartyPopper,
-  Bot,
-  Home,
-  LayoutDashboard,
-  FolderKanban,
-} from "lucide-react";
-
-const links = [
-  { href: "/dashboard", label: "Mis Proyectos", icon: LayoutDashboard },
-  { href: "", label: "Inicio", icon: Home },
-  { href: "janijim", label: "Janijim", icon: ClipboardList },
-  { href: "materiales", label: "Materiales", icon: FolderKanban },
-  { href: "notas", label: "Notas", icon: Book },
-  { href: "calendario", label: "Calendario", icon: Calendar },
-  { href: "tareas", label: "Tareas", icon: CheckSquare },
-  { href: "planificaciones", label: "Planificaciones", icon: PencilRuler },
-  { href: "actividades", label: "Actividades", icon: PartyPopper },
-  { href: "chatbot", label: "Chatbot", icon: Bot },
-];
+import { navigationLinks as links } from "@/lib/navigationLinks";
 
 export default function Sidebar({ proyectoId }: { proyectoId: string }) {
   const pathname = usePathname();
@@ -58,7 +34,7 @@ export default function Sidebar({ proyectoId }: { proyectoId: string }) {
                   : "text-gray-700 hover:bg-gray-100"
               )}
             >
-              <Icon size={18} />
+              {Icon && <Icon size={18} />}
               <span>{label}</span>
             </Link>
           );
