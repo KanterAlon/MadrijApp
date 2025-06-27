@@ -27,11 +27,12 @@ export default function Sidebar({ proyectoId }: { proyectoId: string }) {
             <Link
               key={href}
               href={fullPath}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
-                "flex items-center gap-3 px-4 py-2 rounded-md transition",
+                "flex items-center gap-3 px-4 py-2 rounded-md transition border-l-4",
                 isActive
-                  ? "bg-black text-white"
-                  : "text-gray-700 hover:bg-gray-100"
+                  ? "bg-blue-50 text-blue-800 border-blue-600 font-semibold"
+                  : "text-gray-700 border-transparent hover:bg-gray-100"
               )}
             >
               {Icon && <Icon size={18} />}
