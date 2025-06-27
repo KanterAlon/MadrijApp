@@ -51,7 +51,7 @@ export default function HomePage() {
       <SignInButton mode="modal" withSignUp forceRedirectUrl="/dashboard" signUpForceRedirectUrl="/dashboard">
         <Button icon={<LogIn className="w-4 h-4" />}>Iniciar sesión</Button>
       </SignInButton>
-      <section className="mt-12 grid gap-6 w-full max-w-5xl sm:grid-cols-2 md:grid-cols-3">
+      <section className="mt-12 grid gap-6 w-full max-w-5xl mx-auto sm:grid-cols-2 md:grid-cols-3">
         {features.map(({ icon: Icon, title, desc }) => (
           <div
             key={title}

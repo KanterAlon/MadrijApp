@@ -57,9 +57,12 @@ export default function MobileMenu({ proyectoId }: MobileMenuProps) {
                   <SheetClose asChild key={href}>
                     <Link
                       href={fullPath}
+                      aria-current={isActive ? "page" : undefined}
                       className={cn(
                         "block text-base font-medium",
-                        isActive ? "text-blue-700" : "text-gray-700"
+                        isActive
+                          ? "text-blue-700 font-semibold"
+                          : "text-gray-700"
                       )}
                     >
                       {label}

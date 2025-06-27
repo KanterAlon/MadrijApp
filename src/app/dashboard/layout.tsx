@@ -19,7 +19,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
         <UserButton afterSignOutUrl="/" />
       </header>
-      <main className="p-6">{children}</main>
+      <main className="flex-1 p-4 md:p-6 w-full max-w-4xl mx-auto">{children}</main>
     </div>
   );
 }

@@ -58,7 +58,7 @@ export default function NuevoProyectoPage() {
       <input
         type="text"
         placeholder="Ej.: Campamento de verano"
-        className="p-2 border rounded w-full mb-4"
+        className="p-2 border rounded w-full mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
         value={nombre}
         onChange={(e) => setNombre(e.target.value)}
       />

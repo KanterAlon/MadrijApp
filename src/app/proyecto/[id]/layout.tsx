@@ -15,7 +15,7 @@ export default async function ProyectoLayout({
       <Sidebar proyectoId={proyectoId} />
       <div className="flex-1 flex flex-col">
         <MobileMenu proyectoId={proyectoId} />
-        <main className="p-6">{children}</main>
+        <main className="p-4 md:p-6 pt-20 md:pt-6 w-full max-w-4xl mx-auto">{children}</main>
       </div>
     </div>
   );
