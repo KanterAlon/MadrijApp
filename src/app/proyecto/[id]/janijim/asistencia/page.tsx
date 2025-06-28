@@ -6,7 +6,7 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import useHighlightScroll from "@/hooks/useHighlightScroll";
 import Loader from "@/components/ui/loader";
-import { getJanijim } from "@/lib/supabase/janijim";
+import { getJanijim, type JanijData } from "@/lib/supabase/janijim";
 import {
   getAsistencias,
   marcarAsistencia,
@@ -16,6 +16,14 @@ import {
 import { supabase } from "@/lib/supabase";
 import { Search, FileUp, Check, ArrowLeft, ArrowUp } from "lucide-react";
 import Button from "@/components/ui/button";
+import {
+  Modal,
+  ModalContent,
+  ModalDescription,
+  ModalFooter,
+  ModalHeader,
+  ModalTitle,
+} from "@/components/ui/modal";
 
 type AsistenciaRow = {
   janij_id: string;
@@ -35,7 +43,7 @@ export default function AsistenciaPage() {
   const { user } = useUser();
   const router = useRouter();
 
-  const [janijim, setJanijim] = useState<{ id: string; nombre: string }[]>([]);
+  const [janijim, setJanijim] = useState<(JanijData & { id: string })[]>([]);
   const [estado, setEstado] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [sesion, setSesion] = useState<{
@@ -49,6 +57,15 @@ export default function AsistenciaPage() {
   const [aiResults, setAiResults] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [showTopButton, setShowTopButton] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const exportable = [
+    { key: "dni", label: "DNI" },
+    { key: "numero_socio", label: "Número socio" },
+    { key: "grupo", label: "Grupo" },
+    { key: "tel_madre", label: "Tel. madre" },
+    { key: "tel_padre", label: "Tel. padre" },
+  ];
+  const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
   const { highlightId, scrollTo } = useHighlightScroll({ prefix: "janij-" });
   const esCreador = user?.id === sesion?.madrij_id;
 
@@ -243,7 +260,19 @@ export default function AsistenciaPage() {
     const ausentes = janijim.filter((j) => !estado[j.id]);
 
     const exportar = () => {
-      const data = presentes.map((j) => ({ nombre: j.nombre }));
+      const data = presentes.map((j) => {
+        const row: Record<string, string | null | undefined> = {
+          Nombre: j.nombre,
+          Apellido: j.apellido || "",
+        };
+        exportable.forEach((a) => {
+          if (selectedExtras.includes(a.key)) {
+            const value = (j as Record<string, string | null | undefined>)[a.key];
+            row[a.label] = value || "";
+          }
+        });
+        return row;
+      });
       const ws = XLSX.utils.json_to_sheet(data);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Asistencia");
@@ -265,13 +294,54 @@ export default function AsistenciaPage() {
           <p>Ausentes: {ausentes.length}</p>
         </div>
         {esCreador && (
-          <Button
-            className="w-full"
-            icon={<FileUp className="w-4 h-4" />}
-            onClick={exportar}
-          >
-            Descargar Excel
-          </Button>
+          <>
+            <Button
+              className="w-full"
+              icon={<FileUp className="w-4 h-4" />}
+              onClick={() => setExportOpen(true)}
+            >
+              Descargar Excel
+            </Button>
+            <Modal open={exportOpen} onOpenChange={setExportOpen}>
+              <ModalContent>
+                <ModalHeader>
+                  <ModalTitle>Columnas extra</ModalTitle>
+                  <ModalDescription>
+                    Seleccioná los datos adicionales a incluir.
+                  </ModalDescription>
+                </ModalHeader>
+                <div className="space-y-2 text-sm">
+                  {exportable.map((a) => (
+                    <label key={a.key} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedExtras.includes(a.key)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedExtras([...selectedExtras, a.key]);
+                          } else {
+                            setSelectedExtras(selectedExtras.filter((c) => c !== a.key));
+                          }
+                        }}
+                      />
+                      {a.label}
+                    </label>
+                  ))}
+                </div>
+                <ModalFooter>
+                  <Button
+                    icon={<FileUp className="w-4 h-4" />}
+                    onClick={() => {
+                      exportar();
+                      setExportOpen(false);
+                    }}
+                  >
+                    Exportar
+                  </Button>
+                </ModalFooter>
+              </ModalContent>
+            </Modal>
+          </>
         )}
         <Button
           className="w-full"
