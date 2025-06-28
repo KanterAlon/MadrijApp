@@ -168,9 +168,8 @@ export default function JanijimPage() {
   const agregar = async (nombre: string) => {
     try {
       const inserted = await addJanijim(proyectoId, [{ nombre }]);
-      const nuevo = {
-        id: inserted[0].id,
-        nombre: inserted[0].nombre,
+      const nuevo: Janij = {
+        ...inserted[0],
         estado: "ausente" as const,
       };
       setJanijim((prev) => [...prev, nuevo]);
