@@ -23,8 +23,9 @@ export async function parseSpreadsheetFile(file: File): Promise<string[][]> {
       try {
         const wb = xlsx.read(data, { type: 'array' });
         const sheet = wb.Sheets[wb.SheetNames[0]];
-        const json = xlsx.utils.sheet_to_json(sheet, { header: 1 }) as string[][];
-        resolve(json);
+        const json = xlsx.utils.sheet_to_json(sheet, { header: 1 }) as (string | number | null)[][];
+        const rows = json.map((row) => row.map((v) => (v == null ? "" : String(v))));
+        resolve(rows);
       } catch (err) {
         reject(err);
       }
