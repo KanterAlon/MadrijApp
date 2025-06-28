@@ -106,6 +106,11 @@ export default function JanijimPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editApellido, setEditApellido] = useState("");
+  const [editDni, setEditDni] = useState("");
+  const [editSocio, setEditSocio] = useState("");
+  const [editGrupo, setEditGrupo] = useState("");
+  const [editTelMadre, setEditTelMadre] = useState("");
+  const [editTelPadre, setEditTelPadre] = useState("");
   const [sesionOpen, setSesionOpen] = useState(false);
   const [sesionNombre, setSesionNombre] = useState("");
   const [madrijes, setMadrijes] = useState<{ clerk_id: string; nombre: string }[]>([]);
@@ -165,6 +170,16 @@ export default function JanijimPage() {
     }
   }, [janijim, seleccionar]);
 
+  useEffect(() => {
+    if (detailJanij) {
+      setEditDni(detailJanij.dni ?? "");
+      setEditSocio(detailJanij.numero_socio ?? "");
+      setEditGrupo(detailJanij.grupo ?? "");
+      setEditTelMadre(detailJanij.tel_madre ?? "");
+      setEditTelPadre(detailJanij.tel_padre ?? "");
+    }
+  }, [detailJanij]);
+
   const agregar = async (nombre: string) => {
     try {
       const inserted = await addJanijim(proyectoId, [{ nombre }]);
@@ -219,6 +234,27 @@ export default function JanijimPage() {
   const cancelEdit = () => {
     setEditingId(null);
     setEditApellido("");
+  };
+
+  const saveDetail = async () => {
+    if (!detailJanij) return;
+    const data = {
+      dni: editDni.trim() || null,
+      numero_socio: editSocio.trim() || null,
+      grupo: editGrupo.trim() || null,
+      tel_madre: editTelMadre.trim() || null,
+      tel_padre: editTelPadre.trim() || null,
+    };
+    try {
+      await updateJanij(detailJanij.id, data);
+      setJanijim((prev) =>
+        prev.map((j) => (j.id === detailJanij.id ? { ...j, ...data } : j)),
+      );
+      setDetailJanij({ ...detailJanij, ...data });
+      toast.success("Janij actualizado correctamente");
+    } catch {
+      showError("Error actualizando janij");
+    }
   };
 
   const deleteJanij = async (id: string) => {
@@ -745,15 +781,59 @@ export default function JanijimPage() {
             <ModalTitle>{detailJanij?.nombre} {detailJanij?.apellido}</ModalTitle>
             <ModalDescription>Información del janij</ModalDescription>
           </ModalHeader>
-          <div className="space-y-1 text-sm">
-            <div><span className="font-medium">DNI:</span> {detailJanij?.dni || '-'}</div>
-            <div><span className="font-medium">Número socio:</span> {detailJanij?.numero_socio || '-'}</div>
-            <div><span className="font-medium">Grupo:</span> {detailJanij?.grupo || '-'}</div>
-            <div><span className="font-medium">Tel. madre:</span> {detailJanij?.tel_madre || '-'}</div>
-            <div><span className="font-medium">Tel. padre:</span> {detailJanij?.tel_padre || '-'}</div>
+          <div className="space-y-4 text-sm">
+            <label className="flex flex-col">
+              <span className="font-medium">DNI</span>
+              <input
+                className="w-full border rounded-lg p-2"
+                value={editDni}
+                onChange={(e) => setEditDni(e.target.value)}
+              />
+            </label>
+            <label className="flex flex-col">
+              <span className="font-medium">Número socio</span>
+              <input
+                className="w-full border rounded-lg p-2"
+                value={editSocio}
+                onChange={(e) => setEditSocio(e.target.value)}
+              />
+            </label>
+            <label className="flex flex-col">
+              <span className="font-medium">Grupo</span>
+              <input
+                className="w-full border rounded-lg p-2"
+                value={editGrupo}
+                onChange={(e) => setEditGrupo(e.target.value)}
+              />
+            </label>
+            <label className="flex flex-col">
+              <span className="font-medium">Tel. madre</span>
+              <input
+                className="w-full border rounded-lg p-2"
+                value={editTelMadre}
+                onChange={(e) => setEditTelMadre(e.target.value)}
+              />
+            </label>
+            <label className="flex flex-col">
+              <span className="font-medium">Tel. padre</span>
+              <input
+                className="w-full border rounded-lg p-2"
+                value={editTelPadre}
+                onChange={(e) => setEditTelPadre(e.target.value)}
+              />
+            </label>
           </div>
           <ModalFooter>
-            <Button variant="secondary" onClick={() => setDetailJanij(null)}>Cerrar</Button>
+            <Button
+              variant="success"
+              icon={<Check className="w-4 h-4" />}
+              onClick={saveDetail}
+            >
+              Guardar
+            </Button>
+            <Button variant="secondary" onClick={() => setDetailJanij(null)}>
+              Cerrar
+            </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
