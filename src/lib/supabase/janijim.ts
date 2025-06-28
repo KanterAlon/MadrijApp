@@ -1,8 +1,10 @@
 import { supabase } from "@/lib/supabase";
 
 export type JanijData = {
+  /**
+   * Nombre completo del janij. Incluye nombre y apellido en el mismo campo.
+   */
   nombre: string;
-  apellido?: string | null;
   dni?: string | null;
   numero_socio?: string | null;
   grupo?: string | null;
@@ -15,7 +17,7 @@ export async function getJanijim(proyectoId: string) {
   const { data, error } = await supabase
     .from("janijim")
     .select(
-      "id, nombre, apellido, dni, numero_socio, grupo, tel_madre, tel_padre, extras",
+      "id, nombre, dni, numero_socio, grupo, tel_madre, tel_padre, extras",
     )
     .eq("proyecto_id", proyectoId)
     .eq("activo", true)

@@ -263,7 +263,6 @@ export default function AsistenciaPage() {
       const data = presentes.map((j) => {
         const row: Record<string, string | null | undefined> = {
           Nombre: j.nombre,
-          Apellido: j.apellido || "",
         };
         exportable.forEach((a) => {
           if (selectedExtras.includes(a.key)) {

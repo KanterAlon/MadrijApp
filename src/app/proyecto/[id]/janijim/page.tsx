@@ -56,8 +56,8 @@ import { showError, confirmDialog } from "@/lib/alerts";
 
 type Janij = {
   id: string;
+  /** Nombre completo del janij */
   nombre: string;
-  apellido: string | null;
   dni: string | null;
   numero_socio: string | null;
   grupo: string | null;
@@ -77,8 +77,7 @@ export default function JanijimPage() {
   const [mappingOpen, setMappingOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const attributes = [
-    { key: "nombre", label: "Nombre" },
-    { key: "apellido", label: "Apellido" },
+    { key: "nombre", label: "Nombre y apellido" },
     { key: "dni", label: "DNI" },
     { key: "numero_socio", label: "Número socio" },
     { key: "grupo", label: "Grupo" },
@@ -106,7 +105,6 @@ export default function JanijimPage() {
   const [detailJanij, setDetailJanij] = useState<Janij | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
-  const [editApellido, setEditApellido] = useState("");
   const [editDni, setEditDni] = useState("");
   const [editSocio, setEditSocio] = useState("");
   const [editGrupo, setEditGrupo] = useState("");
@@ -199,14 +197,11 @@ export default function JanijimPage() {
   const renameJanij = async (
     id: string,
     nombre: string,
-    apellido: string | null,
   ) => {
     try {
-      await updateJanij(id, { nombre, apellido });
+      await updateJanij(id, { nombre });
       setJanijim((prev) =>
-        prev.map((j) =>
-          j.id === id ? { ...j, nombre, apellido } : j,
-        ),
+        prev.map((j) => (j.id === id ? { ...j, nombre } : j)),
       );
       toast.success("Janij actualizado correctamente");
     } catch {
@@ -214,27 +209,24 @@ export default function JanijimPage() {
     }
   };
 
-  const startEditing = (id: string, nombre: string, apellido: string | null) => {
+  const startEditing = (id: string, nombre: string) => {
     setEditingId(id);
     setEditName(nombre);
-    setEditApellido(apellido ?? "");
   };
 
   const confirmEdit = async () => {
     if (!editingId) return;
     const nombre = editName.trim();
-    const apellido = editApellido.trim() || null;
     if (nombre === "") {
       setEditingId(null);
       return;
     }
-    await renameJanij(editingId, nombre, apellido);
+    await renameJanij(editingId, nombre);
     setEditingId(null);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
-    setEditApellido("");
   };
 
   const saveDetail = async () => {
@@ -310,7 +302,6 @@ export default function JanijimPage() {
     };
     const data = rows.slice(1).map((r) => ({
       nombre: getVal(r, "nombre")?.trim() || "",
-      apellido: getVal(r, "apellido")?.trim() || null,
       dni: getVal(r, "dni")?.trim() || null,
       numero_socio: getVal(r, "numero_socio")?.trim() || null,
       grupo: getVal(r, "grupo")?.trim() || null,
@@ -619,32 +610,19 @@ export default function JanijimPage() {
             }`}
           >
             {editingId === janij.id ? (
-              <div className="flex flex-1 gap-2">
-                <input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") confirmEdit();
-                    if (e.key === "Escape") cancelEdit();
-                  }}
-                  className="p-1 border rounded w-1/2"
-                  autoFocus
-                />
-                <input
-                  value={editApellido}
-                  onChange={(e) => setEditApellido(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") confirmEdit();
-                    if (e.key === "Escape") cancelEdit();
-                  }}
-                  className="p-1 border rounded w-1/2"
-                  placeholder="Apellido"
-                />
-              </div>
+              <input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") confirmEdit();
+                  if (e.key === "Escape") cancelEdit();
+                }}
+                className="p-1 border rounded flex-1"
+                autoFocus
+                placeholder="Nombre y apellido"
+              />
             ) : (
-              <span>
-                {janij.nombre} {janij.apellido ?? ""}
-              </span>
+              <span>{janij.nombre}</span>
             )}
             <div className="flex items-center gap-2">
               {editingId === janij.id ? (
@@ -667,9 +645,7 @@ export default function JanijimPage() {
               ) : (
                 <>
                   <button
-                    onClick={() =>
-                      startEditing(janij.id, janij.nombre, janij.apellido)
-                    }
+                    onClick={() => startEditing(janij.id, janij.nombre)}
                     aria-label="Editar"
                     className="text-blue-600 hover:text-blue-800"
                   >
@@ -791,7 +767,7 @@ export default function JanijimPage() {
       <Modal open={!!detailJanij} onOpenChange={() => setDetailJanij(null)}>
         <ModalContent>
           <ModalHeader>
-            <ModalTitle>{detailJanij?.nombre} {detailJanij?.apellido}</ModalTitle>
+            <ModalTitle>{detailJanij?.nombre}</ModalTitle>
             <ModalDescription>Información del janij</ModalDescription>
           </ModalHeader>
           <div className="space-y-4 text-sm">
