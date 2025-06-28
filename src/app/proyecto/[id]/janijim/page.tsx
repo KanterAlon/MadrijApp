@@ -37,6 +37,7 @@ import {
   ArrowLeft,
   ArrowUp,
   Eye,
+  PhoneCall,
 } from "lucide-react";
 import Button from "@/components/ui/button";
 import Skeleton from "@/components/ui/skeleton";
@@ -255,6 +256,17 @@ export default function JanijimPage() {
     } catch {
       showError("Error actualizando janij");
     }
+  };
+
+  const callResponsible = async () => {
+    const phone = editTelMadre.trim() || editTelPadre.trim();
+    if (!phone) {
+      toast.error("No hay teléfono cargado");
+      return;
+    }
+    if (!(await confirmDialog("¿Llamar al adulto responsable?"))) return;
+    if (!(await confirmDialog("¿Confirmar llamada?"))) return;
+    window.location.href = `tel:${phone}`;
   };
 
   const deleteJanij = async (id: string) => {
@@ -833,6 +845,13 @@ export default function JanijimPage() {
             </Button>
             <Button variant="secondary" onClick={() => setDetailJanij(null)}>
               Cerrar
+            </Button>
+            <Button
+              variant="danger"
+              icon={<PhoneCall className="w-4 h-4" />}
+              onClick={callResponsible}
+            >
+              Llamar
             </Button>
           </ModalFooter>
         </ModalContent>
