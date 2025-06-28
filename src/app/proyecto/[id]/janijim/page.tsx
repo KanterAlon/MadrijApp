@@ -56,10 +56,8 @@ import { showError, confirmDialog } from "@/lib/alerts";
 
 type Janij = {
   id: string;
-  /** Nombre de pila del janij */
+  /** Nombre y apellido del janij */
   nombre: string;
-  /** Apellido del janij */
-  apellido: string | null;
   dni: string | null;
   numero_socio: string | null;
   grupo: string | null;
@@ -409,7 +407,7 @@ export default function JanijimPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         query: search,
-        names: janijim.map((j) => [j.nombre, j.apellido].filter(Boolean).join(" ")),
+        names: janijim.map((j) => j.nombre),
       }),
       signal: controller.signal,
     })
@@ -431,15 +429,11 @@ export default function JanijimPage() {
 
     const q = search.toLowerCase().trim();
     const exact = janijim
-      .filter((j) => `${j.nombre} ${j.apellido || ""}`.toLowerCase().includes(q))
+      .filter((j) => j.nombre.toLowerCase().includes(q))
       .map((j) => ({ ...j, ai: false }));
 
     const aiMatches = Array.from(new Set(aiResults))
-      .map((name) =>
-        janijim.find(
-          (j) => `${j.nombre} ${j.apellido || ""}`.trim() === name,
-        ),
-      )
+      .map((name) => janijim.find((j) => j.nombre.trim() === name))
       .filter((j): j is Janij => !!j && !exact.some((e) => e.id === j.id))
       .filter((j, idx, arr) => arr.findIndex((a) => a.id === j.id) === idx)
       .map((j) => ({ ...j, ai: true }));
@@ -515,12 +509,9 @@ export default function JanijimPage() {
           }
         }}
         className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
-        aria-label={`Seleccionar ${r.nombre}${r.apellido ? ` ${r.apellido}` : ""}`}
+        aria-label={`Seleccionar ${r.nombre}`}
       >
-        <span>
-          {r.nombre}
-          {r.apellido ? ` ${r.apellido}` : ""}
-        </span>
+        <span>{r.nombre}</span>
       </li>
     ))}
 
@@ -553,13 +544,10 @@ export default function JanijimPage() {
                   seleccionar(r.id);
                 }
               }}
-              className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
-              aria-label={`Seleccionar ${r.nombre}${r.apellido ? ` ${r.apellido}` : ""}`}
+            className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
+            aria-label={`Seleccionar ${r.nombre}`}
             >
-              <span>
-                {r.nombre}
-                {r.apellido ? ` ${r.apellido}` : ""}
-              </span>
+              <span>{r.nombre}</span>
               <span className="bg-fuchsia-100 text-fuchsia-700 text-xs px-1 rounded">
                 IA
               </span>
@@ -637,10 +625,7 @@ export default function JanijimPage() {
                 placeholder="Nombre y apellido"
               />
             ) : (
-              <span>
-                {janij.nombre}
-                {janij.apellido ? ` ${janij.apellido}` : ""}
-              </span>
+              <span>{janij.nombre}</span>
             )}
             <div className="flex items-center gap-2">
               {editingId === janij.id ? (
