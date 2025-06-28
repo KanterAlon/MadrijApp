@@ -20,6 +20,14 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
+  Modal,
+  ModalContent,
+  ModalDescription,
+  ModalFooter,
+  ModalHeader,
+  ModalTitle,
+} from "@/components/ui/modal";
+import {
   FileUp,
   Pencil,
   Trash2,
@@ -28,6 +36,7 @@ import {
   Search,
   ArrowLeft,
   ArrowUp,
+  Eye,
 } from "lucide-react";
 import Button from "@/components/ui/button";
 import Skeleton from "@/components/ui/skeleton";
@@ -47,6 +56,12 @@ import { showError, confirmDialog } from "@/lib/alerts";
 type Janij = {
   id: string;
   nombre: string;
+  apellido: string | null;
+  dni: string | null;
+  numero_socio: string | null;
+  grupo: string | null;
+  tel_madre: string | null;
+  tel_padre: string | null;
   estado: "presente" | "ausente";
 };
 
@@ -57,9 +72,21 @@ export default function JanijimPage() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [columns, setColumns] = useState<string[]>([]);
   const [rows, setRows] = useState<string[][]>([]);
-  const [columnIndex, setColumnIndex] = useState<number>(0);
-  const [columnOpen, setColumnOpen] = useState(false);
   const [dupOpen, setDupOpen] = useState(false);
+  const [mappingOpen, setMappingOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const attributes = [
+    { key: "nombre", label: "Nombre" },
+    { key: "apellido", label: "Apellido" },
+    { key: "dni", label: "DNI" },
+    { key: "numero_socio", label: "Número socio" },
+    { key: "grupo", label: "Grupo" },
+    { key: "tel_madre", label: "Tel. madre" },
+    { key: "tel_padre", label: "Tel. padre" },
+  ];
+  const [fieldMap, setFieldMap] = useState<Record<string, number | null>>(() =>
+    Object.fromEntries(attributes.map((a) => [a.key, null]))
+  );
   const [importOpen, setImportOpen] = useState(false);
   const [importMode, setImportMode] =
     useState<"chooser" | "file" | "manual">("chooser");
@@ -75,6 +102,7 @@ export default function JanijimPage() {
   const [duplicateNames, setDuplicateNames] = useState<string[]>([]);
   const [selectedDupes, setSelectedDupes] = useState<string[]>([]);
   const [importText, setImportText] = useState("");
+  const [detailJanij, setDetailJanij] = useState<Janij | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [sesionOpen, setSesionOpen] = useState(false);
@@ -83,10 +111,6 @@ export default function JanijimPage() {
   const [sesionMadrij, setSesionMadrij] = useState<string>("");
   const pendingScrollId = useRef<string | null>(null);
 
-  const columnPreview = useMemo(
-    () => rows.slice(1, 6).map((r) => r[columnIndex]).filter(Boolean),
-    [rows, columnIndex]
-  );
 
   const seleccionar = useCallback(
     (id: string) => {
@@ -158,7 +182,7 @@ export default function JanijimPage() {
 
   const renameJanij = async (id: string, nombre: string) => {
     try {
-      await updateJanij(id, nombre);
+      await updateJanij(id, { nombre });
       setJanijim((prev) =>
         prev.map((j) => (j.id === id ? { ...j, nombre } : j))
       );
@@ -208,7 +232,7 @@ export default function JanijimPage() {
       setRows(rows);
       setColumns(rows[0] || []);
       setImportOpen(false);
-      setColumnOpen(true);
+      setMappingOpen(true);
     } catch {
       showError("Error leyendo el archivo");
     }
@@ -216,32 +240,36 @@ export default function JanijimPage() {
     e.target.value = "";
   };
 
-  const importColumn = () => {
-    const names = rows
-      .slice(1)
-      .map((r) => r[columnIndex])
-      .filter(Boolean)
-      .map((n) => n.trim())
-      .filter((n) => n !== "");
+  const previewMapped = () => {
+    setMappingOpen(false);
+    setPreviewOpen(true);
+  };
 
-    const existing = janijim.map((j) => j.nombre.toLowerCase());
-    const uniqs: string[] = [];
-    const dups: string[] = [];
-
-    names.forEach((n) => {
-      const lower = n.toLowerCase();
-      if (existing.includes(lower)) {
-        if (!dups.some((d) => d.toLowerCase() === lower)) dups.push(n);
-      } else if (!uniqs.some((u) => u.toLowerCase() === lower)) {
-        uniqs.push(n);
-      }
-    });
-
-    setUniqueNames(uniqs);
-    setDuplicateNames(dups);
-    setSelectedDupes([]);
-    setColumnOpen(false);
-    setDupOpen(true);
+  const confirmMappedImport = async () => {
+    const getVal = (row: string[], key: string) => {
+      const idx = fieldMap[key];
+      return idx !== null && idx! >= 0 ? row[idx!] : undefined;
+    };
+    const data = rows.slice(1).map((r) => ({
+      nombre: getVal(r, "nombre")?.trim() || "",
+      apellido: getVal(r, "apellido")?.trim() || null,
+      dni: getVal(r, "dni")?.trim() || null,
+      numero_socio: getVal(r, "numero_socio")?.trim() || null,
+      grupo: getVal(r, "grupo")?.trim() || null,
+      tel_madre: getVal(r, "tel_madre")?.trim() || null,
+      tel_padre: getVal(r, "tel_padre")?.trim() || null,
+    }));
+    try {
+      const inserted = await addJanijim(proyectoId, data);
+      setJanijim((prev) => [
+        ...prev,
+        ...inserted.map((j) => ({ ...j, estado: "ausente" as const })),
+      ]);
+      toast.success("Janijim importados correctamente");
+    } catch {
+      showError("Error importando janijim");
+    }
+    setPreviewOpen(false);
   };
 
   const importFromText = () => {
@@ -278,7 +306,10 @@ export default function JanijimPage() {
       return;
     }
     try {
-      const inserted = await addJanijim(proyectoId, namesToAdd);
+      const inserted = await addJanijim(
+        proyectoId,
+        namesToAdd.map((n) => ({ nombre: n }))
+      );
       setJanijim((prev) => [
         ...prev,
         ...inserted.map((j) => ({ ...j, estado: "ausente" as const })),
@@ -541,7 +572,9 @@ export default function JanijimPage() {
                 autoFocus
               />
             ) : (
-              <span>{janij.nombre}</span>
+              <span>
+                {janij.nombre} {janij.apellido ?? ""}
+              </span>
             )}
             <div className="flex items-center gap-2">
               {editingId === janij.id ? (
@@ -569,6 +602,13 @@ export default function JanijimPage() {
                     className="text-blue-600 hover:text-blue-800"
                   >
                     <Pencil size={16} />
+                  </button>
+                  <button
+                    onClick={() => setDetailJanij(janij)}
+                    aria-label="Ver detalle"
+                    className="text-gray-600 hover:text-gray-800"
+                  >
+                    <Eye size={16} />
                   </button>
                   <button
                     onClick={() => deleteJanij(janij.id)}
@@ -676,37 +716,82 @@ export default function JanijimPage() {
         </SheetContent>
       </Sheet>
 
-      <Sheet open={columnOpen} onOpenChange={setColumnOpen}>
+      <Modal open={!!detailJanij} onOpenChange={() => setDetailJanij(null)}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle>{detailJanij?.nombre} {detailJanij?.apellido}</ModalTitle>
+            <ModalDescription>Información del janij</ModalDescription>
+          </ModalHeader>
+          <div className="space-y-1 text-sm">
+            <div><span className="font-medium">DNI:</span> {detailJanij?.dni || '-'}</div>
+            <div><span className="font-medium">Número socio:</span> {detailJanij?.numero_socio || '-'}</div>
+            <div><span className="font-medium">Grupo:</span> {detailJanij?.grupo || '-'}</div>
+            <div><span className="font-medium">Tel. madre:</span> {detailJanij?.tel_madre || '-'}</div>
+            <div><span className="font-medium">Tel. padre:</span> {detailJanij?.tel_padre || '-'}</div>
+          </div>
+          <ModalFooter>
+            <Button variant="secondary" onClick={() => setDetailJanij(null)}>Cerrar</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      <Sheet open={mappingOpen} onOpenChange={setMappingOpen}>
         <SheetContent side="bottom" className="w-full">
           <SheetHeader>
-            <SheetTitle>Elegí la columna con los nombres</SheetTitle>
+            <SheetTitle>Mapear columnas</SheetTitle>
             <SheetDescription>
-              Seleccioná qué columna contiene la lista de janijim.
+              Asigná cada atributo a la columna correspondiente.
             </SheetDescription>
           </SheetHeader>
           <div className="p-4 space-y-4">
-            <select
-              className="w-full border rounded-lg p-2"
-              value={columnIndex}
-              onChange={(e) => setColumnIndex(Number(e.target.value))}
-            >
-              {columns.map((c, i) => (
-                <option key={i} value={i}>
-                  {c || `Columna ${i + 1}`}
-                </option>
-              ))}
-            </select>
-            {columnPreview.length > 0 && (
-              <ul className="list-disc ml-4 space-y-1 text-sm">
-                {columnPreview.map((n, i) => (
-                  <li key={i}>{n}</li>
-                ))}
-              </ul>
-            )}
+            {attributes.map((a) => (
+              <div key={a.key} className="space-y-1">
+                <label className="block text-sm font-medium">{a.label}</label>
+                <select
+                  className="w-full border rounded-lg p-2"
+                  value={fieldMap[a.key] ?? ""}
+                  onChange={(e) =>
+                    setFieldMap({
+                      ...fieldMap,
+                      [a.key]: e.target.value === "" ? null : Number(e.target.value),
+                    })
+                  }
+                >
+                  <option value="">Sin asignar</option>
+                  {columns.map((c, i) => (
+                    <option key={i} value={i}>
+                      {c || `Columna ${i + 1}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
           </div>
           <SheetFooter>
-            <Button icon={<FileUp className="w-4 h-4" />} onClick={importColumn}>
-              Insertar
+            <Button icon={<FileUp className="w-4 h-4" />} onClick={previewMapped}>
+              Continuar
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
+        <SheetContent side="bottom" className="w-full">
+          <SheetHeader>
+            <SheetTitle>Confirmar importación</SheetTitle>
+            <SheetDescription>Revisá los datos antes de importar.</SheetDescription>
+          </SheetHeader>
+          <div className="p-4 space-y-1">
+            {attributes.map((a) => (
+              <div key={a.key} className="text-sm">
+                <span className="font-medium mr-2">{a.label}:</span>
+                {rows[1]?.[fieldMap[a.key] ?? -1] || "-"}
+              </div>
+            ))}
+          </div>
+          <SheetFooter>
+            <Button icon={<FileUp className="w-4 h-4" />} onClick={confirmMappedImport}>
+              Importar
             </Button>
           </SheetFooter>
         </SheetContent>
