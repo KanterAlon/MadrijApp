@@ -105,6 +105,7 @@ export default function JanijimPage() {
   const [detailJanij, setDetailJanij] = useState<Janij | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [editApellido, setEditApellido] = useState("");
   const [sesionOpen, setSesionOpen] = useState(false);
   const [sesionNombre, setSesionNombre] = useState("");
   const [madrijes, setMadrijes] = useState<{ clerk_id: string; nombre: string }[]>([]);
@@ -166,7 +167,7 @@ export default function JanijimPage() {
 
   const agregar = async (nombre: string) => {
     try {
-      const inserted = await addJanijim(proyectoId, [nombre]);
+      const inserted = await addJanijim(proyectoId, [{ nombre }]);
       const nuevo = {
         id: inserted[0].id,
         nombre: inserted[0].nombre,
@@ -180,11 +181,17 @@ export default function JanijimPage() {
     }
   };
 
-  const renameJanij = async (id: string, nombre: string) => {
+  const renameJanij = async (
+    id: string,
+    nombre: string,
+    apellido: string | null,
+  ) => {
     try {
-      await updateJanij(id, { nombre });
+      await updateJanij(id, { nombre, apellido });
       setJanijim((prev) =>
-        prev.map((j) => (j.id === id ? { ...j, nombre } : j))
+        prev.map((j) =>
+          j.id === id ? { ...j, nombre, apellido } : j,
+        ),
       );
       toast.success("Janij actualizado correctamente");
     } catch {
@@ -192,24 +199,27 @@ export default function JanijimPage() {
     }
   };
 
-  const startEditing = (id: string, nombre: string) => {
+  const startEditing = (id: string, nombre: string, apellido: string | null) => {
     setEditingId(id);
     setEditName(nombre);
+    setEditApellido(apellido ?? "");
   };
 
   const confirmEdit = async () => {
     if (!editingId) return;
-    const name = editName.trim();
-    if (name === "") {
+    const nombre = editName.trim();
+    const apellido = editApellido.trim() || null;
+    if (nombre === "") {
       setEditingId(null);
       return;
     }
-    await renameJanij(editingId, name);
+    await renameJanij(editingId, nombre, apellido);
     setEditingId(null);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
+    setEditApellido("");
   };
 
   const deleteJanij = async (id: string) => {
@@ -561,16 +571,28 @@ export default function JanijimPage() {
             }`}
           >
             {editingId === janij.id ? (
-              <input
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") confirmEdit();
-                  if (e.key === "Escape") cancelEdit();
-                }}
-                className="p-1 border rounded flex-1 mr-2"
-                autoFocus
-              />
+              <div className="flex flex-1 gap-2">
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") confirmEdit();
+                    if (e.key === "Escape") cancelEdit();
+                  }}
+                  className="p-1 border rounded w-1/2"
+                  autoFocus
+                />
+                <input
+                  value={editApellido}
+                  onChange={(e) => setEditApellido(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") confirmEdit();
+                    if (e.key === "Escape") cancelEdit();
+                  }}
+                  className="p-1 border rounded w-1/2"
+                  placeholder="Apellido"
+                />
+              </div>
             ) : (
               <span>
                 {janij.nombre} {janij.apellido ?? ""}
@@ -597,7 +619,9 @@ export default function JanijimPage() {
               ) : (
                 <>
                   <button
-                    onClick={() => startEditing(janij.id, janij.nombre)}
+                    onClick={() =>
+                      startEditing(janij.id, janij.nombre, janij.apellido)
+                    }
                     aria-label="Editar"
                     className="text-blue-600 hover:text-blue-800"
                   >
