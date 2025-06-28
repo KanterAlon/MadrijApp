@@ -266,7 +266,8 @@ export default function JanijimPage() {
     }
     if (!(await confirmDialog("¿Llamar al adulto responsable?"))) return;
     if (!(await confirmDialog("¿Confirmar llamada?"))) return;
-    window.location.href = `tel:${phone}`;
+    const sanitized = phone.replace(/[^+\d]/g, "");
+    window.location.href = `tel:${sanitized}`;
   };
 
   const deleteJanij = async (id: string) => {
