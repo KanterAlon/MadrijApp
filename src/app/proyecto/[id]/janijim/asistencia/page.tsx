@@ -114,7 +114,9 @@ export default function AsistenciaPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         query: search,
-        names: janijim.map((j) => j.nombre),
+        names: janijim.map((j) =>
+          [j.nombre, j.apellido].filter(Boolean).join(" "),
+        ),
       }),
       signal: controller.signal,
     })
@@ -136,11 +138,17 @@ export default function AsistenciaPage() {
 
     const q = search.toLowerCase().trim();
     const exact = janijim
-      .filter((j) => j.nombre.toLowerCase().includes(q))
+      .filter((j) =>
+        `${j.nombre} ${j.apellido || ""}`.toLowerCase().includes(q),
+      )
       .map((j) => ({ ...j, ai: false }));
 
     const aiMatches = Array.from(new Set(aiResults))
-      .map((name) => janijim.find((j) => j.nombre === name))
+      .map((name) =>
+        janijim.find(
+          (j) => `${j.nombre} ${j.apellido || ""}`.trim() === name,
+        ),
+      )
       .filter(
         (j): j is { id: string; nombre: string } =>
           !!j && !exact.some((e) => e.id === j.id)
@@ -262,7 +270,7 @@ export default function AsistenciaPage() {
     const exportar = () => {
       const data = presentes.map((j) => {
         const row: Record<string, string | null | undefined> = {
-          Nombre: j.nombre,
+          Nombre: `${j.nombre}${j.apellido ? ` ${j.apellido}` : ""}`,
         };
         exportable.forEach((a) => {
           if (selectedExtras.includes(a.key)) {
@@ -387,7 +395,10 @@ export default function AsistenciaPage() {
                     onMouseDown={() => seleccionar(r.id)}
                     className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
                   >
-                    <span>{r.nombre}</span>
+                    <span>
+                      {r.nombre}
+                      {r.apellido ? ` ${r.apellido}` : ""}
+                    </span>
                   </li>
                 ))}
               {aiLoading && (
@@ -411,7 +422,10 @@ export default function AsistenciaPage() {
                         onMouseDown={() => seleccionar(r.id)}
                         className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
                       >
-                        <span>{r.nombre}</span>
+                        <span>
+                          {r.nombre}
+                          {r.apellido ? ` ${r.apellido}` : ""}
+                        </span>
                         <span className="bg-fuchsia-100 text-fuchsia-700 text-xs px-1 rounded">
                           IA
                         </span>
@@ -438,7 +452,10 @@ export default function AsistenciaPage() {
                   checked={!!estado[j.id]}
                   onChange={() => toggle(j.id)}
                 />
-                <span>{j.nombre}</span>
+                <span>
+                  {j.nombre}
+                  {j.apellido ? ` ${j.apellido}` : ""}
+                </span>
               </label>
             </li>
           ))}
