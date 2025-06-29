@@ -51,7 +51,7 @@ import {
 import { parseSpreadsheetFile } from "@/lib/utils";
 import { crearSesion } from "@/lib/supabase/asistencias";
 import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
-import { showError, confirmDialog, chooseParentDialog } from "@/lib/alerts";
+import { showError, confirmDialog } from "@/lib/alerts";
 
 
 type Janij = {
@@ -250,46 +250,21 @@ export default function JanijimPage() {
     }
   };
 
-  const callResponsible = async () => {
-    const madre = editTelMadre.trim();
-    const padre = editTelPadre.trim();
-
-    if (!madre && !padre) {
-      toast.error("No hay teléfono cargado");
+  const callParent = (phone: string, fallbackMsg: string) => {
+    const sanitized = phone.trim();
+    if (!sanitized) {
+      toast.error(fallbackMsg);
       return;
     }
-
-    let phone = madre || padre;
-
-    // Close the modal so SweetAlert buttons are clickable
-    const current = detailJanij;
-    setDetailJanij(null);
-
-    if (madre && padre) {
-      const option = await chooseParentDialog("¿A quién querés llamar?");
-      if (option === "madre") phone = madre;
-      else if (option === "padre") phone = padre;
-      else {
-        setDetailJanij(current);
-        return; // cancel
-      }
-    } else {
-      if (!(await confirmDialog("¿Llamar al adulto responsable?"))) {
-        setDetailJanij(current);
-        return;
-      }
-    }
-
-    const sanitized = phone.replace(/[^+\d]/g, "");
-    const url = `tel:${sanitized}`;
-    if (await confirmDialog("¿Permitir que la aplicación abra la app de teléfono?")) {
-      // Using location.assign ensures the tel: URL triggers the phone dialer
-      window.location.assign(url);
-    }
-
-    // Reopen the modal once the flow completes
-    setDetailJanij(current);
+    const url = `tel:${sanitized.replace(/[^+\d]/g, "")}`;
+    window.location.assign(url);
   };
+
+  const callMother = () =>
+    callParent(editTelMadre, "No hay teléfono de la madre cargado");
+
+  const callFather = () =>
+    callParent(editTelPadre, "No hay teléfono del padre cargado");
 
   const deleteJanij = async (id: string) => {
     if (!(await confirmDialog("¿Eliminar janij?"))) return;
@@ -858,9 +833,16 @@ export default function JanijimPage() {
             <Button
               variant="danger"
               icon={<PhoneCall className="w-4 h-4" />}
-              onClick={callResponsible}
+              onClick={callMother}
             >
-              Llamar
+              Mamá
+            </Button>
+            <Button
+              variant="danger"
+              icon={<PhoneCall className="w-4 h-4" />}
+              onClick={callFather}
+            >
+              Papá
             </Button>
           </ModalFooter>
         </ModalContent>
