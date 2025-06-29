@@ -114,6 +114,8 @@ export default function JanijimPage() {
   const [sesionNombre, setSesionNombre] = useState("");
   const [madrijes, setMadrijes] = useState<{ clerk_id: string; nombre: string }[]>([]);
   const [sesionMadrij, setSesionMadrij] = useState<string>("");
+  const [callDialogOpen, setCallDialogOpen] = useState(false);
+  const [callTarget, setCallTarget] = useState<Janij | null>(null);
   const pendingScrollId = useRef<string | null>(null);
 
 
@@ -265,6 +267,31 @@ export default function JanijimPage() {
 
   const callFather = () =>
     callParent(editTelPadre, "No hay teléfono del padre cargado");
+
+  const openCallDialog = () => {
+    if (!detailJanij) return;
+    setCallTarget(detailJanij);
+    setDetailJanij(null);
+    setCallDialogOpen(true);
+  };
+
+  const closeCallDialog = () => {
+    setCallDialogOpen(false);
+    if (callTarget) {
+      setDetailJanij(callTarget);
+      setCallTarget(null);
+    }
+  };
+
+  const handleCallMother = () => {
+    callMother();
+    closeCallDialog();
+  };
+
+  const handleCallFather = () => {
+    callFather();
+    closeCallDialog();
+  };
 
   const deleteJanij = async (id: string) => {
     if (!(await confirmDialog("¿Eliminar janij?"))) return;
@@ -819,7 +846,7 @@ export default function JanijimPage() {
               />
             </label>
           </div>
-          <ModalFooter>
+          <ModalFooter className="flex-wrap sm:flex-nowrap">
             <Button
               variant="success"
               icon={<Check className="w-4 h-4" />}
@@ -833,18 +860,43 @@ export default function JanijimPage() {
             <Button
               variant="danger"
               icon={<PhoneCall className="w-4 h-4" />}
-              onClick={callMother}
+              onClick={openCallDialog}
+            >
+              Llamar
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      <Modal open={callDialogOpen} onOpenChange={closeCallDialog}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle>Llamar</ModalTitle>
+            <ModalDescription>Elegí a quién llamar</ModalDescription>
+          </ModalHeader>
+          <div className="p-4 space-y-4">
+            <Button
+              className="w-full"
+              icon={<PhoneCall className="w-4 h-4" />}
+              onClick={handleCallMother}
             >
               Mamá
             </Button>
             <Button
-              variant="danger"
+              className="w-full"
               icon={<PhoneCall className="w-4 h-4" />}
-              onClick={callFather}
+              onClick={handleCallFather}
             >
               Papá
             </Button>
-          </ModalFooter>
+            <Button
+              className="w-full"
+              variant="secondary"
+              onClick={closeCallDialog}
+            >
+              Cancelar
+            </Button>
+          </div>
         </ModalContent>
       </Modal>
 
