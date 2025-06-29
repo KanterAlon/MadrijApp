@@ -272,8 +272,10 @@ export default function JanijimPage() {
 
     const sanitized = phone.replace(/[^+\d]/g, "");
     const url = `tel:${sanitized}`;
-    // Using window.open with _self ensures the tel: URL triggers the phone dialer
-    window.open(url, "_self");
+    if (await confirmDialog("¿Permitir que la aplicación abra la app de teléfono?")) {
+      // Using location.assign ensures the tel: URL triggers the phone dialer
+      window.location.assign(url);
+    }
   };
 
   const deleteJanij = async (id: string) => {
