@@ -261,13 +261,23 @@ export default function JanijimPage() {
 
     let phone = madre || padre;
 
+    // Close the modal so SweetAlert buttons are clickable
+    const current = detailJanij;
+    setDetailJanij(null);
+
     if (madre && padre) {
       const option = await chooseParentDialog("¿A quién querés llamar?");
       if (option === "madre") phone = madre;
       else if (option === "padre") phone = padre;
-      else return; // cancel
+      else {
+        setDetailJanij(current);
+        return; // cancel
+      }
     } else {
-      if (!(await confirmDialog("¿Llamar al adulto responsable?"))) return;
+      if (!(await confirmDialog("¿Llamar al adulto responsable?"))) {
+        setDetailJanij(current);
+        return;
+      }
     }
 
     const sanitized = phone.replace(/[^+\d]/g, "");
@@ -276,6 +286,9 @@ export default function JanijimPage() {
       // Using location.assign ensures the tel: URL triggers the phone dialer
       window.location.assign(url);
     }
+
+    // Reopen the modal once the flow completes
+    setDetailJanij(current);
   };
 
   const deleteJanij = async (id: string) => {
