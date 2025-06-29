@@ -51,7 +51,7 @@ import {
 import { parseSpreadsheetFile } from "@/lib/utils";
 import { crearSesion } from "@/lib/supabase/asistencias";
 import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
-import { showError, confirmDialog } from "@/lib/alerts";
+import { showError, confirmDialog, chooseParentDialog } from "@/lib/alerts";
 
 
 type Janij = {
@@ -251,12 +251,25 @@ export default function JanijimPage() {
   };
 
   const callResponsible = async () => {
-    const phone = editTelMadre.trim() || editTelPadre.trim();
-    if (!phone) {
+    const madre = editTelMadre.trim();
+    const padre = editTelPadre.trim();
+
+    if (!madre && !padre) {
       toast.error("No hay teléfono cargado");
       return;
     }
-    if (!(await confirmDialog("¿Llamar al adulto responsable?"))) return;
+
+    let phone = madre || padre;
+
+    if (madre && padre) {
+      const option = await chooseParentDialog("¿A quién querés llamar?");
+      if (option === "madre") phone = madre;
+      else if (option === "padre") phone = padre;
+      else return; // cancel
+    } else {
+      if (!(await confirmDialog("¿Llamar al adulto responsable?"))) return;
+    }
+
     const sanitized = phone.replace(/[^+\d]/g, "");
     const url = `tel:${sanitized}`;
     // Using window.open with _self ensures the tel: URL triggers the phone dialer
