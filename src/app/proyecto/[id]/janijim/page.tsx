@@ -257,9 +257,10 @@ export default function JanijimPage() {
       return;
     }
     if (!(await confirmDialog("¿Llamar al adulto responsable?"))) return;
-    if (!(await confirmDialog("¿Confirmar llamada?"))) return;
     const sanitized = phone.replace(/[^+\d]/g, "");
-    window.location.href = `tel:${sanitized}`;
+    const url = `tel:${sanitized}`;
+    // Using window.open with _self ensures the tel: URL triggers the phone dialer
+    window.open(url, "_self");
   };
 
   const deleteJanij = async (id: string) => {
