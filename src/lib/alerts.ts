@@ -22,3 +22,24 @@ export async function confirmDialog(message: string) {
   });
   return result.isConfirmed;
 }
+
+export type ParentOption = 'madre' | 'padre' | null;
+
+export async function chooseParentDialog(message: string): Promise<ParentOption> {
+  const result = await Swal.fire({
+    title: message,
+    icon: 'question',
+    showDenyButton: true,
+    showCancelButton: true,
+    confirmButtonColor: '#2563eb',
+    denyButtonColor: '#2563eb',
+    cancelButtonColor: '#6b7280',
+    confirmButtonText: 'Mamá',
+    denyButtonText: 'Papá',
+    cancelButtonText: 'Cancelar',
+  });
+
+  if (result.isConfirmed) return 'madre';
+  if (result.isDenied) return 'padre';
+  return null;
+}
