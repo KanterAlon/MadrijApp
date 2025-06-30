@@ -14,6 +14,7 @@ import {
   Handshake,
   House,
   Box,
+  Printer,
   Trash2,
   Plus,
   Minus,
@@ -72,6 +73,7 @@ export default function MaterialesPage() {
     sanMiguelItems: Item[];
     kvutzaItems: Item[];
     alquilerItems: Item[];
+    imprimirItems: Item[];
     propiosItems: Item[];
     otrosItems: Item[];
     estado: Estado;
@@ -93,9 +95,10 @@ export default function MaterialesPage() {
       depositoItems: row.deposito_items || [],
       sanMiguelItems: row.san_miguel_items || [],
       kvutzaItems: row.kvutza_items || [],
-      alquilerItems: row.alquiler_items || [],
-      propiosItems: row.propios_items || [],
-      otrosItems: row.otros_items || [],
+    alquilerItems: row.alquiler_items || [],
+    imprimirItems: row.imprimir_items || [],
+    propiosItems: row.propios_items || [],
+    otrosItems: row.otros_items || [],
       estado: (row.estado as Estado) || "por hacer",
     }),
     []
@@ -128,6 +131,7 @@ export default function MaterialesPage() {
       | "kvutza"
       | "alquiler"
       | "propios"
+      | "imprimir"
       | "otros"
     >("compra");
   const [mostrarAgregar, setMostrarAgregar] = useState(false);
@@ -342,6 +346,7 @@ export default function MaterialesPage() {
       sanMiguelItems: "san_miguel_items",
       kvutzaItems: "kvutza_items",
       alquilerItems: "alquiler_items",
+      imprimirItems: "imprimir_items",
       propiosItems: "propios_items",
       otrosItems: "otros_items",
       estado: "estado",
@@ -387,6 +392,7 @@ export default function MaterialesPage() {
       | "kvutzaItems"
       | "alquilerItems"
       | "propiosItems"
+      | "imprimirItems"
       | "otrosItems",
     nuevo: Item
   ) => {
@@ -423,6 +429,7 @@ export default function MaterialesPage() {
       | "kvutzaItems"
       | "alquilerItems"
       | "propiosItems"
+      | "imprimirItems"
       | "otrosItems",
     idx: number
   ) => {
@@ -455,6 +462,7 @@ export default function MaterialesPage() {
       | "kvutzaItems"
       | "alquilerItems"
       | "propiosItems"
+      | "imprimirItems"
       | "otrosItems",
     idx: number,
     delta: number
@@ -477,6 +485,7 @@ export default function MaterialesPage() {
       | "kvutzaItems"
       | "alquilerItems"
       | "propiosItems"
+      | "imprimirItems"
       | "otrosItems",
     idx: number
   ) => {
@@ -497,6 +506,7 @@ export default function MaterialesPage() {
       | "kvutzaItems"
       | "alquilerItems"
       | "propiosItems"
+      | "imprimirItems"
       | "otrosItems",
     idx: number,
     value: boolean
@@ -515,6 +525,7 @@ export default function MaterialesPage() {
   const kvutza = materiales.filter((m) => m.kvutzaItems.length > 0);
   const alquiler = materiales.filter((m) => m.alquilerItems.length > 0);
   const propios = materiales.filter((m) => m.propiosItems.length > 0);
+  const imprimir = materiales.filter((m) => m.imprimirItems.length > 0);
   const otros = materiales.filter((m) => m.otrosItems.length > 0);
 
 
@@ -723,6 +734,80 @@ export default function MaterialesPage() {
                       </span>
                       <button
                         onClick={() => quitarItemLista(m, "compraItems", idx)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </label>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Para imprimir */}
+      {imprimir.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-2xl font-semibold text-blue-800">Para imprimir</h2>
+          <div className="space-y-1">
+            {imprimir.map((m) => {
+              const items = m.imprimirItems.map((it, idx) => ({ it, idx }));
+              const pendientes = items.filter((i) => !i.it.done);
+              const hechos = items.filter((i) => i.it.done);
+              return (
+                <div key={m.id} className="space-y-1">
+                  {pendientes.map(({ it, idx }) => (
+                    <label key={`${m.id}-im-${idx}`} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!it.done}
+                        onChange={() => toggleItemDone(m, "imprimirItems", idx)}
+                      />
+                      <span
+                        onClick={() => {
+                          setMaterialActual(m);
+                          setSheetOpen(true);
+                        }}
+                        className="cursor-pointer hover:underline"
+                      >
+                        {it.cantidad} {it.nombre}{" "}
+                        <span className="text-xs text-gray-600">
+                          ({m.nombre} - {m.asignado || "sin madrij"})
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                  {hechos.length > 0 && (
+                    <div className="ml-6 text-xs text-gray-500">Impreso</div>
+                  )}
+                  {hechos.map(({ it, idx }) => (
+                    <label
+                      key={`${m.id}-im-${idx}`}
+                      className="flex items-center gap-2 opacity-70"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!it.done}
+                        onChange={() => toggleItemDone(m, "imprimirItems", idx)}
+                      />
+                      <span
+                        onClick={() => {
+                          setMaterialActual(m);
+                          setSheetOpen(true);
+                        }}
+                        className="cursor-pointer hover:underline line-through"
+                      >
+                        {it.cantidad} {it.nombre}{" "}
+                        <span className="text-xs text-gray-600">
+                          ({m.nombre} - {m.asignado || "sin madrij"})
+                        </span>
+                      </span>
+                      <button
+                        onClick={() => quitarItemLista(m, "imprimirItems", idx)}
                         className="text-red-600 hover:text-red-800"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1556,6 +1641,16 @@ export default function MaterialesPage() {
                       <DropdownMenu.Item
                         className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 outline-none hover:bg-gray-100 focus:bg-gray-100"
                         onSelect={() => {
+                          setTipoNuevoItem("imprimir");
+                          setMostrarAgregar(true);
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <Printer className="w-4 h-4" /> Para imprimir
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 outline-none hover:bg-gray-100 focus:bg-gray-100"
+                        onSelect={() => {
                           setTipoNuevoItem("otros");
                           setMostrarAgregar(true);
                           setMenuOpen(false);
@@ -1610,6 +1705,8 @@ export default function MaterialesPage() {
                               ? "alquilerItems"
                               : tipoNuevoItem === "propios"
                               ? "propiosItems"
+                              : tipoNuevoItem === "imprimir"
+                              ? "imprimirItems"
                               : "otrosItems";
                           agregarItemLista(materialActual, campo, {
                             nombre: nuevoItemGeneral,
@@ -1903,6 +2000,41 @@ export default function MaterialesPage() {
                           </button>
                           <button
                             onClick={() => quitarItemLista(materialActual, "propiosItems", idx)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+
+                {materialActual.imprimirItems.length > 0 && (
+                  <details className="border rounded p-2">
+                    <summary className="cursor-pointer flex items-center gap-2">
+                      <Printer className="w-4 h-4" /> Para imprimir
+                    </summary>
+                    <div className="mt-2 space-y-1">
+                      {materialActual.imprimirItems.map((s, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <span className="flex-1 text-sm">
+                            {s.cantidad} {s.nombre}
+                          </span>
+                          <button
+                            onClick={() => cambiarCantidadItemLista(materialActual, "imprimirItems", idx, 1)}
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            <Plus size={14} />
+                          </button>
+                          <button
+                            onClick={() => cambiarCantidadItemLista(materialActual, "imprimirItems", idx, -1)}
+                            className="text-yellow-600 hover:text-yellow-800"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <button
+                            onClick={() => quitarItemLista(materialActual, "imprimirItems", idx)}
                             className="text-red-600 hover:text-red-800"
                           >
                             <Trash2 size={14} />
