@@ -24,6 +24,7 @@ export interface MaterialRow {
   deposito_items: MaterialItem[] | null;
   kvutza_items: MaterialItem[] | null;
   alquiler_items: MaterialItem[] | null;
+  imprimir_items: MaterialItem[] | null;
   propios_items: MaterialItem[] | null;
   otros_items: MaterialItem[] | null;
   estado: string;
