@@ -47,6 +47,8 @@ import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
 import { showError, confirmDialog } from "@/lib/alerts";
 import Loader from "@/components/ui/loader";
 import { parseSpreadsheetFile } from "@/lib/utils";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function MaterialesPage() {
   type Estado = "por hacer" | "en proceso" | "realizado";
@@ -298,6 +300,48 @@ export default function MaterialesPage() {
     }
     toast.success("Materiales importados");
     setColumnOpen(false);
+  };
+
+  const exportPdf = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text("Lista de materiales", 105, 15, { align: "center" });
+
+    const rows: (string | number)[][] = [];
+    const addRows = (items: Item[], categoria: string, mat: Material) => {
+      items.forEach((it) => {
+        rows.push([
+          mat.nombre,
+          it.nombre,
+          it.cantidad,
+          categoria,
+          mat.asignado || "",
+        ]);
+      });
+    };
+
+    materiales.forEach((m) => {
+      addRows(m.compraItems, "Comprar", m);
+      addRows(m.compraOnlineItems, "Comprar online", m);
+      addRows(m.sedeItems, "Sede", m);
+      addRows(m.depositoItems, "Depósito", m);
+      addRows(m.sanMiguelItems, "San Miguel", m);
+      addRows(m.kvutzaItems, "Kvutza", m);
+      addRows(m.alquilerItems, "Alquiler", m);
+      addRows(m.imprimirItems, "Imprimir", m);
+      addRows(m.propiosItems, "Propios", m);
+      addRows(m.otrosItems, "Otros", m);
+    });
+
+    autoTable(doc, {
+      head: [["Material", "Item", "Cant.", "Categoría", "Asignado"]],
+      body: rows,
+      theme: "grid",
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: [59, 130, 246] },
+    });
+
+    doc.save("materiales.pdf");
   };
 
 
@@ -565,6 +609,9 @@ export default function MaterialesPage() {
             icon={<FileUp className="w-4 h-4" />}
           >
             Importar
+          </Button>
+          <Button onClick={exportPdf} icon={<Printer className="w-4 h-4" />}>
+            Exportar PDF
           </Button>
           <input
             type="file"

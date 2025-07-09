@@ -19,6 +19,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "fuzzysort": "^3.1.0",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.511.0",
     "next": "^15.2.3",
     "papaparse": "^5.4.1",
