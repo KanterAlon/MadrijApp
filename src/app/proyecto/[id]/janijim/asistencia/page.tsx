@@ -74,6 +74,21 @@ export default function AsistenciaPage() {
     [janijim, estado]
   );
 
+  const [presentesArriba, setPresentesArriba] = useState(false);
+
+  const janijimOrdenados = useMemo(() => {
+    return [...janijim].sort((a, b) => {
+      if (presentesArriba) {
+        const aPres = estado[a.id] ? 1 : 0;
+        const bPres = estado[b.id] ? 1 : 0;
+        if (aPres !== bPres) {
+          return bPres - aPres;
+        }
+      }
+      return a.nombre.localeCompare(b.nombre);
+    });
+  }, [janijim, estado, presentesArriba]);
+
   useEffect(() => {
     const handle = () => setShowTopButton(window.scrollY > 200);
     window.addEventListener("scroll", handle);
@@ -422,8 +437,20 @@ export default function AsistenciaPage() {
             </ul>
           )}
         </div>
+        <div className="flex items-center gap-2 mt-2">
+          <input
+            id="presentes-arriba"
+            type="checkbox"
+            className="h-4 w-4"
+            checked={presentesArriba}
+            onChange={(e) => setPresentesArriba(e.target.checked)}
+          />
+          <label htmlFor="presentes-arriba" className="text-sm">
+            Presentes arriba
+          </label>
+        </div>
         <ul className="space-y-2 pb-32">
-          {janijim.map((j) => (
+          {janijimOrdenados.map((j) => (
             <li
               id={`janij-${j.id}`}
               key={j.id}
