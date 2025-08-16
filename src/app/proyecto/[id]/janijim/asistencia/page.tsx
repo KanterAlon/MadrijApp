@@ -6,7 +6,11 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import useHighlightScroll from "@/hooks/useHighlightScroll";
 import Loader from "@/components/ui/loader";
-import { getJanijim, type JanijData } from "@/lib/supabase/janijim";
+import {
+  getJanijim,
+  type JanijData,
+  addJanijim,
+} from "@/lib/supabase/janijim";
 import {
   getAsistencias,
   marcarAsistencia,
@@ -16,6 +20,8 @@ import {
 import { supabase } from "@/lib/supabase";
 import { Search, FileUp, Check, ArrowLeft, ArrowUp } from "lucide-react";
 import Button from "@/components/ui/button";
+import { toast } from "react-hot-toast";
+import { showError } from "@/lib/alerts";
 import {
   Modal,
   ModalContent,
@@ -75,6 +81,13 @@ export default function AsistenciaPage() {
   );
 
   const [presentesArriba, setPresentesArriba] = useState(false);
+
+  const normalize = (s: string) =>
+    s
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
 
   const janijimOrdenados = useMemo(() => {
     return [...janijim].sort((a, b) => {
@@ -149,13 +162,15 @@ export default function AsistenciaPage() {
   const resultados = useMemo(() => {
     if (!search.trim()) return [];
 
-    const q = search.toLowerCase().trim();
+    const q = normalize(search);
     const exact = janijim
-      .filter((j) => j.nombre.toLowerCase().includes(q))
+      .filter((j) => normalize(j.nombre).includes(q))
       .map((j) => ({ ...j, ai: false }));
 
     const aiMatches = Array.from(new Set(aiResults))
-      .map((name) => janijim.find((j) => j.nombre.trim() === name))
+      .map((name) =>
+        janijim.find((j) => normalize(j.nombre) === normalize(name))
+      )
       .filter(
         (j): j is { id: string; nombre: string } =>
           !!j && !exact.some((e) => e.id === j.id)
@@ -165,6 +180,24 @@ export default function AsistenciaPage() {
 
     return [...exact, ...aiMatches];
   }, [search, janijim, aiResults]);
+
+  const agregar = async (nombre: string) => {
+    if (!user || !sesionId) return;
+    try {
+      const inserted = await addJanijim(proyectoId, [{ nombre }]);
+      const nuevo = inserted[0];
+      setJanijim((prev) => [...prev, nuevo]);
+      setEstado((prev) => ({ ...prev, [nuevo.id]: true }));
+      await marcarAsistencia(sesionId, proyectoId, nuevo.id, user.id, true);
+      toast.success("Janij agregado correctamente");
+      setSearch("");
+      setShowResults(false);
+      setTimeout(() => scrollTo(nuevo.id), 100);
+    } catch (e) {
+      console.error(e);
+      showError("Error agregando janij");
+    }
+  };
 
   const seleccionar = (id: string) => {
     setShowResults(false);
@@ -434,6 +467,28 @@ export default function AsistenciaPage() {
                     ))}
                 </>
               )}
+              {search.trim() !== "" &&
+                !janijim.some(
+                  (j) => normalize(j.nombre) === normalize(search)
+                ) &&
+                !resultados.some(
+                  (r) => normalize(r.nombre) === normalize(search)
+                ) && (
+                  <li
+                    tabIndex={0}
+                    onMouseDown={() => agregar(search.trim())}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        agregar(search.trim());
+                      }
+                    }}
+                    className="p-2 cursor-pointer hover:bg-gray-100"
+                    aria-label={`Agregar ${search.trim()}`}
+                  >
+                    Agregar &quot;{search.trim()}&quot;
+                  </li>
+                )}
             </ul>
           )}
         </div>
