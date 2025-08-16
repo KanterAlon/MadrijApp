@@ -1,16 +1,11 @@
 "use client";
 
-import {
-  useState,
-  useMemo,
-  useRef,
-  useEffect,
-  useCallback,
-} from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { toast } from "react-hot-toast";
 import useHighlightScroll from "@/hooks/useHighlightScroll";
+import { useAiSearch } from "@/hooks/useAiSearch";
 import {
   Sheet,
   SheetContent,
@@ -96,8 +91,8 @@ export default function JanijimPage() {
   const [showResults, setShowResults] = useState(false);
   const [showTopButton, setShowTopButton] = useState(false);
   const { highlightId, scrollTo } = useHighlightScroll({ prefix: "janij-" });
-  const [aiResults, setAiResults] = useState<string[]>([]);
-  const [aiLoading, setAiLoading] = useState(false);
+  const names = useMemo(() => janijim.map((j) => j.nombre), [janijim]);
+  const { aiResults, aiLoading } = useAiSearch(search, names);
   const [uniqueNames, setUniqueNames] = useState<string[]>([]);
   const [duplicateNames, setDuplicateNames] = useState<string[]>([]);
   const [selectedDupes, setSelectedDupes] = useState<string[]>([]);
@@ -423,37 +418,6 @@ export default function JanijimPage() {
       showError("Error iniciando asistencia");
     }
   };
-
-  useEffect(() => {
-    if (!search.trim()) {
-      setAiResults([]);
-      return;
-    }
-
-    const controller = new AbortController();
-    setAiLoading(true);
-
-    fetch("/api/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: search,
-        names: janijim.map((j) => j.nombre),
-      }),
-      signal: controller.signal,
-    })
-      .then((res) => res.json())
-      .then((d) => {
-        setAiResults(d.matches || []);
-        setAiLoading(false);
-      })
-      .catch(() => {
-        setAiResults([]);
-        setAiLoading(false);
-      });
-
-    return () => controller.abort();
-  }, [search, janijim]);
 
   const resultados = useMemo(() => {
     if (!search.trim()) return [];
