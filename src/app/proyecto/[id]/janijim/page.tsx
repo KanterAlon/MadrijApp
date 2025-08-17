@@ -92,7 +92,13 @@ export default function JanijimPage() {
   const [showTopButton, setShowTopButton] = useState(false);
   const { highlightId, scrollTo } = useHighlightScroll({ prefix: "janij-" });
   const names = useMemo(() => janijim.map((j) => j.nombre), [janijim]);
-  const { aiResults, aiLoading } = useAiSearch(search, names);
+  const {
+    aiResults,
+    aiLoading,
+    search: searchAi,
+    reset: resetAi,
+  } = useAiSearch(names);
+  const [aiSearched, setAiSearched] = useState(false);
   const [uniqueNames, setUniqueNames] = useState<string[]>([]);
   const [duplicateNames, setDuplicateNames] = useState<string[]>([]);
   const [selectedDupes, setSelectedDupes] = useState<string[]>([]);
@@ -419,22 +425,23 @@ export default function JanijimPage() {
     }
   };
 
-  const resultados = useMemo(() => {
+  const exactMatches = useMemo(() => {
     if (!search.trim()) return [];
-
     const q = search.toLowerCase().trim();
-    const exact = janijim
+    return janijim
       .filter((j) => j.nombre.toLowerCase().includes(q))
       .map((j) => ({ ...j, ai: false }));
+  }, [search, janijim]);
 
-    const aiMatches = Array.from(new Set(aiResults))
+  const aiMatches = useMemo(() => {
+    return Array.from(new Set(aiResults))
       .map((name) => janijim.find((j) => j.nombre.trim() === name))
-      .filter((j): j is Janij => !!j && !exact.some((e) => e.id === j.id))
+      .filter((j): j is Janij => !!j && !exactMatches.some((e) => e.id === j.id))
       .filter((j, idx, arr) => arr.findIndex((a) => a.id === j.id) === idx)
       .map((j) => ({ ...j, ai: true }));
+  }, [aiResults, janijim, exactMatches]);
 
-    return [...exact, ...aiMatches];
-  }, [search, janijim, aiResults]);
+  const resultados = [...exactMatches, ...aiMatches];
 
   if (loading) {
     return (
@@ -484,6 +491,8 @@ export default function JanijimPage() {
                   onChange={(e) => {
                     setSearch(e.target.value);
                     setShowResults(true);
+                    setAiSearched(false);
+                    resetAi();
                   }}
                   placeholder="Buscá un janij por nombre"
                   className="w-full border rounded-lg p-2 pl-8 focus:ring-2 focus:ring-blue-600 focus:outline-none"
@@ -491,91 +500,113 @@ export default function JanijimPage() {
 
               {showResults && search.trim() !== "" && (
                 <ul className="absolute z-10 left-0 top-full mt-1 w-full bg-white border rounded shadow max-h-60 overflow-auto">
-    {/* 1. Coincidencias normales */}
-    {resultados.filter((r) => !r.ai).map((r) => (
-      <li
-        key={r.id}
-        tabIndex={0}
-        onMouseDown={() => seleccionar(r.id)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            seleccionar(r.id);
-          }
-        }}
-        className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
-        aria-label={`Seleccionar ${r.nombre}`}
-      >
-        <span>{r.nombre}</span>
-      </li>
-    ))}
+                  {/* 1. Coincidencias normales */}
+                  {exactMatches.map((r) => (
+                    <li
+                      key={r.id}
+                      tabIndex={0}
+                      onMouseDown={() => seleccionar(r.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          seleccionar(r.id);
+                        }
+                      }}
+                      className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
+                      aria-label={`Seleccionar ${r.nombre}`}
+                    >
+                      <span>{r.nombre}</span>
+                    </li>
+                  ))}
 
-    {/* 2. Loader de IA */}
-    {aiLoading && (
-      <li className="p-2 text-sm text-gray-500">Buscando con IA...</li>
-    )}
+                  {/* 2. Sin resultados normales */}
+                  {exactMatches.length === 0 && !aiSearched && (
+                    <>
+                      <li className="p-2 text-sm text-gray-500">
+                        No se encontraron resultados.
+                      </li>
+                      <li className="p-2">
+                        <Button
+                          className="w-full"
+                          onMouseDown={() => {
+                            setAiSearched(true);
+                            searchAi(search);
+                          }}
+                        >
+                          Buscar con IA
+                        </Button>
+                      </li>
+                    </>
+                  )}
 
-    {/* 3. Ningún resultado de IA */}
-    {!aiLoading && aiResults.length === 0 && (
-      <li className="p-2 text-sm text-gray-500">
-        No se encontraron resultados con la IA.
-      </li>
-    )}
+                  {/* 3. Loader de IA */}
+                  {aiSearched && aiLoading && (
+                    <li className="p-2 text-sm text-gray-500">
+                      Buscando con IA...
+                    </li>
+                  )}
 
-    {/* 4. Resultados de IA */}
-    {!aiLoading && resultados.filter((r) => r.ai).length > 0 && (
-      <>
-        <li className="px-2 text-xs text-gray-400">Sugerencias con IA</li>
-        {resultados
-          .filter((r) => r.ai)
-          .map((r) => (
-            <li
-              key={r.id}
-              tabIndex={0}
-              onMouseDown={() => seleccionar(r.id)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  seleccionar(r.id);
-                }
-              }}
-            className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
-            aria-label={`Seleccionar ${r.nombre}`}
-            >
-              <span>{r.nombre}</span>
-              <span className="bg-fuchsia-100 text-fuchsia-700 text-xs px-1 rounded">
-                IA
-              </span>
-            </li>
-          ))}
-      </>
-    )}
+                  {/* 4. Ningún resultado de IA */}
+                  {aiSearched && !aiLoading && aiResults.length === 0 && (
+                    <li className="p-2 text-sm text-gray-500">
+                      No se encontraron resultados con la IA.
+                    </li>
+                  )}
 
-    {/* 5. Opción para agregar un nuevo nombre */}
-    {search.trim() !== "" &&
-      !janijim.some(
-        (j) => j.nombre.toLowerCase() === search.trim().toLowerCase()
-      ) &&
-      !resultados.some(
-        (r) => r.nombre.toLowerCase() === search.trim().toLowerCase()
-      ) && (
-        <li
-          tabIndex={0}
-          onMouseDown={() => agregar(search.trim())}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              agregar(search.trim());
-            }
-          }}
-          className="p-2 cursor-pointer hover:bg-gray-100"
-          aria-label={`Agregar ${search.trim()}`}
-        >
-          Agregar &quot;{search.trim()}&quot;
-                </li>
-      )}
-  </ul>
-)}
+                  {/* 5. Resultados de IA */}
+                  {aiMatches.length > 0 && (
+                    <>
+                      <li className="px-2 text-xs text-gray-400">
+                        Sugerencias con IA
+                      </li>
+                      {aiMatches.map((r) => (
+                        <li
+                          key={r.id}
+                          tabIndex={0}
+                          onMouseDown={() => seleccionar(r.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              seleccionar(r.id);
+                            }
+                          }}
+                          className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
+                          aria-label={`Seleccionar ${r.nombre}`}
+                        >
+                          <span>{r.nombre}</span>
+                          <span className="bg-fuchsia-100 text-fuchsia-700 text-xs px-1 rounded">
+                            IA
+                          </span>
+                        </li>
+                      ))}
+                    </>
+                  )}
+
+                  {/* 6. Opción para agregar un nuevo nombre */}
+                  {search.trim() !== "" &&
+                    !janijim.some(
+                      (j) => j.nombre.toLowerCase() === search.trim().toLowerCase()
+                    ) &&
+                    !resultados.some(
+                      (r) => r.nombre.toLowerCase() === search.trim().toLowerCase()
+                    ) && (
+                      <li
+                        tabIndex={0}
+                        onMouseDown={() => agregar(search.trim())}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            agregar(search.trim());
+                          }
+                        }}
+                        className="p-2 cursor-pointer hover:bg-gray-100"
+                        aria-label={`Agregar ${search.trim()}`}
+                      >
+                        Agregar &quot;{search.trim()}&quot;
+                      </li>
+                    )}
+                </ul>
+              )}
 
               </div>
               <Button
