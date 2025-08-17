@@ -176,7 +176,7 @@ export default function ComidasIndexPage() {
           <SheetHeader>
             <SheetTitle>Elegí un restaurante</SheetTitle>
           </SheetHeader>
-          <div className="p-4 space-y-2">
+          <div className="p-4">
             {loading && (
               <div className="space-y-2">
                 {Array.from({ length: 3 }).map((_, i) => (
@@ -187,17 +187,19 @@ export default function ComidasIndexPage() {
             {!loading && restaurants.length === 0 && (
               <p className="text-gray-600">No hay restaurantes.</p>
             )}
-            {restaurants.map((r) => (
-              <div
-                key={r.id}
-                className="p-3 border rounded flex justify-between items-center"
-              >
-                <span>{r.nombre}</span>
-                <Button onClick={() => router.push(`./comidas/${r.id}`)}>
-                  Seleccionar
-                </Button>
+            {!loading && restaurants.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {restaurants.map((r) => (
+                  <div
+                    key={r.id}
+                    onClick={() => router.push(`./comidas/${r.id}`)}
+                    className="cursor-pointer rounded-lg border p-6 shadow hover:shadow-md transition bg-white"
+                  >
+                    <h3 className="text-2xl font-bold text-center">{r.nombre}</h3>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
           <SheetFooter>
             <Button variant="secondary" onClick={() => setFormOpen(true)}>
