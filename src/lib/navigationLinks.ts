@@ -9,6 +9,7 @@ import {
   Home,
   LayoutDashboard,
   FolderKanban,
+  Utensils,
   type LucideIcon,
 } from "lucide-react";
 
@@ -28,5 +29,6 @@ export const navigationLinks: NavigationLink[] = [
   { href: "tareas", label: "Tareas", icon: CheckSquare },
   { href: "planificaciones", label: "Planificaciones", icon: PencilRuler },
   { href: "actividades", label: "Actividades", icon: PartyPopper },
+  { href: "comidas", label: "Comidas", icon: Utensils },
   { href: "chatbot", label: "Chatbot", icon: Bot },
 ];
