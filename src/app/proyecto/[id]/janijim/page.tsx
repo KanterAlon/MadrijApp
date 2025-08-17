@@ -112,7 +112,9 @@ export default function JanijimPage() {
   const [editTelMadre, setEditTelMadre] = useState("");
   const [editTelPadre, setEditTelPadre] = useState("");
   const [sesionOpen, setSesionOpen] = useState(false);
-  const [sesionNombre, setSesionNombre] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [allTags, setAllTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
   const [madrijes, setMadrijes] = useState<{ clerk_id: string; nombre: string }[]>([]);
   const [sesionMadrij, setSesionMadrij] = useState<string>("");
   const [callDialogOpen, setCallDialogOpen] = useState(false);
@@ -164,6 +166,24 @@ export default function JanijimPage() {
       })
       .catch((err) => console.error("Error cargando madrijim", err));
   }, [proyectoId, sesionMadrij, user]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(`asistencia-tags-${proyectoId}`);
+    if (stored) {
+      try {
+        setAllTags(JSON.parse(stored));
+      } catch {
+        setAllTags([]);
+      }
+    }
+  }, [proyectoId]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      `asistencia-tags-${proyectoId}`,
+      JSON.stringify(allTags)
+    );
+  }, [allTags, proyectoId]);
 
   useEffect(() => {
     if (pendingScrollId.current) {
@@ -406,12 +426,25 @@ export default function JanijimPage() {
     if (!user) return;
     try {
       const ahora = new Date();
-      const rounded = new Date(Math.ceil(ahora.getTime() / (15 * 60 * 1000)) * (15 * 60 * 1000));
+      const rounded = new Date(
+        Math.ceil(ahora.getTime() / (15 * 60 * 1000)) * (15 * 60 * 1000)
+      );
       const inicioIso = rounded.toISOString();
       const fecha = inicioIso.split("T")[0];
+      const hora = `${rounded
+        .getHours()
+        .toString()
+        .padStart(2, "0")}-${rounded
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}`;
+      const tagPart = tags.join("-");
+      const nombre = `asistencia-${fecha}-${hora}${
+        tagPart ? `-${tagPart}` : ""
+      }`;
       const sesion = await crearSesion(
         proyectoId,
-        sesionNombre || "Asistencia",
+        nombre,
         fecha,
         sesionMadrij || user.id,
         inicioIso
@@ -1011,17 +1044,55 @@ export default function JanijimPage() {
           <SheetHeader>
             <SheetTitle>Nueva toma de asistencia</SheetTitle>
             <SheetDescription>
-              Ingresá el nombre y quién la lleva a cabo.
+              Agregá tags y quién la lleva a cabo.
             </SheetDescription>
           </SheetHeader>
           <div className="p-4 space-y-4">
-            <input
-              type="text"
-              value={sesionNombre}
-              onChange={(e) => setSesionNombre(e.target.value)}
-              placeholder="Ej.: Reunión de planificación"
-              className="w-full border rounded-lg p-2"
-            />
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {tags.map((t) => (
+                  <span
+                    key={t}
+                    className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center gap-1"
+                  >
+                    {t}
+                    <button onClick={() => setTags(tags.filter((x) => x !== t))}>
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {allTags
+                  .filter((t) => !tags.includes(t))
+                  .map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setTags([...tags, t])}
+                      className="px-2 py-1 border rounded-full text-sm"
+                    >
+                      {t}
+                    </button>
+                  ))}
+              </div>
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && tagInput.trim()) {
+                    e.preventDefault();
+                    const newTag = tagInput.trim();
+                    if (!allTags.includes(newTag))
+                      setAllTags([...allTags, newTag]);
+                    if (!tags.includes(newTag)) setTags([...tags, newTag]);
+                    setTagInput("");
+                  }
+                }}
+                placeholder="Agregar tag y presionar Enter"
+                className="w-full border rounded-lg p-2"
+              />
+            </div>
             <select
               className="w-full border rounded-lg p-2"
               value={sesionMadrij}
