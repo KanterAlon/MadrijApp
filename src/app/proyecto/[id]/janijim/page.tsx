@@ -528,7 +528,8 @@ export default function JanijimPage() {
                       <li className="p-2">
                         <Button
                           className="w-full"
-                          onMouseDown={() => {
+                          onMouseDown={(e) => {
+                            e.preventDefault();
                             setAiSearched(true);
                             searchAi(search);
                           }}
