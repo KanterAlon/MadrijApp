@@ -7,7 +7,7 @@ import { UserButton } from "@clerk/nextjs";
 import { navigationLinks as links } from "@/lib/navigationLinks";
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import Button from "@/components/ui/button";
 import { useSidebarLinks } from "@/hooks/useSidebarLinks";
 
 export default function Sidebar({ proyectoId }: { proyectoId: string }) {

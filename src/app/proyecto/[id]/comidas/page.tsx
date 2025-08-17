@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import { Categories } from "emoji-picker-react";
 import {
   getRestaurants,
   addRestaurant,
   DishOption,
   RestaurantRow,
 } from "@/lib/supabase/comidas";
-import { Button } from "@/components/ui/button";
+import Button from "@/components/ui/button";
 import Skeleton from "@/components/ui/skeleton";
 import {
   Sheet,
@@ -194,7 +195,7 @@ export default function ComidasIndexPage() {
                       <div className="absolute z-10 mt-2">
                         <EmojiPicker
                           lazyLoadEmojis
-                          categories={["food_drink"]}
+                          categories={[{ category: Categories.FOOD_DRINK, name: "Food & Drink" }]}
                           onEmojiClick={(e) => {
                             updateDish(i, "icono", e.emoji);
                             setPickerIndex(null);

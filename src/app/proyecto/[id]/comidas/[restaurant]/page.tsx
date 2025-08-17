@@ -10,7 +10,7 @@ import {
   RestaurantRow,
   FoodOrderItemRow,
 } from "@/lib/supabase/comidas";
-import { Button } from "@/components/ui/button";
+import Button from "@/components/ui/button";
 import { showError } from "@/lib/alerts";
 import { toast } from "react-hot-toast";
 
