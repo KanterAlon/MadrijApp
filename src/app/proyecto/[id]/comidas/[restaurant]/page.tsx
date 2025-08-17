@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   getRestaurant,
@@ -35,6 +35,39 @@ export default function RestaurantOrderPage() {
     variante: "",
     pedido_por: "",
   });
+
+  const aggregated = useMemo(() => {
+    const map = new Map<
+      string,
+      { item: FoodOrderItemRow; count: number; people: string[] }
+    >();
+    items.forEach((it) => {
+      const key = `${it.plato}|${it.guarnicion || ""}|${it.variante || ""}`;
+      const existing = map.get(key);
+      if (existing) {
+        existing.count += 1;
+        existing.people.push(it.pedido_por);
+      } else {
+        map.set(key, { item: it, count: 1, people: [it.pedido_por] });
+      }
+    });
+    return Array.from(map.values());
+  }, [items]);
+
+  const compartir = () => {
+    const text = aggregated
+      .map(({ item, count, people }) =>
+        `${count}x ${item.plato}` +
+        (item.guarnicion ? ` - ${item.guarnicion}` : "") +
+        (item.variante ? ` (${item.variante})` : "") +
+        ` - ${people.join(", " )}`
+      )
+      .join("\n");
+    navigator.clipboard.writeText(text).catch(() => {});
+    toast.success("Pedido copiado");
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank");
+  };
 
   useEffect(() => {
     if (!restaurantId) return;
@@ -143,17 +176,20 @@ export default function RestaurantOrderPage() {
       </div>
 
       <div className="space-y-2">
-        {items.map((it) => (
-          <div key={it.id} className="p-2 border rounded">
+        {aggregated.map(({ item, count, people }, i) => (
+          <div key={i} className="p-2 border rounded">
             <div className="font-semibold">
-              {it.plato}
-              {it.guarnicion && ` - ${it.guarnicion}`}
-              {it.variante && ` (${it.variante})`}
+              {count}x {item.plato}
+              {item.guarnicion && ` - ${item.guarnicion}`}
+              {item.variante && ` (${item.variante})`}
             </div>
-            <div className="text-sm text-gray-600">{it.pedido_por}</div>
+            <div className="text-sm text-gray-600">{people.join(", ")}</div>
           </div>
         ))}
       </div>
+      {aggregated.length > 0 && (
+        <Button onClick={compartir}>Compartir por WhatsApp</Button>
+      )}
     </div>
   );
 }
