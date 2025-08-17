@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 export interface SideOption {
   nombre: string;
   variantes?: string[];
+  multiple?: boolean;
 }
 
 export interface DishOption {
