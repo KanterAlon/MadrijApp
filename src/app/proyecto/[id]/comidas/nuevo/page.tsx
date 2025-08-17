@@ -13,7 +13,7 @@ import { toast } from "react-hot-toast";
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), { ssr: false });
 
 type DishForm = { nombre: string; icono: string };
-type SideForm = { nombre: string; variantes: string };
+type SideForm = { nombre: string; variantes: string; multiple: boolean };
 type DishSides = { enabled: boolean; sides: Set<number> };
 
 export default function NuevoRestaurantePage() {
@@ -50,9 +50,14 @@ export default function NuevoRestaurantePage() {
     });
   };
 
-  const addSide = () => setSides((prev) => [...prev, { nombre: "", variantes: "" }]);
+  const addSide = () =>
+    setSides((prev) => [...prev, { nombre: "", variantes: "", multiple: false }]);
 
-  const updateSide = (sideIdx: number, field: keyof SideForm, value: string) => {
+  const updateSide = (
+    sideIdx: number,
+    field: keyof SideForm,
+    value: string | boolean,
+  ) => {
     setSides((prev) => {
       const copy = [...prev];
       copy[sideIdx] = { ...copy[sideIdx], [field]: value } as SideForm;
@@ -94,6 +99,7 @@ export default function NuevoRestaurantePage() {
               variantes: sides[idx].variantes
                 ? sides[idx].variantes.split(",").map((v) => v.trim()).filter(Boolean)
                 : [],
+              multiple: sides[idx].multiple,
             }))
           : [],
     }));
@@ -185,6 +191,14 @@ export default function NuevoRestaurantePage() {
                   placeholder="Variantes (separadas por coma)"
                   className="w-full border rounded p-2"
                 />
+                <label className="flex items-center gap-2 text-sm mt-2">
+                  <input
+                    type="checkbox"
+                    checked={s.multiple}
+                    onChange={(e) => updateSide(i, "multiple", e.target.checked)}
+                  />
+                  Selección múltiple
+                </label>
               </CardContent>
             </Card>
           ))}
