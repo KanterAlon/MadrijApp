@@ -120,7 +120,12 @@ export default function JanijimPage() {
   const [callDialogOpen, setCallDialogOpen] = useState(false);
   const [callTarget, setCallTarget] = useState<Janij | null>(null);
   const pendingScrollId = useRef<string | null>(null);
-
+  const normalize = (s: string) =>
+    s
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
 
   const seleccionar = useCallback(
     (id: string) => {
@@ -460,15 +465,17 @@ export default function JanijimPage() {
 
   const exactMatches = useMemo(() => {
     if (!search.trim()) return [];
-    const q = search.toLowerCase().trim();
+    const q = normalize(search);
     return janijim
-      .filter((j) => j.nombre.toLowerCase().includes(q))
+      .filter((j) => normalize(j.nombre).includes(q))
       .map((j) => ({ ...j, ai: false }));
   }, [search, janijim]);
 
   const aiMatches = useMemo(() => {
     return Array.from(new Set(aiResults))
-      .map((name) => janijim.find((j) => j.nombre.trim() === name))
+      .map((name) =>
+        janijim.find((j) => normalize(j.nombre) === normalize(name))
+      )
       .filter((j): j is Janij => !!j && !exactMatches.some((e) => e.id === j.id))
       .filter((j, idx, arr) => arr.findIndex((a) => a.id === j.id) === idx)
       .map((j) => ({ ...j, ai: true }));
@@ -630,18 +637,18 @@ export default function JanijimPage() {
                   )}
 
                   {/* 6. Opción para agregar un nuevo nombre */}
-                  {search.trim() !== "" &&
-                    !janijim.some(
-                      (j) => j.nombre.toLowerCase() === search.trim().toLowerCase()
-                    ) &&
-                    !resultados.some(
-                      (r) => r.nombre.toLowerCase() === search.trim().toLowerCase()
-                    ) && (
-                      <li
-                        tabIndex={0}
-                        onMouseDown={() => agregar(search.trim())}
-                        onTouchStart={(e) => {
-                          e.preventDefault();
+                    {search.trim() !== "" &&
+                      !janijim.some(
+                        (j) => normalize(j.nombre) === normalize(search)
+                      ) &&
+                      !resultados.some(
+                        (r) => normalize(r.nombre) === normalize(search)
+                      ) && (
+                        <li
+                          tabIndex={0}
+                          onMouseDown={() => agregar(search.trim())}
+                          onTouchStart={(e) => {
+                            e.preventDefault();
                           agregar(search.trim());
                         }}
                         onKeyDown={(e) => {
