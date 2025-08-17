@@ -304,7 +304,7 @@ export default function AsistenciaPage() {
       const url = URL.createObjectURL(new Blob([blob]));
       const a = document.createElement("a");
       a.href = url;
-      a.download = `asistencia-${sesion?.nombre || "sesion"}.xlsx`;
+      a.download = `${sesion?.nombre || "asistencia"}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
     };
