@@ -506,6 +506,10 @@ export default function JanijimPage() {
                       key={r.id}
                       tabIndex={0}
                       onMouseDown={() => seleccionar(r.id)}
+                      onTouchStart={(e) => {
+                        e.preventDefault();
+                        seleccionar(r.id);
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
@@ -529,6 +533,11 @@ export default function JanijimPage() {
                         <Button
                           className="w-full"
                           onMouseDown={(e) => {
+                            e.preventDefault();
+                            setAiSearched(true);
+                            searchAi(search);
+                          }}
+                          onTouchStart={(e) => {
                             e.preventDefault();
                             setAiSearched(true);
                             searchAi(search);
@@ -565,6 +574,10 @@ export default function JanijimPage() {
                           key={r.id}
                           tabIndex={0}
                           onMouseDown={() => seleccionar(r.id)}
+                          onTouchStart={(e) => {
+                            e.preventDefault();
+                            seleccionar(r.id);
+                          }}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
@@ -594,6 +607,10 @@ export default function JanijimPage() {
                       <li
                         tabIndex={0}
                         onMouseDown={() => agregar(search.trim())}
+                        onTouchStart={(e) => {
+                          e.preventDefault();
+                          agregar(search.trim());
+                        }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
