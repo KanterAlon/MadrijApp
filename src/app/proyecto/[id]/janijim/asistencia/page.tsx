@@ -411,6 +411,10 @@ export default function AsistenciaPage() {
                 <li
                   key={r.id}
                   onMouseDown={() => seleccionar(r.id)}
+                  onTouchStart={(e) => {
+                    e.preventDefault();
+                    seleccionar(r.id);
+                  }}
                   className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
                 >
                   <span>{r.nombre}</span>
@@ -427,6 +431,11 @@ export default function AsistenciaPage() {
                     <Button
                       className="w-full"
                       onMouseDown={(e) => {
+                        e.preventDefault();
+                        setAiSearched(true);
+                        searchAi(search);
+                      }}
+                      onTouchStart={(e) => {
                         e.preventDefault();
                         setAiSearched(true);
                         searchAi(search);
@@ -458,6 +467,10 @@ export default function AsistenciaPage() {
                     <li
                       key={r.id}
                       onMouseDown={() => seleccionar(r.id)}
+                      onTouchStart={(e) => {
+                        e.preventDefault();
+                        seleccionar(r.id);
+                      }}
                       className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
                     >
                       <span>{r.nombre}</span>
@@ -480,6 +493,10 @@ export default function AsistenciaPage() {
                   <li
                     tabIndex={0}
                     onMouseDown={() => agregar(search.trim())}
+                    onTouchStart={(e) => {
+                      e.preventDefault();
+                      agregar(search.trim());
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
