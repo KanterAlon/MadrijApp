@@ -61,6 +61,19 @@ type Janij = {
   estado: "presente" | "ausente";
 };
 
+type Tag = { name: string; color: number };
+
+const tagColors = [
+  { bg: "bg-red-100", text: "text-red-800" },
+  { bg: "bg-blue-100", text: "text-blue-800" },
+  { bg: "bg-green-100", text: "text-green-800" },
+  { bg: "bg-yellow-100", text: "text-yellow-800" },
+  { bg: "bg-purple-100", text: "text-purple-800" },
+  { bg: "bg-pink-100", text: "text-pink-800" },
+  { bg: "bg-indigo-100", text: "text-indigo-800" },
+  { bg: "bg-gray-100", text: "text-gray-800" },
+];
+
 export default function JanijimPage() {
   const { id: proyectoId } = useParams<{ id: string }>();
   const { user } = useUser();
@@ -113,7 +126,7 @@ export default function JanijimPage() {
   const [editTelPadre, setEditTelPadre] = useState("");
   const [sesionOpen, setSesionOpen] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
-  const [allTags, setAllTags] = useState<string[]>([]);
+  const [allTags, setAllTags] = useState<Tag[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [madrijes, setMadrijes] = useState<{ clerk_id: string; nombre: string }[]>([]);
   const [sesionMadrij, setSesionMadrij] = useState<string>("");
@@ -176,7 +189,21 @@ export default function JanijimPage() {
     const stored = localStorage.getItem(`asistencia-tags-${proyectoId}`);
     if (stored) {
       try {
-        setAllTags(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          if (parsed.length > 0 && typeof parsed[0] === "string") {
+            setAllTags(
+              parsed.map((name: string, idx: number) => ({
+                name,
+                color: idx % tagColors.length,
+              }))
+            );
+          } else {
+            setAllTags(parsed);
+          }
+        } else {
+          setAllTags([]);
+        }
       } catch {
         setAllTags([]);
       }
@@ -189,6 +216,11 @@ export default function JanijimPage() {
       JSON.stringify(allTags)
     );
   }, [allTags, proyectoId]);
+
+  const removeTagFromProject = (name: string) => {
+    setAllTags(allTags.filter((t) => t.name !== name));
+    setTags(tags.filter((t) => t !== name));
+  };
 
   useEffect(() => {
     if (pendingScrollId.current) {
@@ -1074,30 +1106,39 @@ export default function JanijimPage() {
           <div className="p-4 space-y-4">
             <div className="space-y-2">
               <div className="flex flex-wrap gap-2">
-                {tags.map((t) => (
-                  <span
-                    key={t}
-                    className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center gap-1"
-                  >
-                    {t}
-                    <button onClick={() => setTags(tags.filter((x) => x !== t))}>
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
+                {tags.map((t) => {
+                  const info = allTags.find((x) => x.name === t);
+                  const color = tagColors[info?.color ?? 1];
+                  return (
+                    <span
+                      key={t}
+                      className={`px-2 py-1 rounded-full text-sm flex items-center gap-1 ${color.bg} ${color.text}`}
+                    >
+                      {t}
+                      <button onClick={() => setTags(tags.filter((x) => x !== t))}>
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  );
+                })}
               </div>
               <div className="flex flex-wrap gap-2">
                 {allTags
-                  .filter((t) => !tags.includes(t))
-                  .map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setTags([...tags, t])}
-                      className="px-2 py-1 border rounded-full text-sm"
-                    >
-                      {t}
-                    </button>
-                  ))}
+                  .filter((t) => !tags.includes(t.name))
+                  .map((t) => {
+                    const color = tagColors[t.color];
+                    return (
+                      <span
+                        key={t.name}
+                        className={`px-2 py-1 rounded-full text-sm flex items-center gap-1 cursor-pointer ${color.bg} ${color.text}`}
+                      >
+                        <button onClick={() => setTags([...tags, t.name])}>{t.name}</button>
+                        <button onClick={() => removeTagFromProject(t.name)}>
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
               </div>
               <input
                 type="text"
@@ -1107,8 +1148,14 @@ export default function JanijimPage() {
                   if (e.key === "Enter" && tagInput.trim()) {
                     e.preventDefault();
                     const newTag = tagInput.trim();
-                    if (!allTags.includes(newTag))
-                      setAllTags([...allTags, newTag]);
+                    if (!allTags.some((t) => t.name === newTag))
+                      setAllTags([
+                        ...allTags,
+                        {
+                          name: newTag,
+                          color: allTags.length % tagColors.length,
+                        },
+                      ]);
                     if (!tags.includes(newTag)) setTags([...tags, newTag]);
                     setTagInput("");
                   }
