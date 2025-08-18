@@ -56,7 +56,6 @@ The application requires the following variables to be defined, usually in a
 
 - `NEXT_PUBLIC_SUPABASE_URL` – URL of your Supabase instance.
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` – public anon key provided by Supabase.
-- `OPENAI_API_KEY` – API key used to query OpenAI services.
 
 
 
