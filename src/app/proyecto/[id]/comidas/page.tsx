@@ -12,7 +12,7 @@ import {
   SheetTitle,
   SheetFooter,
 } from "@/components/ui/sheet";
-import { PlusCircle, Trash2 } from "lucide-react";
+import { PlusCircle, Trash2, Pencil } from "lucide-react";
 import { confirmDialog, showError } from "@/lib/alerts";
 import { toast } from "react-hot-toast";
 
@@ -78,6 +78,15 @@ export default function ComidasIndexPage() {
                     onClick={() => router.push(`./comidas/${r.id}`)}
                     className="cursor-pointer rounded-lg border p-6 shadow hover:shadow-md transition bg-white relative group"
                   >
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`./comidas/${r.id}/editar`);
+                      }}
+                      className="absolute top-2 left-2 text-blue-600 hover:text-blue-800 hidden group-hover:block"
+                    >
+                      <Pencil size={16} />
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

@@ -54,6 +54,21 @@ export async function addRestaurant(
   return data as RestaurantRow;
 }
 
+export async function updateRestaurant(
+  id: string,
+  nombre: string,
+  platos: DishOption[]
+) {
+  const { data, error } = await supabase
+    .from("restaurants")
+    .update({ nombre, platos })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as RestaurantRow;
+}
+
 export async function deleteRestaurant(id: string) {
   // Delete related food orders first to avoid foreign key constraint errors.
   const { error: ordersError } = await supabase
