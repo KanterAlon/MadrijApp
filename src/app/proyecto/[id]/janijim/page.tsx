@@ -217,6 +217,18 @@ export default function JanijimPage() {
     );
   }, [allTags, proyectoId]);
 
+  const addTag = () => {
+    const newTag = tagInput.trim();
+    if (!newTag) return;
+    if (!allTags.some((t) => t.name === newTag))
+      setAllTags([
+        ...allTags,
+        { name: newTag, color: allTags.length % tagColors.length },
+      ]);
+    if (!tags.includes(newTag)) setTags([...tags, newTag]);
+    setTagInput("");
+  };
+
   const removeTagFromProject = (name: string) => {
     setAllTags(allTags.filter((t) => t.name !== name));
     setTags(tags.filter((t) => t !== name));
@@ -1140,29 +1152,24 @@ export default function JanijimPage() {
                     );
                   })}
               </div>
-              <input
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && tagInput.trim()) {
-                    e.preventDefault();
-                    const newTag = tagInput.trim();
-                    if (!allTags.some((t) => t.name === newTag))
-                      setAllTags([
-                        ...allTags,
-                        {
-                          name: newTag,
-                          color: allTags.length % tagColors.length,
-                        },
-                      ]);
-                    if (!tags.includes(newTag)) setTags([...tags, newTag]);
-                    setTagInput("");
-                  }
-                }}
-                placeholder="Agregar tag y presionar Enter"
-                className="w-full border rounded-lg p-2"
-              />
+              <div className="flex gap-2 w-full">
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addTag();
+                    }
+                  }}
+                  placeholder="Agregá un tag"
+                  className="flex-1 border rounded-lg p-2"
+                />
+                <Button variant="outline" onClick={addTag}>
+                  Agregar
+                </Button>
+              </div>
             </div>
             <select
               className="w-full border rounded-lg p-2"
