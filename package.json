@@ -39,6 +39,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@types/jaro-winkler": "^0.2.4",
     "@types/node": "^20.19.0",
     "@types/papaparse": "^5.3.16",
     "@types/react": "^19.1.6",

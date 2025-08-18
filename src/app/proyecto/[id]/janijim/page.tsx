@@ -517,7 +517,6 @@ export default function JanijimPage() {
       key: "norm",
       limit: 5,
       threshold: -Infinity,
-      allowTypo: true,
     });
     return results
       .map((r) => r.obj as Janij)
