@@ -299,11 +299,8 @@ export default function AsistenciaPage() {
       });
       const keys = Object.keys(data[0] || {});
       const headers = keys.map((k) => k.toUpperCase());
-      const ws = XLSX.utils.json_to_sheet(data, {
-        skipHeader: true,
-        origin: "A2",
-      });
-      XLSX.utils.sheet_add_aoa(ws, [headers], { origin: "A1" });
+      const ws = XLSX.utils.aoa_to_sheet([headers]);
+      XLSX.utils.sheet_add_json(ws, data, { skipHeader: true, origin: "A2" });
       const colWidths = keys.map((key, i) => {
         const headerLength = headers[i].length;
         const maxDataLength = Math.max(
