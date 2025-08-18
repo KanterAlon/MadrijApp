@@ -55,6 +55,13 @@ export async function addRestaurant(
 }
 
 export async function deleteRestaurant(id: string) {
+  // Delete related food orders first to avoid foreign key constraint errors.
+  const { error: ordersError } = await supabase
+    .from("food_orders")
+    .delete()
+    .eq("restaurant_id", id);
+  if (ordersError) throw ordersError;
+
   const { error } = await supabase.from("restaurants").delete().eq("id", id);
   if (error) throw error;
 }
