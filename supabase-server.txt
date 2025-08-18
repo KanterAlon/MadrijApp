@@ -35,9 +35,29 @@ CREATE TABLE public.asistencias (
   created_at timestamp with time zone DEFAULT now(),
   sesion_id uuid,
   CONSTRAINT asistencias_pkey PRIMARY KEY (id),
-  CONSTRAINT asistencias_proyecto_id_fkey FOREIGN KEY (proyecto_id) REFERENCES public.proyectos(id),
   CONSTRAINT asistencias_janij_id_fkey FOREIGN KEY (janij_id) REFERENCES public.janijim(id),
-  CONSTRAINT asistencias_sesion_id_fkey FOREIGN KEY (sesion_id) REFERENCES public.asistencia_sesiones(id)
+  CONSTRAINT asistencias_sesion_id_fkey FOREIGN KEY (sesion_id) REFERENCES public.asistencia_sesiones(id),
+  CONSTRAINT asistencias_proyecto_id_fkey FOREIGN KEY (proyecto_id) REFERENCES public.proyectos(id)
+);
+CREATE TABLE public.food_order_items (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  order_id uuid,
+  plato text NOT NULL,
+  guarnicion text,
+  variante text,
+  pedido_por text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT food_order_items_pkey PRIMARY KEY (id),
+  CONSTRAINT food_order_items_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.food_orders(id)
+);
+CREATE TABLE public.food_orders (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  proyecto_id uuid,
+  restaurant_id uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT food_orders_pkey PRIMARY KEY (id),
+  CONSTRAINT food_orders_proyecto_id_fkey FOREIGN KEY (proyecto_id) REFERENCES public.proyectos(id),
+  CONSTRAINT food_orders_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id)
 );
 CREATE TABLE public.items_llevar (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -56,6 +76,12 @@ CREATE TABLE public.janijim (
   proyecto_id uuid,
   created_at timestamp with time zone DEFAULT now(),
   activo boolean DEFAULT true,
+  dni text,
+  numero_socio text,
+  grupo text,
+  tel_madre text,
+  tel_padre text,
+  extras jsonb DEFAULT '{}'::jsonb,
   CONSTRAINT janijim_pkey PRIMARY KEY (id),
   CONSTRAINT janijim_proyecto_id_fkey FOREIGN KEY (proyecto_id) REFERENCES public.proyectos(id)
 );
@@ -103,16 +129,16 @@ CREATE TABLE public.materiales (
   deposito_items jsonb DEFAULT '[]'::jsonb,
   kvutza_items jsonb DEFAULT '[]'::jsonb,
   alquiler_items jsonb DEFAULT '[]'::jsonb,
-  imprimir_items jsonb DEFAULT '[]'::jsonb,
   propios_items jsonb DEFAULT '[]'::jsonb,
   otros_items jsonb DEFAULT '[]'::jsonb,
   estado text NOT NULL DEFAULT 'por hacer'::text,
   created_at timestamp with time zone DEFAULT now(),
   lista_id uuid,
   activo boolean DEFAULT true,
+  imprimir_items jsonb DEFAULT '[]'::jsonb,
   CONSTRAINT materiales_pkey PRIMARY KEY (id),
-  CONSTRAINT materiales_proyecto_id_fkey FOREIGN KEY (proyecto_id) REFERENCES public.proyectos(id),
-  CONSTRAINT materiales_lista_id_fkey FOREIGN KEY (lista_id) REFERENCES public.material_lists(id)
+  CONSTRAINT materiales_lista_id_fkey FOREIGN KEY (lista_id) REFERENCES public.material_lists(id),
+  CONSTRAINT materiales_proyecto_id_fkey FOREIGN KEY (proyecto_id) REFERENCES public.proyectos(id)
 );
 CREATE TABLE public.proyectos (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -122,31 +148,17 @@ CREATE TABLE public.proyectos (
   codigo_invite uuid DEFAULT uuid_generate_v4() UNIQUE,
   CONSTRAINT proyectos_pkey PRIMARY KEY (id)
 );
-
 CREATE TABLE public.restaurants (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  proyecto_id uuid REFERENCES public.proyectos(id),
+  proyecto_id uuid,
   nombre text NOT NULL,
   platos jsonb NOT NULL DEFAULT '[]'::jsonb,
   created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT restaurants_pkey PRIMARY KEY (id)
+  CONSTRAINT restaurants_pkey PRIMARY KEY (id),
+  CONSTRAINT restaurants_proyecto_id_fkey FOREIGN KEY (proyecto_id) REFERENCES public.proyectos(id)
 );
-
-CREATE TABLE public.food_orders (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  proyecto_id uuid REFERENCES public.proyectos(id),
-  restaurant_id uuid REFERENCES public.restaurants(id),
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT food_orders_pkey PRIMARY KEY (id)
-);
-
-CREATE TABLE public.food_order_items (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  order_id uuid REFERENCES public.food_orders(id) ON DELETE CASCADE,
-  plato text NOT NULL,
-  guarnicion text,
-  variante text,
-  pedido_por text NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT food_order_items_pkey PRIMARY KEY (id)
+CREATE TABLE public.user_sidebar_links (
+  user_id text NOT NULL,
+  links jsonb NOT NULL DEFAULT '[]'::jsonb,
+  CONSTRAINT user_sidebar_links_pkey PRIMARY KEY (user_id)
 );
