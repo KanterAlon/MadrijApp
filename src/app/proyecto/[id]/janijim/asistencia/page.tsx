@@ -297,7 +297,22 @@ export default function AsistenciaPage() {
         });
         return row;
       });
-      const ws = XLSX.utils.json_to_sheet(data);
+      const keys = Object.keys(data[0] || {});
+      const headers = keys.map((k) => k.toUpperCase());
+      const ws = XLSX.utils.json_to_sheet(data, {
+        skipHeader: true,
+        origin: "A2",
+      });
+      XLSX.utils.sheet_add_aoa(ws, [headers], { origin: "A1" });
+      const colWidths = keys.map((key, i) => {
+        const headerLength = headers[i].length;
+        const maxDataLength = Math.max(
+          0,
+          ...data.map((row) => (row[key] ? row[key]!.toString().length : 0))
+        );
+        return { wch: Math.max(headerLength, maxDataLength) + 2 };
+      });
+      ws["!cols"] = colWidths;
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Asistencia");
       const blob = XLSX.write(wb, { bookType: "xlsx", type: "array" });
