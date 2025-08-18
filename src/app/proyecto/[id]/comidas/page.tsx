@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getRestaurants, RestaurantRow } from "@/lib/supabase/comidas";
+import { getRestaurants, RestaurantRow, deleteRestaurant } from "@/lib/supabase/comidas";
 import Button from "@/components/ui/button";
 import Skeleton from "@/components/ui/skeleton";
 import {
@@ -12,7 +12,9 @@ import {
   SheetTitle,
   SheetFooter,
 } from "@/components/ui/sheet";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Trash2 } from "lucide-react";
+import { confirmDialog, showError } from "@/lib/alerts";
+import { toast } from "react-hot-toast";
 
 export default function ComidasIndexPage() {
   const { id: proyectoId } = useParams<{ id: string }>();
@@ -29,6 +31,17 @@ export default function ComidasIndexPage() {
       .catch(() => setRestaurants([]))
       .finally(() => setLoading(false));
   }, [proyectoId]);
+
+
+  const eliminarRestaurant = async (id: string) => {
+    if (!(await confirmDialog("¿Eliminar restaurante?"))) return;
+    deleteRestaurant(id)
+      .then(() => {
+        setRestaurants((prev) => prev.filter((r) => r.id !== id));
+        toast.success("Restaurante eliminado");
+      })
+      .catch(() => showError("Error eliminando restaurante"));
+  };
 
 
   return (
@@ -63,8 +76,17 @@ export default function ComidasIndexPage() {
                   <div
                     key={r.id}
                     onClick={() => router.push(`./comidas/${r.id}`)}
-                    className="cursor-pointer rounded-lg border p-6 shadow hover:shadow-md transition bg-white"
+                    className="cursor-pointer rounded-lg border p-6 shadow hover:shadow-md transition bg-white relative group"
                   >
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        eliminarRestaurant(r.id);
+                      }}
+                      className="absolute top-2 right-2 text-red-600 hover:text-red-800 hidden group-hover:block"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                     <h3 className="text-2xl font-bold text-center">{r.nombre}</h3>
                   </div>
                 ))}
