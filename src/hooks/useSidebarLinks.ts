@@ -9,6 +9,7 @@ export function useSidebarLinks() {
   const { user } = useUser();
   const userId = user?.id;
   const [links, setLinks] = useState<string[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   // Load links from Supabase when the user is available
   useEffect(() => {
@@ -20,9 +21,9 @@ export function useSidebarLinks() {
         .select("links")
         .eq("user_id", userId)
         .maybeSingle();
-      if (active && data?.links) {
-        setLinks(data.links);
-      }
+      if (!active) return;
+      setLinks((data?.links as string[]) ?? []);
+      setLoaded(true);
     };
     void load();
     return () => {
@@ -30,13 +31,13 @@ export function useSidebarLinks() {
     };
   }, [userId]);
 
-  // Persist links to Supabase whenever they change
+  // Persist links to Supabase whenever they change after initial load
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !loaded) return;
     void supabase
       .from("user_sidebar_links")
       .upsert({ user_id: userId, links });
-  }, [userId, links]);
+  }, [userId, loaded, links]);
 
   const addLink = useCallback((href: string) => {
     setLinks((prev) => (prev.includes(href) ? prev : [...prev, href]));
