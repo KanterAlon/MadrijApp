@@ -40,6 +40,11 @@ export default function RestaurantOrderPage() {
     variantes: [],
     pedido_por: "",
   });
+  const [isCustom, setIsCustom] = useState(false);
+  const sortedMadrijes = useMemo(
+    () => [...madrijes].sort((a, b) => a.nombre.localeCompare(b.nombre)),
+    [madrijes]
+  );
 
   const aggregated = useMemo(() => {
     const map = new Map<
@@ -220,21 +225,39 @@ export default function RestaurantOrderPage() {
             </div>
           )}
         </div>
-        <input
-          type="text"
-          list="madrijes-list"
-          value={form.pedido_por}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, pedido_por: e.target.value }))
-          }
-          placeholder="Pedido por"
+        <select
+          value={isCustom ? "custom" : form.pedido_por}
+          onChange={(e) => {
+            const value = e.target.value;
+            if (value === "custom") {
+              setIsCustom(true);
+              setForm((f) => ({ ...f, pedido_por: "" }));
+            } else {
+              setIsCustom(false);
+              setForm((f) => ({ ...f, pedido_por: value }));
+            }
+          }}
           className="w-full border rounded p-2"
-        />
-        <datalist id="madrijes-list">
-          {madrijes.map((m) => (
-            <option key={m.clerk_id} value={m.nombre} />
+        >
+          <option value="">Pedido por</option>
+          {sortedMadrijes.map((m) => (
+            <option key={m.clerk_id} value={m.nombre}>
+              {m.nombre}
+            </option>
           ))}
-        </datalist>
+          <option value="custom">Otro...</option>
+        </select>
+        {isCustom && (
+          <input
+            type="text"
+            value={form.pedido_por}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, pedido_por: e.target.value }))
+            }
+            placeholder="Nombre"
+            className="w-full border rounded p-2 mt-2"
+          />
+        )}
         <Button onClick={agregarItem}>Agregar</Button>
       </div>
 
