@@ -157,8 +157,3 @@ CREATE TABLE public.restaurants (
   CONSTRAINT restaurants_pkey PRIMARY KEY (id),
   CONSTRAINT restaurants_proyecto_id_fkey FOREIGN KEY (proyecto_id) REFERENCES public.proyectos(id)
 );
-CREATE TABLE public.user_sidebar_links (
-  user_id text NOT NULL,
-  links jsonb NOT NULL DEFAULT '[]'::jsonb,
-  CONSTRAINT user_sidebar_links_pkey PRIMARY KEY (user_id)
-);
