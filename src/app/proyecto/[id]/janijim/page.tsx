@@ -577,11 +577,7 @@ export default function JanijimPage() {
                     <li
                       key={r.id}
                       tabIndex={0}
-                      onMouseDown={() => seleccionar(r.id)}
-                      onTouchStart={(e) => {
-                        e.preventDefault();
-                        seleccionar(r.id);
-                      }}
+                      onClick={() => seleccionar(r.id)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
@@ -603,14 +599,9 @@ export default function JanijimPage() {
                       </li>
                       <li className="p-2">
                         <Button
+                          type="button"
                           className="w-full"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            setAiSearched(true);
-                            searchAi(search);
-                          }}
-                          onTouchStart={(e) => {
-                            e.preventDefault();
+                          onClick={() => {
                             setAiSearched(true);
                             searchAi(search);
                           }}
@@ -645,11 +636,7 @@ export default function JanijimPage() {
                         <li
                           key={r.id}
                           tabIndex={0}
-                          onMouseDown={() => seleccionar(r.id)}
-                          onTouchStart={(e) => {
-                            e.preventDefault();
-                            seleccionar(r.id);
-                          }}
+                          onClick={() => seleccionar(r.id)}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
@@ -678,23 +665,19 @@ export default function JanijimPage() {
                       ) && (
                         <li
                           tabIndex={0}
-                          onMouseDown={() => agregar(search.trim())}
-                          onTouchStart={(e) => {
-                            e.preventDefault();
-                          agregar(search.trim());
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            agregar(search.trim());
-                          }
-                        }}
-                        className="p-2 cursor-pointer hover:bg-gray-100"
-                        aria-label={`Agregar ${search.trim()}`}
-                      >
-                        Agregar &quot;{search.trim()}&quot;
-                      </li>
-                    )}
+                          onClick={() => agregar(search.trim())}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              agregar(search.trim());
+                            }
+                          }}
+                          className="p-2 cursor-pointer hover:bg-gray-100"
+                          aria-label={`Agregar ${search.trim()}`}
+                        >
+                          Agregar &quot;{search.trim()}&quot;
+                        </li>
+                      )}
                 </ul>
               )}
 
