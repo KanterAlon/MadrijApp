@@ -13,6 +13,7 @@ import {
 import Button from "@/components/ui/button";
 import { showError } from "@/lib/alerts";
 import { toast } from "react-hot-toast";
+import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
 
 interface ItemForm {
   plato: string;
@@ -30,6 +31,8 @@ export default function RestaurantOrderPage() {
   const [restaurant, setRestaurant] = useState<RestaurantRow | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [items, setItems] = useState<FoodOrderItemRow[]>([]);
+  const [madrijes, setMadrijes] =
+    useState<{ clerk_id: string; nombre: string }[]>([]);
   const [form, setForm] = useState<ItemForm>({
     plato: "",
     guarnicion: "",
@@ -91,6 +94,13 @@ export default function RestaurantOrderPage() {
       .then(setItems)
       .catch(() => setItems([]));
   }, [orderId]);
+
+  useEffect(() => {
+    if (!proyectoId) return;
+    getMadrijimPorProyecto(proyectoId)
+      .then(setMadrijes)
+      .catch(() => setMadrijes([]));
+  }, [proyectoId]);
 
   const agregarItem = async () => {
     if (!orderId) return;
@@ -212,6 +222,7 @@ export default function RestaurantOrderPage() {
         </div>
         <input
           type="text"
+          list="madrijes-list"
           value={form.pedido_por}
           onChange={(e) =>
             setForm((f) => ({ ...f, pedido_por: e.target.value }))
@@ -219,6 +230,11 @@ export default function RestaurantOrderPage() {
           placeholder="Pedido por"
           className="w-full border rounded p-2"
         />
+        <datalist id="madrijes-list">
+          {madrijes.map((m) => (
+            <option key={m.clerk_id} value={m.nombre} />
+          ))}
+        </datalist>
         <Button onClick={agregarItem}>Agregar</Button>
       </div>
 
