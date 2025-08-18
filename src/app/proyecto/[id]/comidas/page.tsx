@@ -79,7 +79,9 @@ export default function ComidasIndexPage() {
                     className="cursor-pointer rounded-lg border p-6 shadow hover:shadow-md transition bg-white relative group"
                   >
                     <button
+                      type="button"
                       onClick={(e) => {
+                        e.preventDefault();
                         e.stopPropagation();
                         router.push(`./comidas/${r.id}/editar`);
                       }}
@@ -92,6 +94,7 @@ export default function ComidasIndexPage() {
                         e.stopPropagation();
                         eliminarRestaurant(r.id);
                       }}
+                      onMouseDown={(e) => e.stopPropagation()}
                       className="absolute top-2 right-2 text-red-600 hover:text-red-800 hidden group-hover:block"
                     >
                       <Trash2 size={16} />
