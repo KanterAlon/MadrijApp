@@ -1,36 +1,42 @@
 import { useState, useEffect, useCallback } from "react";
 import { useUser } from "@clerk/nextjs";
+import { supabase } from "@/lib/supabase";
 
 /**
- * Persists sidebar links for each user in localStorage.
+ * Persists sidebar links for each user using Supabase.
  */
 export function useSidebarLinks() {
   const { user } = useUser();
-  const key = user ? `sidebar-links-${user.id}` : null;
+  const userId = user?.id;
   const [links, setLinks] = useState<string[]>([]);
 
-  // Load from localStorage when the user is available
+  // Load links from Supabase when the user is available
   useEffect(() => {
-    if (!key) return;
-    try {
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        setLinks(JSON.parse(stored));
+    if (!userId) return;
+    let active = true;
+    const load = async () => {
+      const { data } = await supabase
+        .from("user_sidebar_links")
+        .select("links")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (active && data?.links) {
+        setLinks(data.links);
       }
-    } catch {
-      /* ignore */
-    }
-  }, [key]);
+    };
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [userId]);
 
-  // Persist to localStorage whenever links change
+  // Persist links to Supabase whenever they change
   useEffect(() => {
-    if (!key) return;
-    try {
-      localStorage.setItem(key, JSON.stringify(links));
-    } catch {
-      /* ignore */
-    }
-  }, [key, links]);
+    if (!userId) return;
+    void supabase
+      .from("user_sidebar_links")
+      .upsert({ user_id: userId, links });
+  }, [userId, links]);
 
   const addLink = useCallback((href: string) => {
     setLinks((prev) => (prev.includes(href) ? prev : [...prev, href]));
