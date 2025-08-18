@@ -54,6 +54,11 @@ export async function addRestaurant(
   return data as RestaurantRow;
 }
 
+export async function deleteRestaurant(id: string) {
+  const { error } = await supabase.from("restaurants").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export interface FoodOrderRow {
   id: string;
   proyecto_id: string | null;
