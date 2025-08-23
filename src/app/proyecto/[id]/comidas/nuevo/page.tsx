@@ -12,7 +12,7 @@ import { toast } from "react-hot-toast";
 
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), { ssr: false });
 
-type DishForm = { nombre: string; icono: string };
+type DishForm = { nombre: string; icono: string; variantes: string };
 type SideForm = { nombre: string; variantes: string; multiple: boolean };
 type DishSides = { enabled: boolean; sides: Set<number> };
 
@@ -21,7 +21,9 @@ export default function NuevoRestaurantePage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [nombre, setNombre] = useState("");
-  const [dishes, setDishes] = useState<DishForm[]>([{ nombre: "", icono: "" }]);
+  const [dishes, setDishes] = useState<DishForm[]>([
+    { nombre: "", icono: "", variantes: "" },
+  ]);
   const [sides, setSides] = useState<SideForm[]>([]);
   const [dishSides, setDishSides] = useState<Record<number, DishSides>>({});
   const [pickerIndex, setPickerIndex] = useState<number | null>(null);
@@ -40,7 +42,8 @@ export default function NuevoRestaurantePage() {
     });
   }, [sides]);
 
-  const addDish = () => setDishes((prev) => [...prev, { nombre: "", icono: "" }]);
+  const addDish = () =>
+    setDishes((prev) => [...prev, { nombre: "", icono: "", variantes: "" }]);
 
   const updateDish = (i: number, field: keyof DishForm, value: string) => {
     setDishes((prev) => {
@@ -92,6 +95,12 @@ export default function NuevoRestaurantePage() {
     const platos: DishOption[] = dishes.map((d, i) => ({
       nombre: d.nombre,
       icono: d.icono || "🍽️",
+      variantes: d.variantes
+        ? d.variantes
+            .split(",")
+            .map((v) => v.trim())
+            .filter(Boolean)
+        : [],
       guarniciones:
         dishSides[i]?.enabled
           ? Array.from(dishSides[i].sides).map((idx) => ({
@@ -163,6 +172,13 @@ export default function NuevoRestaurantePage() {
                     )}
                   </div>
                 </div>
+                <input
+                  type="text"
+                  value={d.variantes}
+                  onChange={(e) => updateDish(i, "variantes", e.target.value)}
+                  placeholder="Variantes (separadas por coma)"
+                  className="w-full border rounded p-2 mt-2"
+                />
               </CardContent>
             </Card>
           ))}

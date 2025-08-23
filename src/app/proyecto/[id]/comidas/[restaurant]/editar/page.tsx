@@ -21,7 +21,7 @@ import { toast } from "react-hot-toast";
 
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), { ssr: false });
 
-type DishForm = { nombre: string; icono: string };
+type DishForm = { nombre: string; icono: string; variantes: string };
 type SideForm = { nombre: string; variantes: string; multiple: boolean };
 type DishSides = { enabled: boolean; sides: Set<number> };
 
@@ -33,7 +33,9 @@ export default function EditarRestaurantePage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [nombre, setNombre] = useState("");
-  const [dishes, setDishes] = useState<DishForm[]>([{ nombre: "", icono: "" }]);
+  const [dishes, setDishes] = useState<DishForm[]>([
+    { nombre: "", icono: "", variantes: "" },
+  ]);
   const [sides, setSides] = useState<SideForm[]>([]);
   const [dishSides, setDishSides] = useState<Record<number, DishSides>>({});
   const [pickerIndex, setPickerIndex] = useState<number | null>(null);
@@ -43,7 +45,13 @@ export default function EditarRestaurantePage() {
     getRestaurant(restaurantId)
       .then((r) => {
         setNombre(r.nombre);
-        setDishes(r.platos.map((p) => ({ nombre: p.nombre, icono: p.icono })));
+        setDishes(
+          r.platos.map((p) => ({
+            nombre: p.nombre,
+            icono: p.icono,
+            variantes: p.variantes?.join(", ") || "",
+          }))
+        );
         const sideList: SideForm[] = [];
         const sideMap = new Map<string, number>();
         const ds: Record<number, DishSides> = {};
@@ -71,7 +79,7 @@ export default function EditarRestaurantePage() {
   }, [restaurantId]);
 
   const addDish = () =>
-    setDishes((prev) => [...prev, { nombre: "", icono: "" }]);
+    setDishes((prev) => [...prev, { nombre: "", icono: "", variantes: "" }]);
 
   const updateDish = (i: number, field: keyof DishForm, value: string) => {
     setDishes((prev) => {
@@ -123,6 +131,12 @@ export default function EditarRestaurantePage() {
     const platos: DishOption[] = dishes.map((d, i) => ({
       nombre: d.nombre,
       icono: d.icono || "🍽️",
+      variantes: d.variantes
+        ? d.variantes
+            .split(",")
+            .map((v) => v.trim())
+            .filter(Boolean)
+        : [],
       guarniciones:
         dishSides[i]?.enabled
           ? Array.from(dishSides[i].sides).map((idx) => ({
@@ -164,39 +178,48 @@ export default function EditarRestaurantePage() {
           </Card>
           {dishes.map((d, i) => (
             <Card key={i}>
-              <CardContent className="flex items-center gap-2">
+              <CardContent>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={d.nombre}
+                    onChange={(e) => updateDish(i, "nombre", e.target.value)}
+                    placeholder="Plato principal"
+                    className="flex-1 border rounded p-2"
+                  />
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setPickerIndex((p) => (p === i ? null : i))}
+                      className="border rounded p-2 min-w-12"
+                    >
+                      {d.icono || "🍽️"}
+                    </button>
+                    {pickerIndex === i && (
+                      <div className="absolute z-10 mt-2 overflow-x-auto">
+                        <div className="min-w-[352px]">
+                          <EmojiPicker
+                            lazyLoadEmojis
+                            categories={[
+                              { category: Categories.FOOD_DRINK, name: "Food & Drink" },
+                            ]}
+                            onEmojiClick={(e) => {
+                              updateDish(i, "icono", e.emoji);
+                              setPickerIndex(null);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <input
                   type="text"
-                  value={d.nombre}
-                  onChange={(e) => updateDish(i, "nombre", e.target.value)}
-                  placeholder="Plato principal"
-                  className="flex-1 border rounded p-2"
+                  value={d.variantes}
+                  onChange={(e) => updateDish(i, "variantes", e.target.value)}
+                  placeholder="Variantes (separadas por coma)"
+                  className="w-full border rounded p-2 mt-2"
                 />
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setPickerIndex((p) => (p === i ? null : i))}
-                    className="border rounded p-2 min-w-12"
-                  >
-                    {d.icono || "🍽️"}
-                  </button>
-                  {pickerIndex === i && (
-                    <div className="absolute z-10 mt-2 overflow-x-auto">
-                      <div className="min-w-[352px]">
-                        <EmojiPicker
-                          lazyLoadEmojis
-                          categories={[
-                            { category: Categories.FOOD_DRINK, name: "Food & Drink" },
-                          ]}
-                          onEmojiClick={(e) => {
-                            updateDish(i, "icono", e.emoji);
-                            setPickerIndex(null);
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
               </CardContent>
             </Card>
           ))}
