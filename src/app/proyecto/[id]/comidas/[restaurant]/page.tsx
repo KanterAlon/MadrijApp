@@ -135,8 +135,10 @@ export default function RestaurantOrderPage() {
   const selectedDish = platos.find((p) => p.nombre === form.plato);
   const sides = selectedDish?.guarniciones || [];
   const selectedSide = sides.find((s) => s.nombre === form.guarnicion);
-  const variantes = selectedSide?.variantes || [];
-  const multiple = selectedSide?.multiple;
+  const dishVariants = selectedDish?.variantes || [];
+  const sideVariants = selectedSide?.variantes || [];
+  const variantes = sideVariants.length > 0 ? sideVariants : dishVariants;
+  const multiple = sideVariants.length > 0 ? selectedSide?.multiple : false;
 
   return (
     <div className="space-y-6">

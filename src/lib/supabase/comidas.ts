@@ -9,6 +9,7 @@ export interface SideOption {
 export interface DishOption {
   nombre: string;
   icono: string;
+  variantes?: string[];
   guarniciones?: SideOption[];
 }
 
