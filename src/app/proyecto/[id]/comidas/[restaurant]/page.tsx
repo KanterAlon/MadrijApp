@@ -18,8 +18,9 @@ import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
 interface ItemForm {
   plato: string;
   guarnicion?: string;
-  variante?: string;
-  variantes: string[];
+  variantePlato?: string;
+  varianteGuarnicion?: string;
+  variantesGuarnicion: string[];
   pedido_por: string;
 }
 
@@ -36,8 +37,9 @@ export default function RestaurantOrderPage() {
   const [form, setForm] = useState<ItemForm>({
     plato: "",
     guarnicion: "",
-    variante: "",
-    variantes: [],
+    variantePlato: "",
+    varianteGuarnicion: "",
+    variantesGuarnicion: [],
     pedido_por: "",
   });
   const [isCustom, setIsCustom] = useState(false);
@@ -110,7 +112,11 @@ export default function RestaurantOrderPage() {
   const agregarItem = async () => {
     if (!orderId) return;
     if (!form.plato || !form.pedido_por) return;
-    const variant = multiple ? form.variantes.join(", ") : form.variante;
+    const sideVariant = multiple
+      ? form.variantesGuarnicion.join(", ")
+      : form.varianteGuarnicion;
+    const variantParts = [form.variantePlato, sideVariant].filter(Boolean);
+    const variant = variantParts.join(" - ");
     addOrderItem(orderId, {
       plato: form.plato,
       guarnicion: form.guarnicion,
@@ -122,8 +128,9 @@ export default function RestaurantOrderPage() {
         setForm({
           plato: "",
           guarnicion: "",
-          variante: "",
-          variantes: [],
+          variantePlato: "",
+          varianteGuarnicion: "",
+          variantesGuarnicion: [],
           pedido_por: "",
         });
         toast.success("Agregado");
@@ -137,7 +144,6 @@ export default function RestaurantOrderPage() {
   const selectedSide = sides.find((s) => s.nombre === form.guarnicion);
   const dishVariants = selectedDish?.variantes || [];
   const sideVariants = selectedSide?.variantes || [];
-  const variantes = sideVariants.length > 0 ? sideVariants : dishVariants;
   const multiple = sideVariants.length > 0 ? selectedSide?.multiple : false;
 
   return (
@@ -155,8 +161,9 @@ export default function RestaurantOrderPage() {
                 ...f,
                 plato: e.target.value,
                 guarnicion: "",
-                variante: "",
-                variantes: [],
+                variantePlato: "",
+                varianteGuarnicion: "",
+                variantesGuarnicion: [],
               }))
             }
             className="border rounded p-2 flex-1"
@@ -175,8 +182,8 @@ export default function RestaurantOrderPage() {
                 setForm((f) => ({
                   ...f,
                   guarnicion: e.target.value,
-                  variante: "",
-                  variantes: [],
+                  varianteGuarnicion: "",
+                  variantesGuarnicion: [],
                 }))
               }
               className="border rounded p-2 flex-1"
@@ -189,35 +196,51 @@ export default function RestaurantOrderPage() {
               ))}
             </select>
           )}
-          {variantes.length > 0 && !multiple && (
+          {dishVariants.length > 0 && (
             <select
-              value={form.variante}
+              value={form.variantePlato}
               onChange={(e) =>
-                setForm((f) => ({ ...f, variante: e.target.value }))
+                setForm((f) => ({ ...f, variantePlato: e.target.value }))
               }
               className="border rounded p-2 flex-1"
             >
-              <option value="">Variante</option>
-              {variantes.map((v) => (
+              <option value="">Variante del plato</option>
+              {dishVariants.map((v) => (
                 <option key={v} value={v}>
                   {v}
                 </option>
               ))}
             </select>
           )}
-          {variantes.length > 0 && multiple && (
+          {sideVariants.length > 0 && !multiple && (
+            <select
+              value={form.varianteGuarnicion}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, varianteGuarnicion: e.target.value }))
+              }
+              className="border rounded p-2 flex-1"
+            >
+              <option value="">Variante de la guarnición</option>
+              {sideVariants.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          )}
+          {sideVariants.length > 0 && multiple && (
             <div className="flex flex-wrap gap-2 flex-1">
-              {variantes.map((v) => (
+              {sideVariants.map((v) => (
                 <label key={v} className="flex items-center gap-2">
                   <input
                     type="checkbox"
-                    checked={form.variantes?.includes(v) || false}
+                    checked={form.variantesGuarnicion?.includes(v) || false}
                     onChange={(e) =>
                       setForm((f) => {
-                        const set = new Set(f.variantes);
+                        const set = new Set(f.variantesGuarnicion);
                         if (e.target.checked) set.add(v);
                         else set.delete(v);
-                        return { ...f, variantes: Array.from(set) };
+                        return { ...f, variantesGuarnicion: Array.from(set) };
                       })
                     }
                   />
