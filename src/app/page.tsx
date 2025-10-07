@@ -4,7 +4,7 @@ import { SignInButton, useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Loader from "@/components/ui/loader";
-import { CalendarCheck, Group, LayoutDashboard, LogIn } from "lucide-react";
+import { CalendarCheck, Group, LayoutDashboard, LogIn, Wrench } from "lucide-react";
 import Button from "@/components/ui/button";
 
 export default function HomePage() {
@@ -42,6 +42,11 @@ export default function HomePage() {
       title: "Todo en un lugar",
       desc: "Centraliza la información de forma segura.",
     },
+    {
+      icon: Wrench,
+      title: "Herramientas institucionales",
+      desc: "Encontrá datos clave de tus janijim y accesos rápidos.",
+    },
   ];
 
   return (
@@ -51,7 +56,7 @@ export default function HomePage() {
       <SignInButton mode="modal" withSignUp forceRedirectUrl="/dashboard" signUpForceRedirectUrl="/dashboard">
         <Button icon={<LogIn className="w-4 h-4" />}>Iniciar sesión</Button>
       </SignInButton>
-      <section className="mt-12 grid gap-6 w-full max-w-5xl mx-auto sm:grid-cols-2 md:grid-cols-3">
+      <section className="mt-12 grid gap-6 w-full max-w-5xl mx-auto sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {features.map(({ icon: Icon, title, desc }) => (
           <div
             key={title}
