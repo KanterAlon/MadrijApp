@@ -20,25 +20,43 @@ export default function NuevoProyectoPage() {
     setCreating(true);
     // Use the imported supabase client directly
 
-    // 1. Crear proyecto
-    const { data: proyecto, error: e1 } = await supabase
-      .from("proyectos")
-      .insert({ nombre, creador_id: user.id })
-      .select()
-      .single();
-
-    if (e1) {
-      toast.error("Error creando proyecto");
+    const nombreProyecto = nombre.trim();
+    if (!nombreProyecto) {
+      toast.error("Ingresá un nombre válido");
+      setCreating(false);
       return;
     }
 
-    // 2. Insertar relación con madrijim_proyectos
-    const { error: e2 } = await supabase
-      .from("madrijim_proyectos")
-      .insert({ proyecto_id: proyecto.id, madrij_id: user.id, rol: "creador", invitado: false });
+    const { data: grupo, error: groupError } = await supabase
+      .from("grupos")
+      .insert({ nombre: nombreProyecto })
+      .select()
+      .single();
 
-    if (e2) {
-      toast.error("Error asignando proyecto");
+    if (groupError || !grupo) {
+      toast.error("Error creando grupo");
+      setCreating(false);
+      return;
+    }
+
+    const { data: proyecto, error: e1 } = await supabase
+      .from("proyectos")
+      .insert({ nombre: nombreProyecto, creador_id: user.id, grupo_id: grupo.id })
+      .select()
+      .single();
+
+    if (e1 || !proyecto) {
+      toast.error("Error creando proyecto");
+      setCreating(false);
+      return;
+    }
+
+    const { error: e2 } = await supabase
+      .from("madrijim_grupos")
+      .insert({ grupo_id: grupo.id, madrij_id: user.id, rol: "creador", invitado: false });
+
+    if (e2 && e2.code !== "23505") {
+      toast.error("Error asignando grupo");
       setCreating(false);
       return;
     }

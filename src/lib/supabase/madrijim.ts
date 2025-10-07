@@ -1,10 +1,13 @@
 import { supabase } from "@/lib/supabase";
+import { getGrupoIdForProyecto } from "./projects";
 
 export async function getMadrijimPorProyecto(proyectoId: string) {
+  const grupoId = await getGrupoIdForProyecto(proyectoId);
+
   const { data: relaciones, error } = await supabase
-    .from("madrijim_proyectos")
+    .from("madrijim_grupos")
     .select("madrij_id")
-    .eq("proyecto_id", proyectoId)
+    .eq("grupo_id", grupoId)
     .eq("invitado", false);
   if (error) throw error;
   const ids = relaciones.map((r) => r.madrij_id);

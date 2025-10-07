@@ -21,7 +21,7 @@ export default function UnirseProyectoPage() {
 
     const { data: proyecto, error } = await supabase
       .from("proyectos")
-      .select("id")
+      .select("id, grupo_id")
       .eq("codigo_invite", codigo)
       .single();
 
@@ -32,8 +32,8 @@ export default function UnirseProyectoPage() {
     }
 
     const { error: e2 } = await supabase
-      .from("madrijim_proyectos")
-      .insert({ proyecto_id: proyecto.id, madrij_id: user.id, invitado: false });
+      .from("madrijim_grupos")
+      .insert({ grupo_id: proyecto.grupo_id, madrij_id: user.id, invitado: false });
 
     if (e2 && e2.code !== "23505") {
       toast.error("Error uniéndose al proyecto");

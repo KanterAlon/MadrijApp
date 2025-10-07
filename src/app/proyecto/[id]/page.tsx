@@ -21,27 +21,16 @@ export default async function ProyectoHome({ params }: PageProps) {
     redirect("/");
   }
 
-  const { data: relacion, error: errorRelacion } = await supabase
-    .from("madrijim_proyectos")
-    .select("*")
-    .eq("proyecto_id", proyectoId)
-    .eq("madrij_id", userId)
-    .single();
-
-  if (!relacion || errorRelacion) {
-    redirect("/dashboard");
-  }
-
   let { data: proyecto, error: errorProyecto } = await supabase
     .from("proyectos")
-    .select("nombre, codigo_invite")
+    .select("nombre, codigo_invite, grupo_id")
     .eq("id", proyectoId)
     .single();
 
   if (errorProyecto && errorProyecto.code === "42703") {
     const res = await supabase
       .from("proyectos")
-      .select("nombre")
+      .select("nombre, grupo_id")
       .eq("id", proyectoId)
       .single();
     proyecto = res.data ? { ...res.data, codigo_invite: null } : null;
@@ -51,6 +40,17 @@ export default async function ProyectoHome({ params }: PageProps) {
   if (!proyecto || errorProyecto) {
     console.error("Error cargando el proyecto", errorProyecto);
     notFound();
+  }
+
+  const { data: relacion, error: errorRelacion } = await supabase
+    .from("madrijim_grupos")
+    .select("id")
+    .eq("grupo_id", proyecto.grupo_id)
+    .eq("madrij_id", userId)
+    .single();
+
+  if (!relacion || errorRelacion) {
+    redirect("/dashboard");
   }
 
   const madrijim = await getMadrijimPorProyecto(proyectoId);
