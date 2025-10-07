@@ -33,7 +33,13 @@ export default function UnirseProyectoPage() {
 
     const { error: e2 } = await supabase
       .from("madrijim_grupos")
-      .insert({ grupo_id: proyecto.grupo_id, madrij_id: user.id, invitado: false });
+      .insert({
+        grupo_id: proyecto.grupo_id,
+        madrij_id: user.id,
+        invitado: false,
+        activo: true,
+        rol: "miembro",
+      });
 
     if (e2 && e2.code !== "23505") {
       toast.error("Error uniéndose al proyecto");

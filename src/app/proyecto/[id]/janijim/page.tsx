@@ -279,7 +279,7 @@ export default function JanijimPage() {
   ) => {
     if (!ensureWritable()) return;
     try {
-      await updateJanij(id, { nombre });
+      await updateJanij(proyectoId, id, { nombre });
       setJanijim((prev) =>
         prev.map((j) => (j.id === id ? { ...j, nombre } : j)),
       );
@@ -322,7 +322,7 @@ export default function JanijimPage() {
       tel_padre: editTelPadre.trim() || null,
     };
     try {
-      await updateJanij(detailJanij.id, data);
+      await updateJanij(proyectoId, detailJanij.id, data);
       setJanijim((prev) =>
         prev.map((j) => (j.id === detailJanij.id ? { ...j, ...data } : j)),
       );
