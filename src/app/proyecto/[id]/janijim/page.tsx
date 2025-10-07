@@ -320,7 +320,16 @@ export default function JanijimPage() {
       toast.error(fallbackMsg);
       return;
     }
-    const url = `tel:${sanitized.replace(/[^+\d]/g, "")}`;
+    const cleanNumber = sanitized.replace(/[^+\d]/g, "");
+    const digitsOnly = cleanNumber.startsWith("+")
+      ? cleanNumber.slice(1)
+      : cleanNumber;
+    if (!digitsOnly) {
+      toast.error(fallbackMsg);
+      return;
+    }
+    const PRIVATE_CALL_PREFIX = "#31#";
+    const url = `tel:${PRIVATE_CALL_PREFIX}${digitsOnly}`;
     window.location.assign(url);
   };
 
