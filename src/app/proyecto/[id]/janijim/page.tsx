@@ -339,16 +339,25 @@ export default function JanijimPage() {
       toast.error(fallbackMsg);
       return;
     }
+
     const cleanNumber = sanitized.replace(/[^+\d]/g, "");
-    const digitsOnly = cleanNumber.startsWith("+")
-      ? cleanNumber.slice(1)
-      : cleanNumber;
-    if (!digitsOnly) {
+    if (!cleanNumber) {
       toast.error(fallbackMsg);
       return;
     }
+
+    const normalized = cleanNumber.startsWith("+")
+      ? `+${cleanNumber.slice(1).replace(/\+/g, "")}`
+      : cleanNumber.replace(/\+/g, "");
+
+    if (!normalized || normalized === "+") {
+      toast.error(fallbackMsg);
+      return;
+    }
+
     const PRIVATE_CALL_PREFIX = "#31#";
-    const url = `tel:${PRIVATE_CALL_PREFIX}${digitsOnly}`;
+    const callSequence = `${PRIVATE_CALL_PREFIX}${normalized}`;
+    const url = `tel:${encodeURIComponent(callSequence)}`;
     window.location.assign(url);
   };
 
