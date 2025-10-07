@@ -81,8 +81,23 @@ export async function addJanijim(proyectoId: string, items: JanijData[]) {
   return data;
 }
 
-export async function updateJanij(id: string, data: Partial<JanijData>) {
-  const { error } = await supabase.from("janijim").update(data).eq("id", id);
+export async function updateJanij(
+  proyectoId: string,
+  id: string,
+  data: Partial<JanijData>,
+) {
+  const grupoId = await getGrupoIdForProyecto(proyectoId);
+
+  const payload = {
+    ...data,
+    proyecto_id: proyectoId,
+    grupo_id: grupoId,
+  };
+
+  const { error } = await supabase
+    .from("janijim")
+    .update(payload)
+    .eq("id", id);
   if (error) throw error;
 }
 

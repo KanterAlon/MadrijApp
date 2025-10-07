@@ -47,6 +47,7 @@ export default async function ProyectoHome({ params }: PageProps) {
     .select("id")
     .eq("grupo_id", proyecto.grupo_id)
     .eq("madrij_id", userId)
+    .eq("activo", true)
     .single();
 
   if (!relacion || errorRelacion) {

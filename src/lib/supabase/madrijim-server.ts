@@ -9,7 +9,8 @@ export async function getMadrijimPorProyecto(proyectoId: string) {
     .from("madrijim_grupos")
     .select("madrij_id")
     .eq("grupo_id", grupoId)
-    .eq("invitado", false);
+    .eq("invitado", false)
+    .eq("activo", true);
 
   if (error) throw error;
 

@@ -301,9 +301,7 @@ export async function POST(
 
     const { data: grupo, error: grupoError } = await supabase
       .from("grupos")
-      .select(
-        "id, proyecto_id, spreadsheet_id, janij_sheet, madrij_sheet",
-      )
+      .select("id, spreadsheet_id, janij_sheet, madrij_sheet")
       .eq("id", grupoId)
       .maybeSingle();
 
@@ -311,11 +309,24 @@ export async function POST(
       return NextResponse.json({ error: "Grupo no encontrado" }, { status: 404 });
     }
 
-    const { data: membership } = await supabase
-      .from("madrijim_proyectos")
+    const { data: proyecto, error: proyectoError } = await supabase
+      .from("proyectos")
       .select("id")
-      .eq("proyecto_id", grupo.proyecto_id)
+      .eq("grupo_id", grupoId)
+      .maybeSingle();
+
+    if (proyectoError || !proyecto) {
+      return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
+    }
+
+    const proyectoId = proyecto.id;
+
+    const { data: membership } = await supabase
+      .from("madrijim_grupos")
+      .select("id")
+      .eq("grupo_id", grupoId)
       .eq("madrij_id", userId)
+      .eq("activo", true)
       .maybeSingle();
 
     if (!membership) {
@@ -342,7 +353,7 @@ export async function POST(
     const { data: existingJanij, error: existingJanijError } = await supabase
       .from("janijim")
       .select("id, nombre, activo")
-      .eq("proyecto_id", grupo.proyecto_id);
+      .eq("grupo_id", grupoId);
     if (existingJanijError) throw existingJanijError;
 
     const janijMap = new Map(
@@ -352,6 +363,8 @@ export async function POST(
     const janijSeen = new Set<string>();
     const janijUpdates: {
       id: string;
+      proyecto_id: string;
+      grupo_id: string;
       nombre: string;
       dni: string | null;
       numero_socio: string | null;
@@ -362,6 +375,7 @@ export async function POST(
     }[] = [];
     const janijInserts: {
       proyecto_id: string;
+      grupo_id: string;
       nombre: string;
       dni: string | null;
       numero_socio: string | null;
@@ -378,6 +392,8 @@ export async function POST(
       if (existing) {
         janijUpdates.push({
           id: existing.id,
+          proyecto_id: proyectoId,
+          grupo_id: grupoId,
           nombre: row.nombre,
           dni: row.dni,
           numero_socio: row.numero_socio,
@@ -388,7 +404,8 @@ export async function POST(
         });
       } else {
         janijInserts.push({
-          proyecto_id: grupo.proyecto_id,
+          proyecto_id: proyectoId,
+          grupo_id: grupoId,
           nombre: row.nombre,
           dni: row.dni,
           numero_socio: row.numero_socio,
