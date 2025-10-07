@@ -17,6 +17,7 @@ type Proyecto = {
   id: string;
   nombre: string;
   creador_id: string;
+  grupo_id: string;
 };
 
 export default function DashboardPage() {

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getGrupoIdForProyecto } from "./projects";
 
 export type JanijData = {
   /** Nombre y apellido del janij */
@@ -12,12 +13,14 @@ export type JanijData = {
 };
 
 export async function getJanijim(proyectoId: string) {
+  const grupoId = await getGrupoIdForProyecto(proyectoId);
+
   const { data, error } = await supabase
     .from("janijim")
     .select(
       "id, nombre, dni, numero_socio, grupo, tel_madre, tel_padre, extras",
     )
-    .eq("proyecto_id", proyectoId)
+    .eq("grupo_id", grupoId)
     .eq("activo", true)
     .order("nombre", { ascending: true });
   if (error) throw error;
@@ -25,7 +28,13 @@ export async function getJanijim(proyectoId: string) {
 }
 
 export async function addJanijim(proyectoId: string, items: JanijData[]) {
-  const payload = items.map((item) => ({ ...item, proyecto_id: proyectoId }));
+  const grupoId = await getGrupoIdForProyecto(proyectoId);
+
+  const payload = items.map((item) => ({
+    ...item,
+    proyecto_id: proyectoId,
+    grupo_id: grupoId,
+  }));
   const { data, error } = await supabase
     .from("janijim")
     .insert(payload)

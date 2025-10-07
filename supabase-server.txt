@@ -70,10 +70,20 @@ CREATE TABLE public.items_llevar (
   CONSTRAINT items_llevar_pkey PRIMARY KEY (id),
   CONSTRAINT items_llevar_proyecto_id_fkey FOREIGN KEY (proyecto_id) REFERENCES public.proyectos(id)
 );
+CREATE TABLE public.grupos (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  nombre text NOT NULL,
+  spreadsheet_id text,
+  janij_sheet text,
+  madrij_sheet text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT grupos_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.janijim (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   nombre text NOT NULL,
   proyecto_id uuid,
+  grupo_id uuid NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   activo boolean DEFAULT true,
   dni text,
@@ -83,8 +93,10 @@ CREATE TABLE public.janijim (
   tel_padre text,
   extras jsonb DEFAULT '{}'::jsonb,
   CONSTRAINT janijim_pkey PRIMARY KEY (id),
-  CONSTRAINT janijim_proyecto_id_fkey FOREIGN KEY (proyecto_id) REFERENCES public.proyectos(id)
+  CONSTRAINT janijim_proyecto_id_fkey FOREIGN KEY (proyecto_id) REFERENCES public.proyectos(id),
+  CONSTRAINT janijim_grupo_id_fkey FOREIGN KEY (grupo_id) REFERENCES public.grupos(id) ON DELETE CASCADE
 );
+CREATE INDEX janijim_grupo_id_idx ON public.janijim USING btree (grupo_id);
 CREATE TABLE public.madrijim (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   clerk_id text NOT NULL UNIQUE,
@@ -93,16 +105,17 @@ CREATE TABLE public.madrijim (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT madrijim_pkey PRIMARY KEY (id)
 );
-CREATE TABLE public.madrijim_proyectos (
+CREATE TABLE public.madrijim_grupos (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  proyecto_id uuid,
+  grupo_id uuid NOT NULL,
   madrij_id text NOT NULL,
   rol text DEFAULT 'miembro'::text,
   invitado boolean DEFAULT true,
   created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT madrijim_proyectos_pkey PRIMARY KEY (id),
-  CONSTRAINT madrijim_proyectos_proyecto_id_fkey FOREIGN KEY (proyecto_id) REFERENCES public.proyectos(id)
+  CONSTRAINT madrijim_grupos_pkey PRIMARY KEY (id),
+  CONSTRAINT madrijim_grupos_grupo_id_fkey FOREIGN KEY (grupo_id) REFERENCES public.grupos(id) ON DELETE CASCADE
 );
+CREATE UNIQUE INDEX madrijim_grupos_unique ON public.madrijim_grupos USING btree (grupo_id, madrij_id);
 CREATE TABLE public.material_lists (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   proyecto_id uuid,
@@ -143,10 +156,12 @@ CREATE TABLE public.materiales (
 CREATE TABLE public.proyectos (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   nombre text NOT NULL,
+  grupo_id uuid NOT NULL,
   creador_id text NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   codigo_invite uuid DEFAULT uuid_generate_v4() UNIQUE,
-  CONSTRAINT proyectos_pkey PRIMARY KEY (id)
+  CONSTRAINT proyectos_pkey PRIMARY KEY (id),
+  CONSTRAINT proyectos_grupo_id_fkey FOREIGN KEY (grupo_id) REFERENCES public.grupos(id) ON DELETE RESTRICT
 );
 CREATE TABLE public.restaurants (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
