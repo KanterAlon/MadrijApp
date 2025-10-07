@@ -13,7 +13,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { UserButton } from "@clerk/nextjs";
-import { navigationLinks as links } from "@/lib/navigationLinks";
+import {
+  dashboardNavigationLinks,
+  projectNavigationLinks,
+  type NavigationLink,
+} from "@/lib/navigationLinks";
 
 type MobileMenuProps = {
   proyectoId: string;
@@ -22,7 +26,7 @@ type MobileMenuProps = {
 export default function MobileMenu({ proyectoId }: MobileMenuProps) {
   const pathname = usePathname();
 
-  const renderLink = ({ href, label, icon: Icon }: (typeof links)[number]) => {
+  const renderLink = ({ href, label, icon: Icon }: NavigationLink) => {
     const fullPath = href.startsWith("/")
       ? href
       : href
@@ -34,7 +38,7 @@ export default function MobileMenu({ proyectoId }: MobileMenuProps) {
       : pathname === fullPath || pathname.startsWith(fullPath + "/");
 
     return (
-      <SheetClose asChild>
+      <SheetClose asChild key={href}>
         <Link
           href={fullPath}
           aria-current={isActive ? "page" : undefined}
@@ -69,8 +73,18 @@ export default function MobileMenu({ proyectoId }: MobileMenuProps) {
             </SheetDescription>
 
             <nav className="space-y-2 mt-6">
-              {links.map(renderLink)}
+              {projectNavigationLinks.map(renderLink)}
             </nav>
+            <div className="mt-6 border-t pt-4">
+              <p className="text-xs font-semibold uppercase text-gray-500">
+                Herramientas institucionales
+              </p>
+              <div className="mt-2 space-y-2">
+                {dashboardNavigationLinks
+                  .filter((link) => link.href !== "/dashboard")
+                  .map((link) => renderLink(link))}
+              </div>
+            </div>
           </SheetContent>
         </Sheet>
         <h1 className="text-lg font-bold text-blue-800">MadrijApp</h1>

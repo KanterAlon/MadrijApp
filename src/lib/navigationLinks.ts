@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   FolderKanban,
   Utensils,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
 
@@ -19,8 +20,7 @@ export interface NavigationLink {
   icon?: LucideIcon;
 }
 
-export const navigationLinks: NavigationLink[] = [
-  { href: "/dashboard", label: "Mis Proyectos", icon: LayoutDashboard },
+export const projectNavigationLinks: NavigationLink[] = [
   { href: "", label: "Inicio", icon: Home },
   { href: "janijim", label: "Janijim", icon: ClipboardList },
   { href: "materiales", label: "Materiales", icon: FolderKanban },
@@ -32,3 +32,15 @@ export const navigationLinks: NavigationLink[] = [
   { href: "comidas", label: "Comidas", icon: Utensils },
   { href: "chatbot", label: "Chatbot", icon: Bot },
 ];
+
+export const dashboardNavigationLinks: NavigationLink[] = [
+  { href: "/dashboard", label: "Mis Proyectos", icon: LayoutDashboard },
+  {
+    href: "/dashboard/herramientas",
+    label: "Herramientas institucionales",
+    icon: Wrench,
+  },
+  { href: "/dashboard/tareas", label: "Mis tareas", icon: CheckSquare },
+];
+
+export const navigationLinks = projectNavigationLinks;

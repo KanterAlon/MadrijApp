@@ -4,12 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { UserButton } from "@clerk/nextjs";
-import { navigationLinks as links } from "@/lib/navigationLinks";
+import {
+  dashboardNavigationLinks,
+  projectNavigationLinks,
+  type NavigationLink,
+} from "@/lib/navigationLinks";
 
 export default function Sidebar({ proyectoId }: { proyectoId: string }) {
   const pathname = usePathname();
 
-  const renderLink = ({ href, label, icon: Icon }: (typeof links)[number]) => {
+  const renderLink = ({ href, label, icon: Icon }: NavigationLink) => {
     const fullPath = href.startsWith("/")
       ? href
       : href
@@ -41,7 +45,17 @@ export default function Sidebar({ proyectoId }: { proyectoId: string }) {
   return (
     <aside className="hidden md:flex w-64 bg-white border-r p-4 flex-col">
       <nav className="space-y-2 flex-1">
-        {links.map(renderLink)}
+        {projectNavigationLinks.map(renderLink)}
+        <div className="pt-4 mt-4 border-t">
+          <p className="px-4 text-xs font-semibold uppercase text-gray-500">
+            Herramientas institucionales
+          </p>
+          <div className="mt-2 space-y-2">
+            {dashboardNavigationLinks
+              .filter((link) => link.href !== "/dashboard")
+              .map((link) => renderLink(link))}
+          </div>
+        </div>
       </nav>
       <div className="pt-4 mt-4 border-t">
         <UserButton afterSignOutUrl="/" />

@@ -1,7 +1,7 @@
 "use client";
 import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
-import { CheckSquare } from "lucide-react";
+import { CheckSquare, Wrench } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -9,13 +9,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <header className="p-4 border-b flex justify-between items-center">
         <div className="flex items-center gap-4">
           <h2 className="font-semibold text-xl">Mis Proyectos</h2>
-          <Link
-            href="/dashboard/tareas"
-            className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-          >
-            <CheckSquare className="w-4 h-4" />
-            Mis tareas
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/dashboard/herramientas"
+              className="inline-flex items-center gap-1 rounded-md border border-blue-200 px-3 py-1 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-50"
+            >
+              <Wrench className="w-4 h-4" />
+              Herramientas
+            </Link>
+            <Link
+              href="/dashboard/tareas"
+              className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+            >
+              <CheckSquare className="w-4 h-4" />
+              Mis tareas
+            </Link>
+          </div>
         </div>
         <UserButton afterSignOutUrl="/" />
       </header>
