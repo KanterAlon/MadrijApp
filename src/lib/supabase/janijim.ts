@@ -144,7 +144,7 @@ export async function searchJanijimGlobal(query: string) {
     throw error;
   }
 
-  const rows = (data ?? []) as RawJanijSearchRow[];
+  const rows = ((Array.isArray(data) ? data : []) as unknown) as RawJanijSearchRow[];
 
   return rows.map<JanijSearchResult>((row) => {
     const responsables = Array.isArray(row.grupo_rel?.madrijim_grupos)

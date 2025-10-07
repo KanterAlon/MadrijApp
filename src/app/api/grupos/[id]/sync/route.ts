@@ -63,6 +63,13 @@ type SyncedMadrij = {
   rol: string | null;
 };
 
+type MadrijGrupoRow = {
+  id: string;
+  madrij_id: string | null;
+  email: string | null;
+  activo: boolean | null;
+};
+
 function normalizeKey(value: string) {
   return removeAccents(value).trim().toLowerCase();
 }
@@ -190,17 +197,22 @@ async function syncMadrijim(grupoId: string, rows: SyncedMadrij[]) {
     .eq("grupo_id", grupoId);
   if (existingMadError) throw existingMadError;
 
+  const madRows = (existingMad ?? []) as MadrijGrupoRow[];
+
   const madKey = (entry: { madrij_id: string | null; email: string | null }) => {
     if (entry.madrij_id) return `id:${normalizeKey(entry.madrij_id)}`;
     if (entry.email) return `mail:${normalizeKey(entry.email)}`;
     return "";
   };
 
-  const madMap = new Map(
-    (existingMad || [])
-      .map((row) => [madKey(row), row])
-      .filter(([key]) => key !== ""),
-  );
+  const madEntries = madRows
+    .map((row) => {
+      const key = madKey(row);
+      return key ? ([key, row] as const) : null;
+    })
+    .filter((entry): entry is readonly [string, MadrijGrupoRow] => entry !== null);
+
+  const madMap = new Map(madEntries);
 
   const madSeen = new Set<string>();
   const madUpdates: {
@@ -262,7 +274,7 @@ async function syncMadrijim(grupoId: string, rows: SyncedMadrij[]) {
     if (error) throw error;
   }
 
-  const madDeactivate = (existingMad || [])
+  const madDeactivate = madRows
     .filter((row) => row.activo !== false)
     .filter((row) => !madSeen.has(madKey(row)));
 
@@ -286,7 +298,7 @@ async function syncMadrijim(grupoId: string, rows: SyncedMadrij[]) {
 
 export async function POST(
   _req: Request,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const { userId } = await auth();
@@ -294,7 +306,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const grupoId = params.id;
+    const { id: grupoId } = await context.params;
     if (!grupoId) {
       return NextResponse.json({ error: "Missing grupo" }, { status: 400 });
     }
