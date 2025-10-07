@@ -23,7 +23,6 @@ import {
   ModalTitle,
 } from "@/components/ui/modal";
 import {
-  FileUp,
   Pencil,
   Trash2,
   Check,
@@ -33,6 +32,8 @@ import {
   ArrowUp,
   Eye,
   PhoneCall,
+  RefreshCcw,
+  PlusCircle,
 } from "lucide-react";
 import Button from "@/components/ui/button";
 import Skeleton from "@/components/ui/skeleton";
@@ -43,10 +44,10 @@ import {
   updateJanij,
   removeJanij,
 } from "@/lib/supabase/janijim";
-import { parseSpreadsheetFile } from "@/lib/utils";
 import { crearSesion } from "@/lib/supabase/asistencias";
 import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
 import { showError, confirmDialog } from "@/lib/alerts";
+import { getGrupoByProyecto, type Grupo } from "@/lib/supabase/grupos";
 
 
 type Janij = {
@@ -78,26 +79,8 @@ export default function JanijimPage() {
   const { id: proyectoId } = useParams<{ id: string }>();
   const { user } = useUser();
   const router = useRouter();
-  const fileInput = useRef<HTMLInputElement>(null);
-  const [columns, setColumns] = useState<string[]>([]);
-  const [rows, setRows] = useState<string[][]>([]);
   const [dupOpen, setDupOpen] = useState(false);
-  const [mappingOpen, setMappingOpen] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const attributes = [
-    { key: "nombre", label: "Nombre y apellido" },
-    { key: "dni", label: "DNI" },
-    { key: "numero_socio", label: "Número socio" },
-    { key: "grupo", label: "Grupo" },
-    { key: "tel_madre", label: "Tel. madre" },
-    { key: "tel_padre", label: "Tel. padre" },
-  ];
-  const [fieldMap, setFieldMap] = useState<Record<string, number | null>>(() =>
-    Object.fromEntries(attributes.map((a) => [a.key, null]))
-  );
   const [importOpen, setImportOpen] = useState(false);
-  const [importMode, setImportMode] =
-    useState<"chooser" | "file" | "manual">("chooser");
   const [janijim, setJanijim] = useState<Janij[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -124,6 +107,10 @@ export default function JanijimPage() {
   const [sesionMadrij, setSesionMadrij] = useState<string>("");
   const [callDialogOpen, setCallDialogOpen] = useState(false);
   const [callTarget, setCallTarget] = useState<Janij | null>(null);
+  const [grupo, setGrupo] = useState<Grupo | null>(null);
+  const [sheetManaged, setSheetManaged] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const pendingScrollId = useRef<string | null>(null);
   const normalize = (s: string) =>
     s
@@ -131,6 +118,12 @@ export default function JanijimPage() {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
       .trim();
+
+  const ensureWritable = useCallback(() => {
+    if (!sheetManaged) return true;
+    toast.error("Los datos se sincronizan desde Google Sheets y son de solo lectura");
+    return false;
+  }, [sheetManaged]);
 
   const seleccionar = useCallback(
     (id: string) => {
@@ -142,27 +135,48 @@ export default function JanijimPage() {
   );
 
   useEffect(() => {
-    if (importOpen) setImportMode("chooser");
-  }, [importOpen]);
-
-  useEffect(() => {
     const handle = () => setShowTopButton(window.scrollY > 200);
     window.addEventListener("scroll", handle);
     handle();
     return () => window.removeEventListener("scroll", handle);
   }, []);
 
-  useEffect(() => {
+  const loadJanijim = useCallback(async () => {
     setLoading(true);
-    getJanijim(proyectoId)
-      .then((data) =>
-        setJanijim(
-          data.map((j) => ({ ...j, estado: "ausente" as const }))
-        )
-      )
-      .catch((err) => console.error("Error cargando janijim", err))
-      .finally(() => setLoading(false));
+    try {
+      const data = await getJanijim(proyectoId);
+      setJanijim(data.map((j) => ({ ...j, estado: "ausente" as const })));
+    } catch (err) {
+      console.error("Error cargando janijim", err);
+    } finally {
+      setLoading(false);
+    }
   }, [proyectoId]);
+
+  useEffect(() => {
+    loadJanijim();
+  }, [loadJanijim]);
+
+  useEffect(() => {
+    let ignore = false;
+    getGrupoByProyecto(proyectoId)
+      .then((data) => {
+        if (ignore) return;
+        setGrupo(data);
+        setSheetManaged(Boolean(data?.spreadsheet_id && data?.janij_sheet));
+        setSyncMessage(null);
+      })
+      .catch((err) => console.error("Error cargando grupo", err));
+    return () => {
+      ignore = true;
+    };
+  }, [proyectoId]);
+
+  useEffect(() => {
+    if (sheetManaged) {
+      setImportOpen(false);
+    }
+  }, [sheetManaged]);
 
   useEffect(() => {
     if (!proyectoId) return;
@@ -244,6 +258,7 @@ export default function JanijimPage() {
   }, [detailJanij]);
 
   const agregar = async (nombre: string) => {
+    if (!ensureWritable()) return;
     try {
       const inserted = await addJanijim(proyectoId, [{ nombre }]);
       const nuevo: Janij = {
@@ -262,6 +277,7 @@ export default function JanijimPage() {
     id: string,
     nombre: string,
   ) => {
+    if (!ensureWritable()) return;
     try {
       await updateJanij(id, { nombre });
       setJanijim((prev) =>
@@ -274,11 +290,13 @@ export default function JanijimPage() {
   };
 
   const startEditing = (id: string, nombre: string) => {
+    if (!ensureWritable()) return;
     setEditingId(id);
     setEditName(nombre);
   };
 
   const confirmEdit = async () => {
+    if (!ensureWritable()) return;
     if (!editingId) return;
     const nombre = editName.trim();
     if (nombre === "") {
@@ -294,6 +312,7 @@ export default function JanijimPage() {
   };
 
   const saveDetail = async () => {
+    if (!ensureWritable()) return;
     if (!detailJanij) return;
     const data = {
       dni: editDni.trim() || null,
@@ -364,7 +383,35 @@ export default function JanijimPage() {
     closeCallDialog();
   };
 
+  const syncWithSheets = async () => {
+    if (!sheetManaged || !grupo?.id) {
+      toast.error("Configurá la hoja de cálculo antes de sincronizar");
+      return;
+    }
+    setSyncing(true);
+    setSyncMessage(null);
+    try {
+      const res = await fetch(`/api/grupos/${grupo.id}/sync`, { method: "POST" });
+      const payload = await res.json();
+      if (!res.ok) {
+        throw new Error(payload?.error || "Error sincronizando");
+      }
+      const summary = `Janijim → ${payload.janijim.inserted} nuevos, ${payload.janijim.updated} actualizados, ${payload.janijim.deactivated} inactivos. Madrijim → ${payload.madrijim.inserted} nuevos, ${payload.madrijim.updated} actualizados, ${payload.madrijim.deactivated} inactivos.`;
+      setSyncMessage(summary);
+      toast.success("Sincronización completada");
+      await loadJanijim();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Error sincronizando";
+      setSyncMessage(message);
+      toast.error(message);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const deleteJanij = async (id: string) => {
+    if (!ensureWritable()) return;
     if (!(await confirmDialog("¿Eliminar janij?"))) return;
     try {
       await removeJanij(id);
@@ -375,55 +422,8 @@ export default function JanijimPage() {
     }
   };
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const rows = await parseSpreadsheetFile(file);
-      setRows(rows);
-      setColumns(rows[0] || []);
-      setImportOpen(false);
-      setMappingOpen(true);
-    } catch {
-      showError("Error leyendo el archivo");
-    }
-
-    e.target.value = "";
-  };
-
-  const previewMapped = () => {
-    setMappingOpen(false);
-    setPreviewOpen(true);
-  };
-
-  const confirmMappedImport = async () => {
-    const getVal = (row: string[], key: string) => {
-      const idx = fieldMap[key];
-      return idx !== null && idx! >= 0 ? row[idx!] : undefined;
-    };
-    const data = rows.slice(1).map((r) => ({
-      nombre: getVal(r, "nombre")?.trim() || "",
-      dni: getVal(r, "dni")?.trim() || null,
-      numero_socio: getVal(r, "numero_socio")?.trim() || null,
-      grupo: getVal(r, "grupo")?.trim() || null,
-      tel_madre: getVal(r, "tel_madre")?.trim() || null,
-      tel_padre: getVal(r, "tel_padre")?.trim() || null,
-    }));
-    try {
-      const inserted = await addJanijim(proyectoId, data);
-      setJanijim((prev) => [
-        ...prev,
-        ...inserted.map((j) => ({ ...j, estado: "ausente" as const })),
-      ]);
-      toast.success("Janijim importados correctamente");
-    } catch {
-      showError("Error importando janijim");
-    }
-    setPreviewOpen(false);
-  };
-
   const importFromText = () => {
+    if (!ensureWritable()) return;
     const names = importText
       .split("\n")
       .map((n) => n.trim())
@@ -451,6 +451,7 @@ export default function JanijimPage() {
   };
 
   const confirmImport = async () => {
+    if (!ensureWritable()) return;
     const namesToAdd = [...uniqueNames, ...selectedDupes];
     if (namesToAdd.length === 0) {
       setDupOpen(false);
@@ -533,6 +534,7 @@ export default function JanijimPage() {
   }, [search, data, exactMatches]);
 
   const resultados = [...exactMatches, ...fuzzyMatches];
+  const canEdit = !sheetManaged;
 
   if (loading) {
     return (
@@ -549,24 +551,44 @@ export default function JanijimPage() {
     <div className="max-w-2xl mx-auto mt-12 space-y-4">
       <ActiveSesionCard proyectoId={proyectoId} />
 
-      <input
-        ref={fileInput}
-        type="file"
-        accept=".csv,.xlsx,.xls"
-        onChange={handleFile}
-        className="hidden"
-      />
+      {sheetManaged ? (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 space-y-2">
+          <p className="font-semibold text-blue-800">
+            Sincronizado con Google Sheets
+          </p>
+          <p className="text-xs text-blue-700">
+            {syncMessage || "Sincronizá para traer la última versión de la hoja."}
+          </p>
+          <div className="flex gap-2 flex-col sm:flex-row sm:items-center sm:justify-end">
+            <Button
+              onClick={syncWithSheets}
+              loading={syncing}
+              icon={<RefreshCcw className="w-4 h-4" />}
+            >
+              Sincronizar ahora
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+          <p>
+            Esta lista todavía no se sincroniza automáticamente. Podés cargar nombres manualmente o configurar una hoja en la pantalla de creación del proyecto.
+          </p>
+        </div>
+      )}
 
       {janijim.length === 0 ? (
         <div className="text-center space-y-4 py-12 border rounded-lg">
           <p className="text-gray-600">Insertá janijim para comenzar</p>
-          <Button
-            className="mx-auto"
-            icon={<FileUp className="w-4 h-4" />}
-            onClick={() => setImportOpen(true)}
-          >
-            Insertar janijim
-          </Button>
+          {!sheetManaged && (
+            <Button
+              className="mx-auto"
+              icon={<PlusCircle className="w-4 h-4" />}
+              onClick={() => setImportOpen(true)}
+            >
+              Insertar janijim
+            </Button>
+          )}
         </div>
       ) : (
         <>
@@ -644,7 +666,8 @@ export default function JanijimPage() {
                   )}
 
                   {/* 4. Opción para agregar un nuevo nombre */}
-                  {search.trim() !== "" &&
+                  {canEdit &&
+                    search.trim() !== "" &&
                     !janijim.some(
                       (j) => normalize(j.nombre) === normalize(search)
                     ) &&
@@ -670,13 +693,15 @@ export default function JanijimPage() {
               )}
 
               </div>
-              <Button
-                className="w-full sm:w-auto shrink-0 sm:ml-2"
-                icon={<FileUp className="w-4 h-4" />}
-                onClick={() => setImportOpen(true)}
-              >
-                Insertar
-              </Button>
+              {canEdit && (
+                <Button
+                  className="w-full sm:w-auto shrink-0 sm:ml-2"
+                  icon={<Pencil className="w-4 h-4" />}
+                  onClick={() => setImportOpen(true)}
+                >
+                  Insertar
+                </Button>
+              )}
             </div>
             <Button
               variant="success"
@@ -715,47 +740,57 @@ export default function JanijimPage() {
               <span>{janij.nombre}</span>
             )}
             <div className="flex items-center gap-2">
-              {editingId === janij.id ? (
-                <>
-                  <button
-                    onClick={confirmEdit}
-                    aria-label="Guardar"
-                    className="text-green-600 hover:text-green-800"
-                  >
-                    <Check size={16} />
-                  </button>
-                  <button
-                    onClick={cancelEdit}
-                    aria-label="Cancelar"
-                    className="text-gray-600 hover:text-gray-800"
-                  >
-                    <X size={16} />
-                  </button>
-                </>
+              {canEdit ? (
+                editingId === janij.id ? (
+                  <>
+                    <button
+                      onClick={confirmEdit}
+                      aria-label="Guardar"
+                      className="text-green-600 hover:text-green-800"
+                    >
+                      <Check size={16} />
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      aria-label="Cancelar"
+                      className="text-gray-600 hover:text-gray-800"
+                    >
+                      <X size={16} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => startEditing(janij.id, janij.nombre)}
+                      aria-label="Editar"
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      onClick={() => setDetailJanij(janij)}
+                      aria-label="Ver detalle"
+                      className="text-gray-600 hover:text-gray-800"
+                    >
+                      <Eye size={16} />
+                    </button>
+                    <button
+                      onClick={() => deleteJanij(janij.id)}
+                      aria-label="Eliminar"
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </>
+                )
               ) : (
-                <>
-                  <button
-                    onClick={() => startEditing(janij.id, janij.nombre)}
-                    aria-label="Editar"
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    <Pencil size={16} />
-                  </button>
-                  <button
-                    onClick={() => setDetailJanij(janij)}
-                    aria-label="Ver detalle"
-                    className="text-gray-600 hover:text-gray-800"
-                  >
-                    <Eye size={16} />
-                  </button>
-                  <button
-                    onClick={() => deleteJanij(janij.id)}
-                    aria-label="Eliminar"
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </>
+                <button
+                  onClick={() => setDetailJanij(janij)}
+                  aria-label="Ver detalle"
+                  className="text-gray-600 hover:text-gray-800"
+                >
+                  <Eye size={16} />
+                </button>
               )}
             </div>
           </li>
@@ -765,92 +800,32 @@ export default function JanijimPage() {
 
       <Sheet open={importOpen} onOpenChange={setImportOpen}>
         <SheetContent side="bottom" className="w-full">
-          {importMode === "chooser" && (
-            <>
-              <SheetHeader>
-                <SheetTitle>Insertar janijim</SheetTitle>
-                <SheetDescription>
-                  ¿Cómo querés Insertar la lista de janijim?
-                </SheetDescription>
-              </SheetHeader>
-              <div className="p-4 space-y-4">
-                <Button
-                  onClick={() => setImportMode("file")}
-                  className="w-full"
-                  icon={<FileUp className="w-4 h-4" />}
-                >
-                  Desde archivo
-                </Button>
-                <Button
-                  onClick={() => setImportMode("manual")}
-                  className="w-full"
-                  icon={<Pencil className="w-4 h-4" />}
-                >
-                  Escribir manualmente
-                </Button>
-              </div>
-            </>
-          )}
-
-          {importMode === "file" && (
-            <>
-              <SheetHeader>
-                <SheetTitle>Insertar desde archivo</SheetTitle>
-                <SheetDescription>
-                  Seleccioná un archivo CSV/Excel con los nombres.
-                </SheetDescription>
-              </SheetHeader>
-              <div className="p-4 space-y-4">
-                <Button
-                  onClick={() => fileInput.current?.click()}
-                  className="w-full"
-                  icon={<FileUp className="w-4 h-4" />}
-                >
-                  Seleccionar archivo
-                </Button>
-              </div>
-              <SheetFooter>
-                <button
-                  onClick={() => setImportMode("chooser")}
-                  className="px-4 py-2 bg-gray-200 rounded-lg inline-flex items-center gap-1"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span>Volver</span>
-                </button>
-              </SheetFooter>
-            </>
-          )}
-
-          {importMode === "manual" && (
-            <>
-              <SheetHeader>
-                <SheetTitle>Insertar manualmente</SheetTitle>
-                <SheetDescription>
-                  Escribí un nombre por línea y luego tocá Insertar.
-                </SheetDescription>
-              </SheetHeader>
-              <div className="p-4 space-y-4">
-                <textarea
-                  value={importText}
-                  onChange={(e) => setImportText(e.target.value)}
-                  placeholder="Ingresá un nombre por línea"
-                  className="w-full border rounded-lg p-2 min-h-32"
-                />
-              </div>
-              <SheetFooter>
-                <Button icon={<FileUp className="w-4 h-4" />} onClick={importFromText}>
-                  Insertar
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => setImportMode("chooser")}
-                  icon={<ArrowLeft className="w-4 h-4" />}
-                >
-                  Volver
-                </Button>
-              </SheetFooter>
-            </>
-          )}
+          <SheetHeader>
+            <SheetTitle>Insertar janijim manualmente</SheetTitle>
+            <SheetDescription>
+              Escribí un nombre por línea y luego tocá Insertar.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="p-4 space-y-4">
+            <textarea
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              placeholder="Ingresá un nombre por línea"
+              className="w-full border rounded-lg p-2 min-h-32"
+            />
+          </div>
+          <SheetFooter>
+            <Button icon={<Pencil className="w-4 h-4" />} onClick={importFromText}>
+              Insertar
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setImportOpen(false)}
+              icon={<ArrowLeft className="w-4 h-4" />}
+            >
+              Cerrar
+            </Button>
+          </SheetFooter>
         </SheetContent>
       </Sheet>
 
@@ -861,12 +836,18 @@ export default function JanijimPage() {
             <ModalDescription>Información del janij</ModalDescription>
           </ModalHeader>
           <div className="space-y-4 text-sm">
+            {sheetManaged && (
+              <p className="text-xs text-blue-600">
+                Este registro es de solo lectura porque se sincroniza desde Google Sheets.
+              </p>
+            )}
             <label className="flex flex-col">
               <span className="font-medium">DNI</span>
               <input
                 className="w-full border rounded-lg p-2"
                 value={editDni}
                 onChange={(e) => setEditDni(e.target.value)}
+                readOnly={sheetManaged}
               />
             </label>
             <label className="flex flex-col">
@@ -875,6 +856,7 @@ export default function JanijimPage() {
                 className="w-full border rounded-lg p-2"
                 value={editSocio}
                 onChange={(e) => setEditSocio(e.target.value)}
+                readOnly={sheetManaged}
               />
             </label>
             <label className="flex flex-col">
@@ -883,6 +865,7 @@ export default function JanijimPage() {
                 className="w-full border rounded-lg p-2"
                 value={editGrupo}
                 onChange={(e) => setEditGrupo(e.target.value)}
+                readOnly={sheetManaged}
               />
             </label>
             <label className="flex flex-col">
@@ -891,6 +874,7 @@ export default function JanijimPage() {
                 className="w-full border rounded-lg p-2"
                 value={editTelMadre}
                 onChange={(e) => setEditTelMadre(e.target.value)}
+                readOnly={sheetManaged}
               />
             </label>
             <label className="flex flex-col">
@@ -899,17 +883,20 @@ export default function JanijimPage() {
                 className="w-full border rounded-lg p-2"
                 value={editTelPadre}
                 onChange={(e) => setEditTelPadre(e.target.value)}
+                readOnly={sheetManaged}
               />
             </label>
           </div>
           <ModalFooter className="flex-wrap sm:flex-nowrap">
-            <Button
-              variant="success"
-              icon={<Check className="w-4 h-4" />}
-              onClick={saveDetail}
-            >
-              Guardar
-            </Button>
+            {canEdit && (
+              <Button
+                variant="success"
+                icon={<Check className="w-4 h-4" />}
+                onClick={saveDetail}
+              >
+                Guardar
+              </Button>
+            )}
             <Button variant="secondary" onClick={() => setDetailJanij(null)}>
               Cerrar
             </Button>
@@ -956,68 +943,6 @@ export default function JanijimPage() {
         </ModalContent>
       </Modal>
 
-      <Sheet open={mappingOpen} onOpenChange={setMappingOpen}>
-        <SheetContent side="bottom" className="w-full">
-          <SheetHeader>
-            <SheetTitle>Mapear columnas</SheetTitle>
-            <SheetDescription>
-              Asigná cada atributo a la columna correspondiente.
-            </SheetDescription>
-          </SheetHeader>
-          <div className="p-4 space-y-4">
-            {attributes.map((a) => (
-              <div key={a.key} className="space-y-1">
-                <label className="block text-sm font-medium">{a.label}</label>
-                <select
-                  className="w-full border rounded-lg p-2"
-                  value={fieldMap[a.key] ?? ""}
-                  onChange={(e) =>
-                    setFieldMap({
-                      ...fieldMap,
-                      [a.key]: e.target.value === "" ? null : Number(e.target.value),
-                    })
-                  }
-                >
-                  <option value="">Sin asignar</option>
-                  {columns.map((c, i) => (
-                    <option key={i} value={i}>
-                      {c || `Columna ${i + 1}`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
-          </div>
-          <SheetFooter>
-            <Button icon={<FileUp className="w-4 h-4" />} onClick={previewMapped}>
-              Continuar
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
-
-      <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
-        <SheetContent side="bottom" className="w-full">
-          <SheetHeader>
-            <SheetTitle>Confirmar importación</SheetTitle>
-            <SheetDescription>Revisá los datos antes de importar.</SheetDescription>
-          </SheetHeader>
-          <div className="p-4 space-y-1">
-            {attributes.map((a) => (
-              <div key={a.key} className="text-sm">
-                <span className="font-medium mr-2">{a.label}:</span>
-                {rows[1]?.[fieldMap[a.key] ?? -1] || "-"}
-              </div>
-            ))}
-          </div>
-          <SheetFooter>
-            <Button icon={<FileUp className="w-4 h-4" />} onClick={confirmMappedImport}>
-              Importar
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
-
       <Sheet open={dupOpen} onOpenChange={setDupOpen}>
         <SheetContent side="bottom" className="w-full">
           <SheetHeader>
@@ -1058,7 +983,7 @@ export default function JanijimPage() {
           <SheetFooter>
             <Button
               onClick={confirmImport}
-              icon={<FileUp className="w-4 h-4" />}
+              icon={<PlusCircle className="w-4 h-4" />}
             >
               Insertar
             </Button>

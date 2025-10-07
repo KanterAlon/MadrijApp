@@ -56,6 +56,8 @@ The application requires the following variables to be defined, usually in a
 
 - `NEXT_PUBLIC_SUPABASE_URL` – URL of your Supabase instance.
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` – public anon key provided by Supabase.
+- `GOOGLE_SERVICE_ACCOUNT_EMAIL` – email of the Google Cloud service account with access to the spreadsheet.
+- `GOOGLE_SERVICE_ACCOUNT_KEY` – private key for the service account. You can paste the PEM value directly or provide it base64 encoded.
 
 
 

@@ -6,6 +6,7 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import BackLink from "@/components/ui/back-link";
 import { supabase } from "@/lib/supabase";
+import { upsertGrupo } from "@/lib/supabase/grupos";
 import Button from "@/components/ui/button";
 import { PlusCircle, X } from "lucide-react";
 
@@ -13,6 +14,9 @@ export default function NuevoProyectoPage() {
   const { user } = useUser();
   const router = useRouter();
   const [nombre, setNombre] = useState("");
+  const [spreadsheetId, setSpreadsheetId] = useState("");
+  const [janijSheet, setJanijSheet] = useState("");
+  const [madrijSheet, setMadrijSheet] = useState("");
   const [creating, setCreating] = useState(false);
 
   const handleCrear = async () => {
@@ -61,6 +65,20 @@ export default function NuevoProyectoPage() {
       return;
     }
 
+    try {
+      await upsertGrupo(proyecto.id, {
+        spreadsheet_id: spreadsheetId.trim() || null,
+        janij_sheet: janijSheet.trim() || null,
+        madrij_sheet: madrijSheet.trim() || null,
+      });
+    } catch (err) {
+      console.error("Error configurando grupo", err);
+      toast.error("Proyecto creado, pero hubo un error guardando la hoja");
+      setCreating(false);
+      router.push(`/proyecto/${proyecto.id}`);
+      return;
+    }
+
     toast.success("Proyecto creado correctamente");
 
     router.push(`/proyecto/${proyecto.id}`);
@@ -80,6 +98,49 @@ export default function NuevoProyectoPage() {
         value={nombre}
         onChange={(e) => setNombre(e.target.value)}
       />
+      <div className="space-y-3 mb-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            ID de la hoja de cálculo (Google Sheets)
+          </label>
+          <input
+            type="text"
+            placeholder="1AbC..."
+            className="mt-1 p-2 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={spreadsheetId}
+            onChange={(e) => setSpreadsheetId(e.target.value)}
+          />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Pestaña de janijim
+            </label>
+            <input
+              type="text"
+              placeholder="Janijim"
+              className="mt-1 p-2 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={janijSheet}
+              onChange={(e) => setJanijSheet(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Pestaña de madrijim (opcional)
+            </label>
+            <input
+              type="text"
+              placeholder="Madrijim"
+              className="mt-1 p-2 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={madrijSheet}
+              onChange={(e) => setMadrijSheet(e.target.value)}
+            />
+          </div>
+        </div>
+        <p className="text-xs text-gray-500">
+          Podés editar estos datos más adelante volviendo a esta pantalla.
+        </p>
+      </div>
       <div className="flex gap-2">
         <Button
           variant="secondary"

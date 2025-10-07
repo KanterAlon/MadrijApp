@@ -21,6 +21,7 @@
     "clsx": "^2.1.1",
     "emoji-picker-react": "^4.8.0",
     "fuzzysort": "^3.1.0",
+    "googleapis": "^144.0.0",
     "jaro-winkler": "^0.2.8",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
