@@ -98,19 +98,22 @@ CREATE TABLE public.janijim (
 );
 CREATE TABLE public.madrijim (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  clerk_id text NOT NULL UNIQUE,
-  email text NOT NULL,
+  clerk_id text UNIQUE,
+  email text NOT NULL UNIQUE,
   nombre text NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT madrijim_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.madrijim_grupos (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  madrij_id text NOT NULL,
+  madrij_id text,
   rol text DEFAULT 'miembro'::text,
   invitado boolean DEFAULT true,
   created_at timestamp with time zone DEFAULT now(),
   grupo_id uuid NOT NULL,
+  nombre text,
+  email text,
+  activo boolean DEFAULT true,
   CONSTRAINT madrijim_grupos_pkey PRIMARY KEY (id),
   CONSTRAINT madrijim_grupos_grupo_id_fkey FOREIGN KEY (grupo_id) REFERENCES public.grupos(id)
 );
