@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import removeAccents from "remove-accents";
 
-import { getJanijimRows, getMadrijimRows } from "@/lib/google/sheets";
+import { loadSheetsData } from "@/lib/google/sheetData";
+import { syncGroupFromSheets } from "@/lib/sync/sheetsSync";
 import { supabase } from "@/lib/supabase";
 
 const JAN_HEADERS: Record<string, keyof JanijRow> = {
@@ -369,25 +369,13 @@ export async function POST(
 
     const { data: grupo, error: grupoError } = await supabase
       .from("grupos")
-      .select("id, spreadsheet_id, janij_sheet, madrij_sheet")
+      .select("id, nombre")
       .eq("id", grupoId)
       .maybeSingle();
 
     if (grupoError || !grupo) {
       return NextResponse.json({ error: "Grupo no encontrado" }, { status: 404 });
     }
-
-    const { data: proyecto, error: proyectoError } = await supabase
-      .from("proyectos")
-      .select("id")
-      .eq("grupo_id", grupoId)
-      .maybeSingle();
-
-    if (proyectoError || !proyecto) {
-      return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
-    }
-
-    const proyectoId = proyecto.id;
 
     const { data: membership } = await supabase
       .from("madrijim_grupos")
@@ -491,35 +479,15 @@ export async function POST(
       if (error) throw error;
     }
 
-    if (janijUpdates.length > 0) {
-      const { error } = await supabase
-        .from("janijim")
-        .upsert(janijUpdates, { onConflict: "id" });
-      if (error) throw error;
-    }
-
-    const janijDeactivate = (existingJanij || [])
-      .filter((row) => row.activo !== false)
-      .filter((row) => !janijSeen.has(normalizeKey(row.nombre)));
-
-    if (janijDeactivate.length > 0) {
-      const { error } = await supabase
-        .from("janijim")
-        .update({ activo: false })
-        .in(
-          "id",
-          janijDeactivate.map((row) => row.id),
-        );
-      if (error) throw error;
-    }
+    const sheetsData = await loadSheetsData();
+    const result = await syncGroupFromSheets(nombre, {
+      expectedGrupoId: grupoId,
+      data: sheetsData,
+    });
 
     return NextResponse.json({
-      janijim: {
-        inserted: janijInserts.length,
-        updated: janijUpdates.length,
-        deactivated: janijDeactivate.length,
-      },
-      madrijim: await syncMadrijim(grupo.id, madrijim),
+      janijim: result.janijim,
+      madrijim: result.madrijim,
     });
   } catch (error) {
     console.error("Sync error", error);
