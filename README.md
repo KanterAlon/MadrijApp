@@ -1,68 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MadrijApp
 
-## Getting Started
+Aplicación para gestionar kvutzot y janijim sincronizada con Google Sheets. El
+flujo completo depende de dos hojas de cálculo mantenidas por el equipo
+institucional, por lo que no es necesario que los usuarios creen proyectos ni
+configuren hojas manualmente.
 
-First, run the development server:
+## Requisitos previos
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. Node.js 18 o superior.
+2. Una instancia de Supabase con el esquema de la carpeta `sql/migrations` ya
+   ejecutado.
+3. Una cuenta de servicio de Google Cloud con acceso de lectura a las hojas de
+   cálculo institucionales.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Configuración
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Instalá dependencias y copia el archivo de entorno:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+   ```bash
+   npm install
+   cp .env.example .env.local # si existe
+   ```
 
-## Learn More
+2. Definí las variables necesarias en `.env.local`:
 
-To learn more about Next.js, take a look at the following resources:
+   | Variable | Descripción |
+   | --- | --- |
+   | `NEXT_PUBLIC_SUPABASE_URL` | URL de tu instancia de Supabase. |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clave pública de Supabase. |
+   | `GOOGLE_SERVICE_ACCOUNT_EMAIL` | Email de la cuenta de servicio con acceso a las hojas. |
+   | `GOOGLE_SERVICE_ACCOUNT_KEY` | Clave privada (PEM o base64) de la cuenta de servicio. |
+   | `GOOGLE_MADRIJ_SPREADSHEET_ID` | *(Opcional)* ID de la hoja de madrijim si querés sobrescribir el valor por defecto. |
+   | `GOOGLE_MADRIJ_SHEET_NAME` | *(Opcional)* Nombre de la pestaña de madrijim. |
+   | `GOOGLE_JANIJ_SPREADSHEET_ID` | *(Opcional)* ID de la hoja de janijim. |
+   | `GOOGLE_JANIJ_SHEET_NAME` | *(Opcional)* Nombre de la pestaña de janijim. |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   Si no definís los IDs, se usan las hojas oficiales:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   - Madrijim: `https://docs.google.com/spreadsheets/d/1lVMJx9lCH3O-oypWGXWZ9RD4YQVctZlmppV3Igqge64`
+   - Janijim: `https://docs.google.com/spreadsheets/d/1u3KFbCBItK5oN5VEl55Kq7tlRxTb3qJ2FSMl9tS0Cjs`
 
-## Deploy on Vercel
+3. Corré las migraciones de Supabase en orden para asegurar que la base esté al
+   día:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   ```bash
+   supabase db execute --file sql/migrations/20250208_add_sheets_columns_to_grupos.sql
+   supabase db execute --file sql/migrations/20250218_adjust_madrij_onboarding.sql
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+4. Iniciá el servidor de desarrollo:
 
-## Deployment
+   ```bash
+   npm run dev
+   ```
 
-### Vercel
+   Abrí `http://localhost:3000` para usar la app.
 
-Push the repository to [Vercel](https://vercel.com) and select **Next.js** as the framework. All scripts and configuration are ready to go. The build will run `npm run build` and start the server automatically.
+## Estructura de las hojas de cálculo
 
-### Render
+La aplicación lee automáticamente dos pestañas:
 
-Create a new **Web Service** on [Render](https://render.com) using this repository. Set the build command to `npm run build` and the start command to `npm run start`. Make sure the required environment variables are configured in the dashboard.
+- **Madrijim**: columnas `Nombre`, `Apellido`, `Email`, `Grupo`.
+- **Janijim**: columnas `Nombre`, `Apellido`, `Telefono Madre`, `Telefono Padre`, `Grupo`.
 
-## Database
+Cada fila debe tener el nombre del grupo exactamente como querés que aparezca en
+la app. La sincronización normaliza mayúsculas/minúsculas y acentos, pero es
+recomendable mantener la ortografía consistente.
 
-Run the SQL scripts under `sql/migrations` on your Supabase instance to keep the schema up to date. The file `20240411_add_activo_to_janijim.sql` adds a column used for soft deleting janijim.
+## Flujo de onboarding
 
-## Environment Variables
+1. El madrij inicia sesión con la misma cuenta de Google que figura en la hoja
+   de madrijim.
+2. La app busca su email en la planilla, sincroniza el grupo correspondiente y
+   muestra un panel para confirmar su identidad.
+3. Al confirmar, se vincula la cuenta de Clerk con el registro del madrij y se
+   habilita el acceso al proyecto del grupo. No existe la opción de crear
+   proyectos manualmente: todo proviene de la planilla.
 
-The application requires the following variables to be defined, usually in a
-`.env.local` file:
+Si el email no está en la hoja, el usuario verá un mensaje para contactar al
+administrador y actualizar la planilla antes de volver a ingresar.
 
-- `NEXT_PUBLIC_SUPABASE_URL` – URL of your Supabase instance.
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` – public anon key provided by Supabase.
-- `GOOGLE_SERVICE_ACCOUNT_EMAIL` – email of the Google Cloud service account with access to the spreadsheet.
-- `GOOGLE_SERVICE_ACCOUNT_KEY` – private key for the service account. You can paste the PEM value directly or provide it base64 encoded.
+## Sincronización manual
 
+En la vista de janijim de cada proyecto hay un botón "Sincronizar ahora". Al
+presionarlo se reimportan los datos de ambas hojas para el grupo actual. Los
+madrijim y janijim que dejan de figurar en la planilla se marcan como inactivos
+sin eliminar su historial.
 
+## Desarrollo
 
-##CONFIGS PARA EL COLE
+- Los proyectos, grupos y miembros se gestionan únicamente desde la planilla.
+- La tabla `madrijim_grupos` mantiene los vínculos entre madrijim (por email) y
+  grupos; al reclamar el perfil se guarda el `clerk_id` correspondiente.
+- Si necesitás depurar la sincronización revisá la respuesta JSON del endpoint
+  `POST /api/grupos/:id/sync`.
 
-set NODE_TLS_REJECT_UNAUTHORIZED=0
-git config --global user.name "KanterAlon"
-git config --global user.email "kanter.alon@gmail.com"
+Con esta configuración el flujo queda completamente automatizado a partir de las
+hojas de cálculo institucionales.

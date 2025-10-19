@@ -2,15 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  Phone,
-  Search,
-  Users,
-  CheckSquare,
-  FolderKanban,
-  LayoutDashboard,
-  Wrench,
-} from "lucide-react";
+import { Phone, Search, Users, CheckSquare, LayoutDashboard, Wrench } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -39,12 +31,6 @@ const quickLinks = [
     title: "Mis proyectos",
     description: "Salta rápidamente a la kvutzá o proyecto que necesitás.",
     icon: LayoutDashboard,
-  },
-  {
-    href: "/dashboard/nuevo",
-    title: "Crear nuevo proyecto",
-    description: "Iniciá una nueva planificación para el próximo evento.",
-    icon: FolderKanban,
   },
 ];
 
