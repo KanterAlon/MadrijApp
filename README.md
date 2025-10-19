@@ -30,9 +30,12 @@ configuren hojas manualmente.
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clave pública de Supabase. |
    | `GOOGLE_SERVICE_ACCOUNT_EMAIL` | Email de la cuenta de servicio con acceso a las hojas. |
    | `GOOGLE_SERVICE_ACCOUNT_KEY` | Clave privada (PEM o base64) de la cuenta de servicio. |
+   | `GOOGLE_MADRIJ_SPREADSHEET_ID` | *(Opcional)* ID de la hoja de madrijim si querés sobrescribir el valor por defecto. |
+   | `GOOGLE_MADRIJ_SHEET_NAME` | *(Opcional)* Nombre de la pestaña de madrijim. |
+   | `GOOGLE_JANIJ_SPREADSHEET_ID` | *(Opcional)* ID de la hoja de janijim. |
+   | `GOOGLE_JANIJ_SHEET_NAME` | *(Opcional)* Nombre de la pestaña de janijim. |
 
-   No hace falta definir ningún ID de planilla: la aplicación apunta
-   directamente a las hojas institucionales oficiales:
+   Si no definís los IDs, se usan las hojas oficiales:
 
    - Madrijim: `https://docs.google.com/spreadsheets/d/1lVMJx9lCH3O-oypWGXWZ9RD4YQVctZlmppV3Igqge64`
    - Janijim: `https://docs.google.com/spreadsheets/d/1u3KFbCBItK5oN5VEl55Kq7tlRxTb3qJ2FSMl9tS0Cjs`
@@ -64,7 +67,24 @@ Cada fila debe tener el nombre del grupo exactamente como querés que aparezca e
 la app. La sincronización normaliza mayúsculas/minúsculas y acentos, pero es
 recomendable mantener la ortografía consistente.
 
-## Flujo de onboarding
+Run the SQL scripts under `sql/migrations` on your Supabase instance to keep the schema up to date. Each file is idempotent, so you can execute them in order (for example `20250208_add_sheets_columns_to_grupos.sql` and `20250218_adjust_madrij_onboarding.sql`) to ensure the schema supports the Google Sheets onboarding flow.
+
+## Sincronización con Google Sheets
+
+La aplicación espera que la información viva en una única hoja de cálculo de Google con dos pestañas principales:
+
+- **Janijim** (lectura obligatoria). Debe incluir, como mínimo, las columnas `Nombre y Apellido`, `DNI`, `Número socio`, `Grupo`, `Tel Madre` y `Tel Padre`. Los encabezados son flexibles, pero se recomienda usar esos nombres para facilitar el mapeo automático.
+- **Madrijim** (lectura obligatoria). Debe contener `Nombre`, `Email`, `Rol` y cualquier dato adicional que quieras sincronizar. El email es el dato clave para vincular la cuenta de Google del madrij.
+
+Para vincular la hoja con la aplicación:
+
+1. Creá o identificá el registro del grupo en la tabla `grupos` de Supabase.
+2. Completá los campos `spreadsheet_id`, `janij_sheet` y `madrij_sheet` con el ID del documento y el nombre exacto de cada pestaña.
+3. Ejecutá el endpoint `POST /api/grupos/{id}/sync` (o utilizá el botón “Sincronizar ahora” en la UI) para importar janijim y madrijim desde la hoja. La sincronización crea o actualiza las filas y marca los madrijim que aún no iniciaron sesión para que puedan reclamarse luego.
+
+## Onboarding de madrijim
+
+Cuando un madrij inicia sesión con Google por primera vez, la aplicación busca su email en la pestaña de madrijim. Si encuentra una coincidencia sin reclamar, le solicitará confirmación para vincular su cuenta y lo asociará automáticamente al proyecto correspondiente. Si el email no está en la hoja, el usuario verá un aviso para que el equipo actualice la planilla antes de volver a intentar.
 
 1. El madrij inicia sesión con la misma cuenta de Google que figura en la hoja
    de madrijim.
