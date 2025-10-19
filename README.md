@@ -47,7 +47,24 @@ Create a new **Web Service** on [Render](https://render.com) using this reposito
 
 ## Database
 
-Run the SQL scripts under `sql/migrations` on your Supabase instance to keep the schema up to date. The file `20240411_add_activo_to_janijim.sql` adds a column used for soft deleting janijim.
+Run the SQL scripts under `sql/migrations` on your Supabase instance to keep the schema up to date. Each file is idempotent, so you can execute them in order (for example `20250208_add_sheets_columns_to_grupos.sql` and `20250218_adjust_madrij_onboarding.sql`) to ensure the schema supports the Google Sheets onboarding flow.
+
+## Sincronización con Google Sheets
+
+La aplicación espera que la información viva en una única hoja de cálculo de Google con dos pestañas principales:
+
+- **Janijim** (lectura obligatoria). Debe incluir, como mínimo, las columnas `Nombre y Apellido`, `DNI`, `Número socio`, `Grupo`, `Tel Madre` y `Tel Padre`. Los encabezados son flexibles, pero se recomienda usar esos nombres para facilitar el mapeo automático.
+- **Madrijim** (lectura obligatoria). Debe contener `Nombre`, `Email`, `Rol` y cualquier dato adicional que quieras sincronizar. El email es el dato clave para vincular la cuenta de Google del madrij.
+
+Para vincular la hoja con la aplicación:
+
+1. Creá o identificá el registro del grupo en la tabla `grupos` de Supabase.
+2. Completá los campos `spreadsheet_id`, `janij_sheet` y `madrij_sheet` con el ID del documento y el nombre exacto de cada pestaña.
+3. Ejecutá el endpoint `POST /api/grupos/{id}/sync` (o utilizá el botón “Sincronizar ahora” en la UI) para importar janijim y madrijim desde la hoja. La sincronización crea o actualiza las filas y marca los madrijim que aún no iniciaron sesión para que puedan reclamarse luego.
+
+## Onboarding de madrijim
+
+Cuando un madrij inicia sesión con Google por primera vez, la aplicación busca su email en la pestaña de madrijim. Si encuentra una coincidencia sin reclamar, le solicitará confirmación para vincular su cuenta y lo asociará automáticamente al proyecto correspondiente. Si el email no está en la hoja, el usuario verá un aviso para que el equipo actualice la planilla antes de volver a intentar.
 
 ## Environment Variables
 

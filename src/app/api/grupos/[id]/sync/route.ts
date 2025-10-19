@@ -57,7 +57,7 @@ type MadrijRow = {
 };
 
 type SyncedMadrij = {
-  madrij_id: string;
+  madrij_id: string | null;
   email: string | null;
   nombre: string | null;
   rol: string | null;
@@ -67,6 +67,9 @@ type MadrijGrupoRow = {
   id: string;
   madrij_id: string | null;
   email: string | null;
+  nombre: string | null;
+  rol: string | null;
+  invitado: boolean | null;
   activo: boolean | null;
 };
 
@@ -124,13 +127,18 @@ function buildJanijRows(rows: unknown[][]) {
   return janijim;
 }
 
+function normalizeEmail(email: string | null | undefined) {
+  if (!email) return null;
+  return email.trim().toLowerCase();
+}
+
 function buildMadrijRows(rows: unknown[][]) {
   if (rows.length === 0) return [];
   const [header, ...dataRows] = rows;
   const mapping = mapColumns(header as string[], MAD_HEADERS);
   const madrijim: MadrijRow[] = [];
   for (const raw of dataRows) {
-    const email = readCell(raw, mapping.email);
+    const email = normalizeEmail(readCell(raw, mapping.email));
     const clerk = readCell(raw, mapping.clerk_id);
     const nombre = readCell(raw, mapping.nombre);
     const rol = readCell(raw, mapping.rol);
@@ -149,41 +157,84 @@ async function resolveMadrijIds(rows: MadrijRow[]) {
   const lookupEmails = Array.from(
     new Set(
       rows
-        .filter((row) => !row.clerk_id && row.email)
-        .map((row) => row.email!.toLowerCase()),
+        .filter((row) => row.email)
+        .map((row) => row.email!),
     ),
   );
 
-  const emailMap = new Map<string, string>();
+  const emailMap = new Map<
+    string,
+    { clerk_id: string | null; nombre: string | null }
+  >();
   if (lookupEmails.length > 0) {
     const { data, error } = await supabase
       .from("madrijim")
-      .select("clerk_id, email")
+      .select("clerk_id, email, nombre")
       .in("email", lookupEmails);
     if (error) throw error;
     data.forEach((entry) => {
       if (entry.email) {
-        emailMap.set(entry.email.toLowerCase(), entry.clerk_id);
+        emailMap.set(entry.email, {
+          clerk_id: entry.clerk_id ?? null,
+          nombre: entry.nombre ?? null,
+        });
       }
     });
   }
 
-  return rows
-    .map((row) => {
-      const resolved = row.clerk_id
-        ? row.clerk_id
-        : row.email
-          ? emailMap.get(row.email.toLowerCase()) || null
-          : null;
-      if (!resolved) return null;
-      return {
-        madrij_id: resolved,
-        email: row.email,
-        nombre: row.nombre,
-        rol: row.rol,
-      };
-    })
-    .filter(Boolean) as SyncedMadrij[];
+  return rows.map((row) => {
+    const existing = row.email ? emailMap.get(row.email) : undefined;
+    const resolved = row.clerk_id
+      ? row.clerk_id
+      : existing?.clerk_id
+        ? existing.clerk_id
+        : null;
+    const nombre = row.nombre ?? existing?.nombre ?? null;
+    return {
+      madrij_id: resolved,
+      email: row.email,
+      nombre,
+      rol: row.rol,
+    } satisfies SyncedMadrij;
+  });
+}
+
+async function syncMadrijProfiles(rows: SyncedMadrij[]) {
+  const emailMap = new Map<string, SyncedMadrij>();
+  for (const row of rows) {
+    if (!row.email) continue;
+    const existing = emailMap.get(row.email);
+    if (!existing) {
+      emailMap.set(row.email, { ...row });
+      continue;
+    }
+    if (!existing.nombre && row.nombre) {
+      existing.nombre = row.nombre;
+    }
+    if (!existing.madrij_id && row.madrij_id) {
+      existing.madrij_id = row.madrij_id;
+    }
+  }
+
+  const payload = Array.from(emailMap.values()).map((row) => {
+    const record: Record<string, unknown> = {
+      email: row.email!,
+    };
+    if (row.nombre) {
+      record.nombre = row.nombre;
+    }
+    if (row.madrij_id) {
+      record.clerk_id = row.madrij_id;
+    }
+    return record;
+  });
+
+  if (payload.length === 0) return;
+
+  const { error } = await supabase
+    .from("madrijim")
+    .upsert(payload, { onConflict: "email" });
+  if (error) throw error;
 }
 
 async function syncMadrijim(grupoId: string, rows: SyncedMadrij[]) {
@@ -193,7 +244,7 @@ async function syncMadrijim(grupoId: string, rows: SyncedMadrij[]) {
 
   const { data: existingMad, error: existingMadError } = await supabase
     .from("madrijim_grupos")
-    .select("id, madrij_id, email, activo")
+    .select("id, madrij_id, email, nombre, rol, invitado, activo")
     .eq("grupo_id", grupoId);
   if (existingMadError) throw existingMadError;
 
@@ -217,19 +268,21 @@ async function syncMadrijim(grupoId: string, rows: SyncedMadrij[]) {
   const madSeen = new Set<string>();
   const madUpdates: {
     id: string;
-    madrij_id: string;
+    madrij_id: string | null;
     nombre: string | null;
     email: string | null;
     rol: string | null;
     activo: boolean;
+    invitado: boolean;
   }[] = [];
   const madInserts: {
     grupo_id: string;
-    madrij_id: string;
+    madrij_id: string | null;
     nombre: string | null;
     email: string | null;
     rol: string | null;
     activo: boolean;
+    invitado: boolean;
   }[] = [];
 
   for (const row of rows) {
@@ -242,22 +295,25 @@ async function syncMadrijim(grupoId: string, rows: SyncedMadrij[]) {
     madSeen.add(key);
     const existing = madMap.get(key);
     if (existing) {
+      const nextMadrijId = row.madrij_id ?? existing.madrij_id ?? null;
       madUpdates.push({
         id: existing.id,
-        madrij_id: row.madrij_id,
-        nombre: row.nombre,
-        email: row.email,
-        rol: row.rol,
+        madrij_id: nextMadrijId,
+        nombre: row.nombre ?? existing.nombre ?? null,
+        email: row.email ?? existing.email ?? null,
+        rol: row.rol ?? existing.rol ?? null,
         activo: true,
+        invitado: false,
       });
     } else {
       madInserts.push({
         grupo_id: grupoId,
-        madrij_id: row.madrij_id,
+        madrij_id: row.madrij_id ?? null,
         nombre: row.nombre,
         email: row.email,
         rol: row.rol,
         activo: true,
+        invitado: false,
       });
     }
   }
@@ -361,6 +417,7 @@ export async function POST(
 
     const janijim = buildJanijRows(janijRows);
     const madrijim = await resolveMadrijIds(buildMadrijRows(madrijRows));
+    await syncMadrijProfiles(madrijim);
 
     const { data: existingJanij, error: existingJanijError } = await supabase
       .from("janijim")
