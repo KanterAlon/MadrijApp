@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 
-import { loadSheetsData, normaliseEmail } from "@/lib/google/sheetData";
-import { syncGroupFromSheets } from "@/lib/sync/sheetsSync";
 import { supabase } from "@/lib/supabase";
+
+function normaliseEmail(value: string) {
+  return value.trim().toLowerCase();
+}
 
 type GrupoMatchRow = {
   grupo_id: string | null;
@@ -51,11 +53,6 @@ function mapGrupoRows(rows: GrupoMatchRow[] | null | undefined) {
   });
 }
 
-function ensureNombre(value: string | null | undefined, email: string) {
-  const trimmed = value?.trim();
-  return trimmed && trimmed.length > 0 ? trimmed : email;
-}
-
 export async function GET(req: Request) {
   const { userId } = await auth();
   if (!userId) {
@@ -85,82 +82,19 @@ export async function GET(req: Request) {
       status: 500,
     });
   }
-  if (madrij?.clerk_id && madrij.clerk_id === userId) {
+
+  if (!madrij) {
+    return NextResponse.json({ status: "missing" } satisfies ClaimStatus);
+  }
+
+  if (madrij.clerk_id && madrij.clerk_id === userId) {
     return NextResponse.json({ status: "ready" } satisfies ClaimStatus);
   }
 
-  if (madrij?.clerk_id && madrij.clerk_id !== userId) {
+  if (madrij.clerk_id && madrij.clerk_id !== userId) {
     return NextResponse.json({
       status: "claimed",
       nombre: madrij.nombre ?? null,
-    } satisfies ClaimStatus);
-  }
-
-  const sheetsData = await loadSheetsData();
-  const personaEntries = sheetsData.madrijes.filter((entry) => entry.email === email);
-
-  if (personaEntries.length === 0) {
-    return NextResponse.json({ status: "missing" } satisfies ClaimStatus);
-  }
-
-  const personaNombre = ensureNombre(personaEntries[0]?.nombre ?? null, email);
-  const gruposMap = new Map<string, string>();
-  for (const entry of personaEntries) {
-    if (entry.grupoKey) {
-      gruposMap.set(entry.grupoKey, entry.grupoNombre);
-    }
-  }
-
-  if (gruposMap.size === 0) {
-    return NextResponse.json({ status: "missing" } satisfies ClaimStatus);
-  }
-
-  try {
-    for (const [, grupoNombre] of gruposMap) {
-      await syncGroupFromSheets(grupoNombre, { data: sheetsData });
-    }
-  } catch (syncError) {
-    console.error("Error sincronizando grupo para claim", syncError);
-    return NextResponse.json({
-      status: "error",
-      message: "No se pudo preparar tu información desde la hoja",
-    } satisfies ClaimStatus, {
-      status: 500,
-    });
-  }
-
-  const { error: upsertError } = await supabase
-    .from("madrijim")
-    .upsert({ email, nombre: personaNombre }, { onConflict: "email" });
-
-  if (upsertError) {
-    console.error("Error guardando madrij", upsertError);
-    return NextResponse.json({ status: "error", message: "No se pudo preparar tu usuario" } satisfies ClaimStatus, {
-      status: 500,
-    });
-  }
-
-  const { data: refreshed, error: refreshedError } = await supabase
-    .from("madrijim")
-    .select("id, clerk_id, nombre")
-    .eq("email", email)
-    .maybeSingle();
-
-  if (refreshedError) {
-    console.error("Error refrescando madrij", refreshedError);
-    return NextResponse.json({ status: "error", message: "No se pudo preparar tu usuario" } satisfies ClaimStatus, {
-      status: 500,
-    });
-  }
-
-  if (refreshed?.clerk_id && refreshed.clerk_id === userId) {
-    return NextResponse.json({ status: "ready" } satisfies ClaimStatus);
-  }
-
-  if (refreshed?.clerk_id && refreshed.clerk_id !== userId) {
-    return NextResponse.json({
-      status: "claimed",
-      nombre: refreshed.nombre ?? null,
     } satisfies ClaimStatus);
   }
 
@@ -187,7 +121,7 @@ export async function GET(req: Request) {
   }
 
   const persona: ClaimPersona = {
-    nombre: refreshed?.nombre ?? personaNombre,
+    nombre: madrij.nombre ?? null,
     email,
     grupos: mapGrupoRows(grupos as GrupoMatchRow[]),
   };
@@ -234,7 +168,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "El usuario ya fue reclamado" }, { status: 409 });
   }
 
-  const finalNombre = ensureNombre(providedNombre ?? madrij.nombre, email);
+  const finalNombre = (providedNombre ?? madrij.nombre ?? email).trim() || email;
 
   const { error: updateError } = await supabase
     .from("madrijim")
