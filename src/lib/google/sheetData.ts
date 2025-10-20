@@ -245,7 +245,7 @@ const ROL_BASICO_HEADERS: Record<string, "nombre" | "apellido" | "email"> = {
   correo: "email",
 };
 
-export function buildRolBasicoEntries(rows: unknown[][], _role: "director" | "admin") {
+export function buildRolBasicoEntries(rows: unknown[][]) {
   if (rows.length === 0) return [] as RolBasicoSheetEntry[];
   const [header, ...dataRows] = rows;
   const mapping = {} as Record<"nombre" | "apellido" | "email", number | undefined>;
@@ -297,8 +297,8 @@ export async function loadSheetsData(): Promise<SheetsData> {
     janijim: buildJanijEntries(janRows),
     proyectos: buildProyectoEntries(proyectoRows),
     coordinadores: buildCoordinadorEntries(coordRows),
-    directores: buildRolBasicoEntries(dirRows, "director"),
-    admins: buildRolBasicoEntries(adminRows, "admin"),
+    directores: buildRolBasicoEntries(dirRows),
+    admins: buildRolBasicoEntries(adminRows),
   };
 }
 

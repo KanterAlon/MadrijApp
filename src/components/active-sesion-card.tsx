@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getSesionActiva } from "@/lib/supabase/asistencias";
 import { getMadrijNombre } from "@/lib/supabase/madrijim";
+import { AccessDeniedError } from "@/lib/supabase/access";
 
 type SesionData = {
   id: string;
@@ -26,75 +27,96 @@ export default function ActiveSesionCard({
   const { user } = useUser();
 
   useEffect(() => {
+    if (!user) return;
     let ignore = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const subscribe = () => {
+      channel = supabase
+        .channel("asistencia_sesiones")
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "asistencia_sesiones",
+            filter: `proyecto_id=eq.${proyectoId}`,
+          },
+          (payload) => {
+            const data = payload.new as SesionData;
+            if (!data.finalizado) {
+              currentId.current = data.id;
+              setSesion(data);
+              getMadrijNombre(data.madrij_id)
+                .then((n) => setMadrijNombre(n))
+                .catch(() => {});
+            }
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "asistencia_sesiones",
+            filter: `proyecto_id=eq.${proyectoId}`,
+          },
+          (payload) => {
+            const data = payload.new as SesionData;
+            if (data.finalizado) {
+              if (currentId.current === data.id) {
+                setSesion(null);
+                currentId.current = null;
+              }
+            } else {
+              currentId.current = data.id;
+              setSesion(data);
+              getMadrijNombre(data.madrij_id)
+                .then((n) => setMadrijNombre(n))
+                .catch(() => {});
+            }
+          },
+        )
+        .subscribe();
+    };
+
     const load = async () => {
       try {
-        const s = await getSesionActiva(proyectoId);
-        if (s && !ignore) {
-          currentId.current = s.id;
+        const s = await getSesionActiva(user.id, proyectoId);
+        if (ignore) return;
+        if (s) {
+          currentId.current = s.id as string;
           setSesion(s as SesionData);
-          getMadrijNombre(s.madrij_id)
+          getMadrijNombre((s as SesionData).madrij_id)
             .then((n) => !ignore && setMadrijNombre(n))
             .catch(() => {});
+        } else {
+          currentId.current = null;
+          setSesion(null);
+          setMadrijNombre("");
         }
-      } catch {
-        /* empty */
+        subscribe();
+      } catch (err) {
+        if (err instanceof AccessDeniedError) {
+          if (!ignore) {
+            setSesion(null);
+            setMadrijNombre("");
+          }
+          return;
+        }
+        console.error("Error cargando sesión activa", err);
       }
     };
-    load();
 
-    const channel = supabase
-      .channel("asistencia_sesiones")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "asistencia_sesiones",
-          filter: `proyecto_id=eq.${proyectoId}`,
-        },
-        (payload) => {
-          const data = payload.new as SesionData;
-          if (!data.finalizado) {
-            currentId.current = data.id;
-            setSesion(data);
-            getMadrijNombre(data.madrij_id)
-              .then((n) => setMadrijNombre(n))
-              .catch(() => {});
-          }
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "asistencia_sesiones",
-          filter: `proyecto_id=eq.${proyectoId}`,
-        },
-        (payload) => {
-          const data = payload.new as SesionData;
-          if (data.finalizado) {
-            if (currentId.current === data.id) {
-              setSesion(null);
-              currentId.current = null;
-            }
-          } else {
-            currentId.current = data.id;
-            setSesion(data);
-            getMadrijNombre(data.madrij_id)
-              .then((n) => setMadrijNombre(n))
-              .catch(() => {});
-          }
-        },
-      )
-      .subscribe();
+    load();
 
     return () => {
       ignore = true;
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
-  }, [proyectoId]);
+  }, [proyectoId, user]);
 
   useEffect(() => {
     if (!sesion) return;

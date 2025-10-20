@@ -1,8 +1,8 @@
 import { supabase } from "@/lib/supabase";
-import { getGrupoIdsForProyecto } from "./projects";
+import { ensureProyectoAccess } from "@/lib/supabase/access";
 
-export async function getMadrijimPorProyecto(proyectoId: string) {
-  const grupoIds = await getGrupoIdsForProyecto(proyectoId);
+export async function getMadrijimPorProyecto(proyectoId: string, userId: string) {
+  const { grupoIds } = await ensureProyectoAccess(userId, proyectoId);
   if (grupoIds.length === 0) return [];
 
   const { data: relaciones, error } = await supabase
@@ -13,7 +13,7 @@ export async function getMadrijimPorProyecto(proyectoId: string) {
     .eq("activo", true);
   if (error) throw error;
 
-  const ids = relaciones.map((r) => r.madrij_id);
+  const ids = relaciones.map((r) => r.madrij_id).filter((id): id is string => Boolean(id));
   if (ids.length === 0) return [];
 
   const { data: madrijim, error: e2 } = await supabase
