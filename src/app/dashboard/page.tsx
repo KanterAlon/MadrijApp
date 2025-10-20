@@ -86,19 +86,26 @@ export default function DashboardPage() {
   const [userRoles, setUserRoles] = useState<AppRole[]>([]);
   const groupCards = useMemo(() => {
     return projects.flatMap((proyecto) => {
-      const canSeeGroups = proyecto.roles.some((role) => role === "madrij" || role === "coordinador" || role === "admin");
+      const canSeeGroups = proyecto.roles.some((role) => role === "madrij" || role === "admin");
       if (!canSeeGroups) return [] as { proyecto: DashboardProyecto; grupo: DashboardProyecto["grupos"][number] }[];
       return proyecto.grupos.map((grupo) => ({ proyecto, grupo }));
     });
   }, [projects]);
   const hasGroupAccess = useMemo(
-    () =>
-      projects.some((proyecto) => proyecto.roles.some((role) => role === "madrij" || role === "coordinador" || role === "admin")),
+    () => projects.some((proyecto) => proyecto.roles.some((role) => role === "madrij" || role === "admin")),
     [projects],
   );
   const projectCards = useMemo(
-    () => projects.filter((proyecto) => proyecto.roles.some((role) => role === "director" || role === "admin")),
+    () =>
+      projects.filter((proyecto) =>
+        proyecto.roles.some((role) => role === "coordinador" || role === "director" || role === "admin"),
+      ),
     [projects],
+  );
+  const canSeeGroupSection = useMemo(() => userRoles.some((rol) => rol === "madrij" || rol === "admin"), [userRoles]);
+  const canSeeProjectSection = useMemo(
+    () => userRoles.some((rol) => rol === "coordinador" || rol === "director" || rol === "admin"),
+    [userRoles],
   );
 
   useEffect(() => {
@@ -345,7 +352,7 @@ export default function DashboardPage() {
                   </div>
                 </section>
               )}
-              {hasGroupAccess && (
+              {canSeeGroupSection && hasGroupAccess && (
                 <section>
                   <h2 className="text-lg font-semibold text-blue-900">Tus grupos</h2>
                   <p className="mt-1 text-sm text-blue-900/70">Estos son los grupos que ya están vinculados a tu usuario.</p>
@@ -371,7 +378,7 @@ export default function DashboardPage() {
                 </section>
               )}
 
-              {projectCards.length > 0 && (
+              {canSeeProjectSection && projectCards.length > 0 && (
                 <section>
                   <h2 className="text-lg font-semibold text-blue-900">Tus proyectos</h2>
                   <p className="mt-1 text-sm text-blue-900/70">Visualizá la información general de cada proyecto y sus referentes.</p>
