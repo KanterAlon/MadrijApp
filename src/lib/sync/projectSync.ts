@@ -1,4 +1,5 @@
 import { SYSTEM_CREATOR_ID } from "@/lib/google/config";
+import { normaliseGroupName } from "@/lib/google/sheetData";
 import { supabase } from "@/lib/supabase";
 
 export async function ensureProyectoRecord(nombre: string) {
@@ -7,16 +8,45 @@ export async function ensureProyectoRecord(nombre: string) {
     throw new Error("El proyecto debe tener un nombre valido");
   }
 
-  const { data: existing, error: existingError } = await supabase
+  const normalised = normaliseGroupName(trimmed);
+
+  const { data: exactMatches, error: exactError } = await supabase
     .from("proyectos")
     .select("id, nombre")
-    .eq("nombre", trimmed)
-    .maybeSingle();
+    .eq("nombre", trimmed);
 
-  if (existingError) throw existingError;
+  if (exactError) throw exactError;
 
-  if (existing) {
-    return { id: existing.id as string, nombre: existing.nombre as string };
+  if (exactMatches && exactMatches.length > 0) {
+    const match = exactMatches[0];
+    return { id: match.id as string, nombre: match.nombre as string };
+  }
+
+  const { data: allProjects, error: listError } = await supabase
+    .from("proyectos")
+    .select("id, nombre");
+
+  if (listError) throw listError;
+
+  const normalisedMatch = (allProjects ?? []).find((row) => {
+    const existingNombre = row.nombre as string | null;
+    if (!existingNombre) return false;
+    return normaliseGroupName(existingNombre) === normalised;
+  });
+
+  if (normalisedMatch) {
+    if ((normalisedMatch.nombre as string) !== trimmed) {
+      const { error: updateError } = await supabase
+        .from("proyectos")
+        .update({ nombre: trimmed })
+        .eq("id", normalisedMatch.id);
+      if (updateError) throw updateError;
+      return { id: normalisedMatch.id as string, nombre: trimmed };
+    }
+    return {
+      id: normalisedMatch.id as string,
+      nombre: normalisedMatch.nombre as string,
+    };
   }
 
   const { data: created, error: insertError } = await supabase
@@ -43,23 +73,36 @@ export async function ensureProyectoGrupoLink(proyectoId: string, grupoId: strin
 
   if (existingError) throw existingError;
 
-  const keep = (existing ?? []).find((row) => row.proyecto_id === proyectoId);
-  const toRemove = (existing ?? []).filter((row) => row.proyecto_id !== proyectoId);
+  const rows = existing ?? [];
+  const keepRow = rows.find((row) => row.proyecto_id === proyectoId);
+  let retainedRowId = keepRow ? (keepRow.id as string) : undefined;
 
-  if (!keep) {
-    const { error: insertError } = await supabase
-      .from("proyecto_grupos")
-      .insert({ proyecto_id: proyectoId, grupo_id: grupoId });
-    if (insertError) throw insertError;
+  if (!retainedRowId) {
+    const rowToUpdate = rows[0];
+    if (rowToUpdate) {
+      const { error: updateLinkError } = await supabase
+        .from("proyecto_grupos")
+        .update({ proyecto_id: proyectoId })
+        .eq("id", rowToUpdate.id);
+      if (updateLinkError) throw updateLinkError;
+      retainedRowId = rowToUpdate.id as string;
+    } else {
+      const { error: insertError } = await supabase
+        .from("proyecto_grupos")
+        .insert({ proyecto_id: proyectoId, grupo_id: grupoId });
+      if (insertError) throw insertError;
+      // No rows existed previously, nothing to clean up.
+    }
   }
 
-  if (toRemove.length > 0) {
+  const rowsToDelete = rows.filter((row) => (row.id as string) !== retainedRowId);
+  if (rowsToDelete.length > 0) {
     const { error: deleteError } = await supabase
       .from("proyecto_grupos")
       .delete()
       .in(
         "id",
-        toRemove.map((row) => row.id as string),
+        rowsToDelete.map((row) => row.id as string),
       );
     if (deleteError) throw deleteError;
   }

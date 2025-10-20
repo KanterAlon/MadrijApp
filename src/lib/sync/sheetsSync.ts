@@ -156,6 +156,7 @@ async function syncMadrijRecords(grupoId: string, entries: MadrijSheetEntry[]) {
   const seen = new Set<string>();
   const updates: {
     id: string;
+    grupo_id: string;
     nombre: string;
     email: string;
     activo: boolean;
@@ -180,6 +181,7 @@ async function syncMadrijRecords(grupoId: string, entries: MadrijSheetEntry[]) {
     if (existingRow) {
       updates.push({
         id: existingRow.id as string,
+        grupo_id: grupoId,
         nombre,
         email,
         activo: true,

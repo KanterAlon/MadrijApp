@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { FileSpreadsheet, RefreshCw } from "lucide-react";
 
 import { AdminManagePanel } from "@/components/admin/AdminManagePanel";
@@ -33,12 +34,20 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-white">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 pb-16 pt-10 md:px-8">
-        <header className="space-y-3 text-blue-900">
-          <h1 className="text-4xl font-bold">Panel administrativo</h1>
-          <p className="max-w-3xl text-base text-blue-900/80">
-            Centralizá todas las herramientas institucionales desde un único lugar seguro. Editá la planilla nacional, controlá la
-            sincronización con Supabase y mantené la información siempre actualizada sin salir de la aplicación.
-          </p>
+        <header className="flex flex-col gap-4 text-blue-900 md:flex-row md:items-start md:justify-between">
+          <div className="space-y-3">
+            <h1 className="text-4xl font-bold">Panel administrativo</h1>
+            <p className="max-w-3xl text-base text-blue-900/80">
+              Centraliza todas las herramientas institucionales desde un unico lugar seguro. Edita la planilla nacional, controla la
+              sincronizacion con Supabase y mantiene la informacion siempre actualizada sin salir de la aplicacion.
+            </p>
+          </div>
+          <Link
+            href="/admin/preview"
+            className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+          >
+            Abrir vista completa
+          </Link>
         </header>
 
         <nav className="flex flex-wrap gap-3 rounded-2xl border border-blue-100 bg-white/70 p-4 shadow-sm backdrop-blur">
