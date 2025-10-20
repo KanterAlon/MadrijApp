@@ -47,7 +47,20 @@ export async function POST(
       return NextResponse.json({ error: "El grupo no tiene un nombre configurado" }, { status: 400 });
     }
 
-    const sheetsData = await loadSheetsData();
+    const sheetsData = await loadSheetsData().catch((sheetsError) => {
+      console.error("Error leyendo la hoja de calculo", sheetsError);
+      return null;
+    });
+
+    if (!sheetsData) {
+      return NextResponse.json(
+        {
+          error:
+            "No se pudo acceder a la hoja de calculo institucional. Revisa la configuracion de la cuenta de servicio de Google.",
+        },
+        { status: 500 },
+      );
+    }
     const result = await syncGroupFromSheets(nombre, {
       expectedGrupoId: grupoId,
       data: sheetsData,

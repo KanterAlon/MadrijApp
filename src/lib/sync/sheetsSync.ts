@@ -8,6 +8,7 @@ import {
   normaliseGroupName,
 } from "@/lib/google/sheetData";
 import { supabase } from "@/lib/supabase";
+import { ensureProyectoRecord, ensureProyectoGrupoLink } from "@/lib/sync/projectSync";
 
 function ensureNombre(value: string | null | undefined, fallback: string) {
   const trimmed = value?.trim();
@@ -97,43 +98,6 @@ async function ensureGrupoRecord(nombre: string, expectedId?: string) {
   }
 
   return created.id as string;
-}
-
-async function ensureProyecto(grupoId: string, nombre: string) {
-  const { data, error } = await supabase
-    .from("proyectos")
-    .select("id, nombre")
-    .eq("grupo_id", grupoId)
-    .maybeSingle();
-
-  if (error) throw error;
-
-  if (data) {
-    if (data.nombre !== nombre) {
-      const { error: updateError } = await supabase
-        .from("proyectos")
-        .update({ nombre })
-        .eq("id", data.id);
-      if (updateError) throw updateError;
-    }
-    return { id: data.id as string, nombre: data.nombre as string };
-  }
-
-  const { data: created, error: insertError } = await supabase
-    .from("proyectos")
-    .insert({
-      nombre,
-      creador_id: SYSTEM_CREATOR_ID,
-      grupo_id: grupoId,
-    })
-    .select("id, nombre")
-    .single();
-
-  if (insertError || !created) {
-    throw insertError ?? new Error("No se pudo crear el proyecto");
-  }
-
-  return { id: created.id as string, nombre: created.nombre as string };
 }
 
 async function syncMadrijRecords(grupoId: string, entries: MadrijSheetEntry[]) {
@@ -418,7 +382,17 @@ export async function syncGroupFromSheets(
   );
 
   const grupoId = await ensureGrupoRecord(displayNombre, options?.expectedGrupoId);
-  const proyecto = await ensureProyecto(grupoId, displayNombre);
+
+  const projectAssignments = new Map<string, string>();
+  for (const proyectoSheet of data.proyectos ?? []) {
+    for (const grupoSheetNombre of proyectoSheet.grupos) {
+      projectAssignments.set(normaliseGroupName(grupoSheetNombre), proyectoSheet.nombre);
+    }
+  }
+
+  const assignedProjectName = projectAssignments.get(key) ?? displayNombre;
+  const proyecto = await ensureProyectoRecord(assignedProjectName);
+  await ensureProyectoGrupoLink(proyecto.id, grupoId);
 
   const madStats = await syncMadrijRecords(grupoId, madEntries);
   const janStats = await syncJanijRecords(grupoId, proyecto.id, displayNombre, janEntries);

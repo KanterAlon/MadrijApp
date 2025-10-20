@@ -7,11 +7,7 @@ import { useUser } from "@clerk/nextjs";
 import useHighlightScroll from "@/hooks/useHighlightScroll";
 import fuzzysort from "fuzzysort";
 import Loader from "@/components/ui/loader";
-import {
-  getJanijim,
-  type JanijData,
-  addJanijim,
-} from "@/lib/supabase/janijim";
+import { getJanijim, type JanijData } from "@/lib/supabase/janijim";
 import {
   getAsistencias,
   marcarAsistencia,
@@ -153,25 +149,7 @@ export default function AsistenciaPage() {
 
   const resultados = [...exactMatches, ...fuzzyMatches];
 
-  const agregar = async (nombre: string) => {
-    if (!user || !sesionId) return;
-    try {
-      const inserted = await addJanijim(proyectoId, [{ nombre }]);
-      const nuevo = inserted[0];
-      setJanijim((prev) => [...prev, nuevo]);
-      setEstado((prev) => ({ ...prev, [nuevo.id]: true }));
-      await marcarAsistencia(sesionId, proyectoId, nuevo.id, user.id, true);
-      toast.success("Janij agregado correctamente");
-      setSearch("");
-      setShowResults(false);
-      setTimeout(() => scrollTo(nuevo.id), 100);
-    } catch (e) {
-      console.error(e);
-      showError("Error agregando janij");
-    }
-  };
-
-  const seleccionar = (id: string) => {
+const seleccionar = (id: string) => {
     setShowResults(false);
     setSearch("");
     scrollTo(id);
@@ -457,85 +435,41 @@ export default function AsistenciaPage() {
                 !resultados.some(
                   (r) => normalize(r.nombre) === normalize(search)
                 ) && (
-                  <li
-                    tabIndex={0}
-                    onClick={() => agregar(search.trim())}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        agregar(search.trim());
-                      }
-                    }}
-                    className="p-2 cursor-pointer hover:bg-gray-100"
-                    aria-label={`Agregar ${search.trim()}`}
-                  >
-                    Agregar &quot;{search.trim()}&quot;
+                  <li className="p-2 text-sm text-gray-500">
+                    {`"${search.trim()}" no figura en la planilla. Edita la hoja y sincroniza de nuevo.`}
                   </li>
                 )}
             </ul>
           )}
         </div>
-        <div className="flex items-center gap-2 mt-2">
-          <input
-            id="presentes-arriba"
-            type="checkbox"
-            className="h-4 w-4"
-            checked={presentesArriba}
-            onChange={(e) => setPresentesArriba(e.target.checked)}
-          />
-          <label htmlFor="presentes-arriba" className="text-sm">
-            Presentes arriba
-          </label>
-        </div>
-        <ul className="space-y-2 pb-32">
-          {janijimOrdenados.map((j) => (
-            <li
-              id={`janij-${j.id}`}
-              key={j.id}
-              className={`flex items-center justify-between bg-white shadow p-4 rounded-lg ${
-                highlightId === j.id ? "ring-2 ring-blue-500 animate-pulse" : ""
-              }`}
-            >
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4"
-                  checked={!!estado[j.id]}
-                  onChange={() => toggle(j.id)}
-                />
-                <span>{j.nombre}</span>
-              </label>
-            </li>
-          ))}
-        </ul>
-        </div>
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow text-center py-2">
           Presentes: {presentesCount} / {janijim.length}
         </div>
         {(esCreador || showTopButton) && (
-        <div className="fixed bottom-20 right-4 md:bottom-24 md:right-8 z-10 flex flex-col items-end space-y-2">
-          {esCreador && (
-            <Button
-              className="rounded-full shadow-lg px-6 py-3"
-              variant="danger"
-              icon={<Check className="w-4 h-4" />}
-              onClick={finalizar}
-            >
-              Finalizar asistencia
-            </Button>
-          )}
-          {showTopButton && (
-            <Button
-              className="rounded-full shadow-lg px-6 py-3"
-              variant="secondary"
-              icon={<ArrowUp className="w-4 h-4" />}
-              onClick={irArriba}
-            >
-              Ir arriba
-            </Button>
-          )}
-        </div>
-      )}
+          <div className="fixed bottom-20 right-4 md:bottom-24 md:right-8 z-10 flex flex-col items-end space-y-2">
+            {esCreador && (
+              <Button
+                className="rounded-full shadow-lg px-6 py-3"
+                variant="danger"
+                icon={<Check className="w-4 h-4" />}
+                onClick={finalizar}
+              >
+                Finalizar asistencia
+              </Button>
+            )}
+            {showTopButton && (
+              <Button
+                className="rounded-full shadow-lg px-6 py-3"
+                variant="secondary"
+                icon={<ArrowUp className="w-4 h-4" />}
+                onClick={irArriba}
+              >
+                Ir arriba
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

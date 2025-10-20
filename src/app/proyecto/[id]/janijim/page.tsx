@@ -47,7 +47,7 @@ import {
 import { crearSesion } from "@/lib/supabase/asistencias";
 import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
 import { showError, confirmDialog } from "@/lib/alerts";
-import { getGrupoByProyecto, type Grupo } from "@/lib/supabase/grupos";
+import { getGruposByProyecto, type Grupo } from "@/lib/supabase/grupos";
 
 
 type Janij = {
@@ -63,6 +63,7 @@ type Janij = {
 };
 
 type Tag = { name: string; color: number };
+type AppRole = "madrij" | "coordinador" | "director" | "admin";
 
 const tagColors = [
   { bg: "bg-red-100", text: "text-red-800" },
@@ -107,10 +108,11 @@ export default function JanijimPage() {
   const [sesionMadrij, setSesionMadrij] = useState<string>("");
   const [callDialogOpen, setCallDialogOpen] = useState(false);
   const [callTarget, setCallTarget] = useState<Janij | null>(null);
-  const [grupo, setGrupo] = useState<Grupo | null>(null);
-  const [sheetManaged, setSheetManaged] = useState(false);
+  const [grupos, setGrupos] = useState<Grupo[]>([]);
+  const [selectedGrupoId, setSelectedGrupoId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [roles, setRoles] = useState<AppRole[]>([]);
   const pendingScrollId = useRef<string | null>(null);
   const normalize = (s: string) =>
     s
@@ -118,6 +120,22 @@ export default function JanijimPage() {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
       .trim();
+
+  const selectedGrupo = useMemo(
+    () => grupos.find((g) => g.id === selectedGrupoId) ?? null,
+    [grupos, selectedGrupoId],
+  );
+
+  const sheetManaged = useMemo(
+    () =>
+      Boolean(
+        selectedGrupo &&
+          selectedGrupo.spreadsheet_id &&
+          selectedGrupo.janij_sheet &&
+          selectedGrupo.madrij_sheet,
+      ),
+    [selectedGrupo],
+  );
 
   const ensureWritable = useCallback(() => {
     if (!sheetManaged) return true;
@@ -141,11 +159,43 @@ export default function JanijimPage() {
     return () => window.removeEventListener("scroll", handle);
   }, []);
 
-  const loadJanijim = useCallback(async () => {
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("roles fetch failed"))))
+      .then((payload: { roles?: AppRole[] }) => {
+        if (cancelled) return;
+        const nextRoles = Array.isArray(payload?.roles) ? (payload?.roles as AppRole[]) : [];
+        setRoles(nextRoles);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRoles([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const loadJanijim = useCallback(async (targetGrupoId: string | null) => {
     setLoading(true);
     try {
       const data = await getJanijim(proyectoId);
-      setJanijim(data.map((j) => ({ ...j, estado: "ausente" as const })));
+      const filtered = targetGrupoId ? data.filter((j) => j.grupo_id === targetGrupoId) : data;
+      setJanijim(
+        filtered.map((j) => ({
+          id: j.id,
+          nombre: j.nombre,
+          dni: j.dni ?? null,
+          numero_socio: j.numero_socio ?? null,
+          grupo: j.grupo ?? null,
+          grupo_id: j.grupo_id as string,
+          tel_madre: j.tel_madre ?? null,
+          tel_padre: j.tel_padre ?? null,
+          estado: "ausente" as const,
+        })),
+      );
     } catch (err) {
       console.error("Error cargando janijim", err);
     } finally {
@@ -154,19 +204,20 @@ export default function JanijimPage() {
   }, [proyectoId]);
 
   useEffect(() => {
-    loadJanijim();
-  }, [loadJanijim]);
+    if (!selectedGrupoId) return;
+    loadJanijim(selectedGrupoId);
+  }, [selectedGrupoId, loadJanijim]);
 
   useEffect(() => {
     let ignore = false;
-    getGrupoByProyecto(proyectoId)
+    getGruposByProyecto(proyectoId)
       .then((data) => {
         if (ignore) return;
-        setGrupo(data);
-        setSheetManaged(Boolean(data?.spreadsheet_id && data?.janij_sheet));
+        setGrupos(data);
+        setSelectedGrupoId((prev) => prev ?? data[0]?.id ?? null);
         setSyncMessage(null);
       })
-      .catch((err) => console.error("Error cargando grupo", err));
+      .catch((err) => console.error("Error cargando grupos", err));
     return () => {
       ignore = true;
     };
@@ -393,8 +444,12 @@ export default function JanijimPage() {
   };
 
   const syncWithSheets = async () => {
-    if (!sheetManaged || !grupo?.id) {
-      toast.error("Configurá la hoja de cálculo antes de sincronizar");
+    if (!roles.includes("admin")) {
+      toast.error("Solo el administrador puede sincronizar los datos desde la hoja institucional");
+      return;
+    }
+    if (!grupo?.id) {
+      toast.error("No encontramos el grupo para sincronizar");
       return;
     }
     setSyncing(true);
@@ -405,9 +460,10 @@ export default function JanijimPage() {
       if (!res.ok) {
         throw new Error(payload?.error || "Error sincronizando");
       }
-      const summary = `Janijim → ${payload.janijim.inserted} nuevos, ${payload.janijim.updated} actualizados, ${payload.janijim.deactivated} inactivos. Madrijim → ${payload.madrijim.inserted} nuevos, ${payload.madrijim.updated} actualizados, ${payload.madrijim.deactivated} inactivos.`;
-      setSyncMessage(summary);
-      toast.success("Sincronización completada");
+      const summary = `Janijim: ${payload.janijim.inserted} nuevos, ${payload.janijim.updated} actualizados, ${payload.janijim.deactivated} inactivos. Madrijim: ${payload.madrijim.inserted} nuevos, ${payload.madrijim.updated} actualizados, ${payload.madrijim.deactivated} inactivos.`;
+      const timestamp = new Date().toLocaleString();
+      setSyncMessage(`Ultima sincronizacion (${timestamp}): ${summary}`);
+      toast.success("Sincronizacion completada");
       await loadJanijim();
     } catch (err) {
       const message =
@@ -566,7 +622,7 @@ export default function JanijimPage() {
             Sincronizado con Google Sheets
           </p>
           <p className="text-xs text-blue-700">
-            {syncMessage || "Sincronizá para traer la última versión de la hoja."}
+            {syncMessage || "Los datos se leen desde la planilla institucional. Usa \"Sincronizar ahora\" solo despues de actualizar la hoja."}
           </p>
           <div className="flex gap-2 flex-col sm:flex-row sm:items-center sm:justify-end">
             <Button

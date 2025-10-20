@@ -4,82 +4,85 @@ type RawProyecto = {
   id: string;
   nombre: string;
   creador_id: string;
-  grupo_id: string;
-};
-
-type RawProyectoRow = {
-  grupo_id: string;
-  proyecto?: {
-    proyectos?: RawProyecto[] | null;
-  } | null;
 };
 
 export async function getProyectosParaUsuario(userId: string) {
-  const { data, error } = await supabase
+  const { data: roleRows, error: roleError } = await supabase
+    .from("app_roles")
+    .select("id, role")
+    .eq("clerk_id", userId)
+    .eq("activo", true);
+
+  if (roleError) throw roleError;
+
+  const roles = roleRows ?? [];
+  const coordinatorRoleIds = roles.filter((row) => row.role === "coordinador").map((row) => row.id as string);
+  const isDirector = roles.some((row) => row.role === "director");
+  const isAdmin = roles.some((row) => row.role === "admin");
+
+  if (isDirector || isAdmin) {
+    const { data: allProjects, error: allProjectsError } = await supabase
+      .from("proyectos")
+      .select("id, nombre, creador_id");
+    if (allProjectsError) throw allProjectsError;
+    return (allProjects ?? []) as RawProyecto[];
+  }
+
+  const proyectoIds = new Set<string>();
+
+  const { data: madrijGrupos, error: madrijError } = await supabase
     .from("madrijim_grupos")
-    .select(
-      `
-        grupo_id,
-        proyecto:grupos!inner (
-          proyectos!inner (
-            id,
-            nombre,
-            creador_id,
-            grupo_id
-          )
-        )
-      `,
-    )
+    .select("grupo_id")
     .eq("madrij_id", userId)
     .eq("invitado", false)
     .eq("activo", true);
+  if (madrijError) throw madrijError;
 
-  if (error) throw error;
-
-  const proyectos = new Map<string, RawProyecto>();
-  const grupoIds = new Set<string>();
-
-  for (const row of ((data ?? []) as RawProyectoRow[])) {
-    if (row.grupo_id) {
-      grupoIds.add(row.grupo_id);
-    }
-    const lista = row.proyecto?.proyectos;
-    if (!Array.isArray(lista)) continue;
-    for (const proyecto of lista) {
-      if (proyecto) {
-        proyectos.set(proyecto.id, proyecto);
-      }
+  const grupoIds = (madrijGrupos ?? []).map((row) => row.grupo_id as string);
+  if (grupoIds.length > 0) {
+    const { data: proyectoGrupoRows, error: proyectoGrupoError } = await supabase
+      .from("proyecto_grupos")
+      .select("proyecto_id")
+      .in("grupo_id", grupoIds);
+    if (proyectoGrupoError) throw proyectoGrupoError;
+    for (const row of proyectoGrupoRows ?? []) {
+      proyectoIds.add(row.proyecto_id as string);
     }
   }
 
-  if (proyectos.size === 0 && grupoIds.size > 0) {
-    const { data: fallback, error: fallbackError } = await supabase
-      .from("proyectos")
-      .select("id, nombre, creador_id, grupo_id")
-      .in("grupo_id", Array.from(grupoIds));
-
-    if (fallbackError) throw fallbackError;
-
-    for (const proyecto of ((fallback ?? []) as RawProyecto[])) {
-      if (proyecto) {
-        proyectos.set(proyecto.id, proyecto);
-      }
+  if (coordinatorRoleIds.length > 0) {
+    const { data: coordRows, error: coordError } = await supabase
+      .from("proyecto_coordinadores")
+      .select("proyecto_id")
+      .in("role_id", coordinatorRoleIds);
+    if (coordError) throw coordError;
+    for (const row of coordRows ?? []) {
+      proyectoIds.add(row.proyecto_id as string);
     }
   }
 
-  return Array.from(proyectos.values());
+  if (proyectoIds.size === 0) {
+    return [];
+  }
+
+  const { data: proyectos, error: proyectosError } = await supabase
+    .from("proyectos")
+    .select("id, nombre, creador_id")
+    .in("id", Array.from(proyectoIds));
+  if (proyectosError) throw proyectosError;
+
+  return (proyectos ?? []) as RawProyecto[];
 }
 
-export async function getGrupoIdForProyecto(proyectoId: string) {
+export async function getGrupoIdsForProyecto(proyectoId: string) {
   const { data, error } = await supabase
-    .from("proyectos")
+    .from("proyecto_grupos")
     .select("grupo_id")
-    .eq("id", proyectoId)
-    .single();
+    .eq("proyecto_id", proyectoId);
 
   if (error) throw error;
 
-  return data.grupo_id as string;
+  return (data ?? []).map((row) => row.grupo_id as string);
 }
 
 export async function renameProyecto(id: string, nombre: string) {

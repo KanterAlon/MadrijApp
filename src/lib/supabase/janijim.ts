@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { getGrupoIdForProyecto } from "./projects";
+import { getGrupoIdsForProyecto } from "./projects";
 
 export type JanijData = {
   /** Nombre y apellido del janij */
@@ -51,59 +51,39 @@ export type JanijSearchResult = {
 };
 
 export async function getJanijim(proyectoId: string) {
-  const grupoId = await getGrupoIdForProyecto(proyectoId);
+  const grupoIds = await getGrupoIdsForProyecto(proyectoId);
+  if (grupoIds.length === 0) return [];
 
   const { data, error } = await supabase
     .from("janijim")
-    .select(
-      "id, nombre, dni, numero_socio, grupo, tel_madre, tel_padre, extras",
-    )
-    .eq("grupo_id", grupoId)
+    .select("id, nombre, dni, numero_socio, grupo, grupo_id, tel_madre, tel_padre, extras")
+    .in("grupo_id", grupoIds)
     .eq("activo", true)
     .order("nombre", { ascending: true });
   if (error) throw error;
   return data;
 }
 
-export async function addJanijim(proyectoId: string, items: JanijData[]) {
-  const grupoId = await getGrupoIdForProyecto(proyectoId);
-
-  const payload = items.map((item) => ({
-    ...item,
-    proyecto_id: proyectoId,
-    grupo_id: grupoId,
-  }));
-  const { data, error } = await supabase
-    .from("janijim")
-    .insert(payload)
-    .select();
-  if (error) throw error;
-  return data;
+export async function addJanijim(_proyectoId: string, _items: JanijData[]) {
+  void _proyectoId;
+  void _items;
+  throw new Error("Los janijim se gestionan exclusivamente desde Google Sheets");
 }
 
 export async function updateJanij(
-  proyectoId: string,
-  id: string,
-  data: Partial<JanijData>,
+  _proyectoId: string,
+  _id: string,
+  _data: Partial<JanijData>,
 ) {
-  const grupoId = await getGrupoIdForProyecto(proyectoId);
-
-  const payload = {
-    ...data,
-    proyecto_id: proyectoId,
-    grupo_id: grupoId,
-  };
-
-  const { error } = await supabase
-    .from("janijim")
-    .update(payload)
-    .eq("id", id);
-  if (error) throw error;
+  void _proyectoId;
+  void _id;
+  void _data;
+  throw new Error("Actualiza los datos del janij directamente en la planilla institucional");
 }
 
-export async function removeJanij(id: string) {
-  const { error } = await supabase.from("janijim").update({ activo: false }).eq("id", id);
-  if (error) throw error;
+export async function removeJanij(_id: string) {
+  void _id;
+  throw new Error("Los janijim se desactivan desde la hoja de calculo institucional");
 }
 
 export async function searchJanijimGlobal(query: string) {

@@ -1,52 +1,37 @@
 import { supabase } from "@/lib/supabase";
+import { getGrupoIdsForProyecto } from "./projects";
 
 export type Grupo = {
   id: string;
-  proyecto_id: string | null;
+  nombre: string;
   spreadsheet_id: string | null;
   janij_sheet: string | null;
   madrij_sheet: string | null;
 };
 
-export async function getGrupoByProyecto(proyectoId: string) {
-  const { data: proyecto, error: proyectoError } = await supabase
-    .from("proyectos")
-    .select("grupo_id")
-    .eq("id", proyectoId)
-    .maybeSingle();
-
-  if (proyectoError) throw proyectoError;
-
-  const grupoId = proyecto?.grupo_id;
-  if (!grupoId) return null;
+export async function getGruposByProyecto(proyectoId: string) {
+  const grupoIds = await getGrupoIdsForProyecto(proyectoId);
+  if (grupoIds.length === 0) return [] as Grupo[];
 
   const { data, error } = await supabase
     .from("grupos")
-    .select("id, proyecto_id, spreadsheet_id, janij_sheet, madrij_sheet")
-    .eq("id", grupoId)
-    .maybeSingle();
+    .select("id, nombre, spreadsheet_id, janij_sheet, madrij_sheet")
+    .in("id", grupoIds);
 
   if (error) throw error;
-  return data as Grupo | null;
-}
 
-export async function upsertGrupo(
-  grupoId: string,
-  proyectoId: string,
-  values: Partial<Omit<Grupo, "id" | "proyecto_id">>,
-) {
-  const payload = {
-    ...values,
-    proyecto_id: proyectoId,
-  };
+  const map = new Map<string, Grupo>();
+  for (const row of data ?? []) {
+    map.set(row.id as string, {
+      id: row.id as string,
+      nombre: row.nombre as string,
+      spreadsheet_id: row.spreadsheet_id ?? null,
+      janij_sheet: row.janij_sheet ?? null,
+      madrij_sheet: row.madrij_sheet ?? null,
+    });
+  }
 
-  const { data, error } = await supabase
-    .from("grupos")
-    .update(payload)
-    .eq("id", grupoId)
-    .select("id, proyecto_id, spreadsheet_id, janij_sheet, madrij_sheet")
-    .maybeSingle();
-
-  if (error) throw error;
-  return data as Grupo | null;
+  return grupoIds
+    .map((id) => map.get(id))
+    .filter((grupo): grupo is Grupo => Boolean(grupo));
 }

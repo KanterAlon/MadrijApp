@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
+import { toast } from "react-hot-toast";
 
-import { getProyectosParaUsuario } from "@/lib/supabase/projects";
 import Loader from "@/components/ui/loader";
 import { showError } from "@/lib/alerts";
-import { toast } from "react-hot-toast";
+import { getProyectosParaUsuario } from "@/lib/supabase/projects";
 
 type Proyecto = {
   id: string;
@@ -15,6 +15,8 @@ type Proyecto = {
   creador_id: string;
   grupo_id: string;
 };
+
+type AppRole = "madrij" | "coordinador" | "director" | "admin";
 
 type PersonaGrupo = {
   grupoId: string | null;
@@ -24,12 +26,26 @@ type PersonaGrupo = {
   rol: string | null;
 };
 
+type PersonaProyecto = {
+  proyectoId: string | null;
+  proyectoNombre: string | null;
+};
+
 type ClaimState =
   | { status: "loading" }
-  | { status: "ready" }
-  | { status: "needs_confirmation"; persona: { nombre: string | null; email: string; grupos: PersonaGrupo[] } }
+  | { status: "ready"; roles: AppRole[] }
+  | {
+      status: "needs_confirmation";
+      persona: {
+        nombre: string | null;
+        email: string;
+        roles: AppRole[];
+        grupos: PersonaGrupo[];
+        proyectos: PersonaProyecto[];
+      };
+    }
   | { status: "missing" }
-  | { status: "claimed_by_other"; nombre: string | null }
+  | { status: "claimed_by_other"; nombre: string | null; roles: AppRole[] }
   | { status: "error"; message: string };
 
 async function fetchClaim(email: string) {
@@ -39,10 +55,19 @@ async function fetchClaim(email: string) {
     throw new Error(payload?.error || "No se pudo verificar el usuario");
   }
   return (await response.json()) as
-    | { status: "ready" }
+    | { status: "ready"; roles: AppRole[] }
     | { status: "missing" }
-    | { status: "needs_confirmation"; persona: { nombre: string | null; email: string; grupos: PersonaGrupo[] } }
-    | { status: "claimed"; nombre: string | null }
+    | {
+        status: "needs_confirmation";
+        persona: {
+          nombre: string | null;
+          email: string;
+          roles: AppRole[];
+          grupos: PersonaGrupo[];
+          proyectos: PersonaProyecto[];
+        };
+      }
+    | { status: "claimed"; nombre: string | null; roles: AppRole[] }
     | { status: "error"; message: string };
 }
 
@@ -56,7 +81,7 @@ async function confirmClaim(email: string) {
     const payload = await response.json().catch(() => ({}));
     throw new Error(payload?.error || "No se pudo vincular tu usuario");
   }
-  return (await response.json()) as { status: "claimed" };
+  return (await response.json()) as { status: "claimed"; nombre: string | null; roles: AppRole[] };
 }
 
 export default function DashboardPage() {
@@ -65,11 +90,13 @@ export default function DashboardPage() {
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [claim, setClaim] = useState<ClaimState>({ status: "loading" });
   const [confirming, setConfirming] = useState(false);
+  const [userRoles, setUserRoles] = useState<AppRole[]>([]);
 
   useEffect(() => {
     if (!user) {
       setClaim({ status: "loading" });
       setProjects([]);
+      setUserRoles([]);
       return;
     }
     const email = user.primaryEmailAddress?.emailAddress;
@@ -86,7 +113,8 @@ export default function DashboardPage() {
         if (cancelled) return;
         switch (payload.status) {
           case "ready":
-            setClaim({ status: "ready" });
+            setClaim({ status: "ready", roles: payload.roles });
+            setUserRoles(payload.roles);
             break;
           case "missing":
             setClaim({ status: "missing" });
@@ -95,13 +123,17 @@ export default function DashboardPage() {
             setClaim({ status: "needs_confirmation", persona: payload.persona });
             break;
           case "claimed":
-            setClaim({ status: "claimed_by_other", nombre: payload.nombre ?? null });
+            setClaim({
+              status: "claimed_by_other",
+              nombre: payload.nombre ?? null,
+              roles: payload.roles,
+            });
             break;
           case "error":
             setClaim({ status: "error", message: payload.message });
             break;
           default:
-            setClaim({ status: "error", message: "Respuesta inesperada" });
+            setClaim({ status: "error", message: "Respuesta inesperada del servidor" });
         }
       })
       .catch((err: Error) => {
@@ -119,7 +151,7 @@ export default function DashboardPage() {
 
     setProjectsLoading(true);
     getProyectosParaUsuario(user.id)
-      .then((data) => setProjects(data.flat()))
+      .then((data) => setProjects(data))
       .catch((err) => {
         console.error("Error cargando proyectos", err);
         showError("No se pudieron cargar tus proyectos");
@@ -129,11 +161,12 @@ export default function DashboardPage() {
 
   const handleConfirm = async () => {
     if (claim.status !== "needs_confirmation") return;
-    setConfirming(true);
     try {
-      await confirmClaim(claim.persona.email);
-      toast.success("¡Bienvenido! Vinculamos tu cuenta");
-      setClaim({ status: "ready" });
+      setConfirming(true);
+      const result = await confirmClaim(claim.persona.email);
+      toast.success("Bienvenido, vinculamos tu cuenta");
+      setUserRoles(result.roles);
+      setClaim({ status: "ready", roles: result.roles });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error desconocido";
       showError(message);
@@ -153,11 +186,24 @@ export default function DashboardPage() {
       case "needs_confirmation":
         return (
           <div className="rounded-xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-blue-900">Confirmá tu identidad</h2>
+            <h2 className="text-xl font-semibold text-blue-900">Confirma tu identidad</h2>
             <p className="mt-3 text-blue-900">
-              Encontramos en la hoja de cálculo a <strong>{claim.persona.nombre ?? claim.persona.email}</strong>.
-              Confirmá que sos esa persona para vincular tu cuenta de Google con MadrijApp.
+              Encontramos en la hoja institucional a <strong>{claim.persona.nombre ?? claim.persona.email}</strong>. Confirma
+              que sos esa persona para vincular tu cuenta de Google con MadrijApp.
             </p>
+            <div className="mt-4">
+              <h3 className="font-medium text-blue-900">Roles asignados</h3>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {claim.persona.roles.map((rol) => (
+                  <span
+                    key={rol}
+                    className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800"
+                  >
+                    {rol.toUpperCase()}
+                  </span>
+                ))}
+              </div>
+            </div>
             {claim.persona.grupos.length > 0 && (
               <div className="mt-4">
                 <h3 className="font-medium text-blue-900">Tus grupos</h3>
@@ -171,16 +217,28 @@ export default function DashboardPage() {
                 </ul>
               </div>
             )}
+            {claim.persona.proyectos.length > 0 && (
+              <div className="mt-4">
+                <h3 className="font-medium text-blue-900">Tus proyectos</h3>
+                <ul className="mt-2 list-disc space-y-1 pl-6 text-blue-900">
+                  {claim.persona.proyectos.map((proyecto, index) => (
+                    <li key={`${proyecto.proyectoId ?? "sin-proyecto"}-${index}`}>
+                      {proyecto.proyectoNombre || "Proyecto sin nombre"}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
                 onClick={handleConfirm}
                 disabled={confirming}
                 className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
               >
-                {confirming ? "Vinculando..." : "Sí, soy yo"}
+                {confirming ? "Vinculando..." : "Si, soy yo"}
               </button>
               <div className="flex-1 text-sm text-blue-900/80">
-                Si no sos esa persona, pedile al equipo que actualice tu email en la hoja de madrijim.
+                Si tu email cambio, pedile al equipo que actualice la planilla institucional antes de volver a ingresar.
               </div>
             </div>
           </div>
@@ -190,8 +248,8 @@ export default function DashboardPage() {
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
             <h2 className="text-xl font-semibold text-amber-900">No encontramos tu email</h2>
             <p className="mt-2 text-amber-900">
-              Tu cuenta de Google no coincide con ningún registro de madrijim en la hoja compartida. Verificá que la dirección de
-              correo sea la misma que figura en la planilla o pedile a un administrador que te agregue.
+              Tu cuenta de Google no coincide con ningun registro en la hoja compartida. Verifica que la direccion sea correcta o
+              solicita que te agreguen.
             </p>
           </div>
         );
@@ -200,15 +258,14 @@ export default function DashboardPage() {
           <div className="rounded-xl border border-red-200 bg-red-50 p-6 shadow-sm">
             <h2 className="text-xl font-semibold text-red-900">Cuenta ya reclamada</h2>
             <p className="mt-2 text-red-900">
-              El registro de {claim.nombre ?? "este madrij"} ya fue vinculado a otra cuenta. Contactá a tu equipo para que lo
-              revisen.
+              El registro de {claim.nombre ?? "este usuario"} ya fue vinculado a otra cuenta. Contacta a tu equipo para revisarlo.
             </p>
           </div>
         );
       case "error":
         return (
           <div className="rounded-xl border border-red-200 bg-red-50 p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-red-900">Ocurrió un problema</h2>
+            <h2 className="text-xl font-semibold text-red-900">Ocurrio un problema</h2>
             <p className="mt-2 text-red-900">{claim.message}</p>
           </div>
         );
@@ -223,7 +280,7 @@ export default function DashboardPage() {
       <div>
         <h1 className="text-3xl font-bold text-blue-900">Mis proyectos</h1>
         <p className="mt-1 text-sm text-blue-900/70">
-          Cada proyecto proviene directamente de la hoja de cálculo. Accedé para gestionar tus janijim y herramientas del grupo.
+          Cada proyecto proviene de la hoja institucional compartida. Accede para gestionar tus janijim y herramientas del grupo.
         </p>
       </div>
 
@@ -231,13 +288,25 @@ export default function DashboardPage() {
 
       {claim.status === "ready" && (
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          {userRoles.length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-2">
+              {userRoles.map((rol) => (
+                <span
+                  key={rol}
+                  className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-800"
+                >
+                  {rol.toUpperCase()}
+                </span>
+              ))}
+            </div>
+          )}
           {projectsLoading ? (
             <div className="flex justify-center py-12">
               <Loader className="h-6 w-6" />
             </div>
           ) : projects.length === 0 ? (
             <div className="py-6 text-center text-gray-600">
-              Todavía no tenés proyectos asignados. Verificá que la planilla tenga tus datos o consultá con el equipo.
+              Todavia no tenes proyectos asignados. Asegurate de que la planilla tenga tus datos o consulta con el equipo.
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

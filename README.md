@@ -31,21 +31,20 @@ configuren hojas manualmente.
    | `GOOGLE_SERVICE_ACCOUNT_EMAIL` | Email de la cuenta de servicio con acceso a las hojas. |
    | `GOOGLE_SERVICE_ACCOUNT_KEY` | Clave privada (PEM o base64) de la cuenta de servicio. |
 
-   No hace falta definir ningún ID de planilla: la aplicación apunta
-   directamente a las hojas institucionales oficiales:
+   No hace falta definir ningún ID de planilla: la aplicación consulta siempre
+   la planilla institucional única
+   `https://docs.google.com/spreadsheets/d/1u3KFbCBItK5oN5VEl55Kq7tlRxTb3qJ2FSMl9tS0Cjs`
+   (pestanas `Madrijim` y `Janijim`). No hay overrides por variables de entorno
+   ni desde la UI, así que cualquier ajuste se hace directamente en esa hoja
+   compartida.
 
-   - Madrijim: `https://docs.google.com/spreadsheets/d/1lVMJx9lCH3O-oypWGXWZ9RD4YQVctZlmppV3Igqge64`
-   - Janijim: `https://docs.google.com/spreadsheets/d/1u3KFbCBItK5oN5VEl55Kq7tlRxTb3qJ2FSMl9tS0Cjs`
+   Asegurate de compartir esa planilla con el correo de la cuenta de servicio
+   configurada en `GOOGLE_SERVICE_ACCOUNT_EMAIL` con al menos permisos de
+   lectura.
 
-   Estas URL están fijas en la aplicación: no existe ningún override por
-   variables de entorno ni por UI. Siempre se consultan estas hojas oficiales,
-   por lo que cualquier ajuste debe hacerse directamente en ellas.
-
-3. Corré las migraciones de Supabase en orden para asegurar que la base esté al
-   día:
+3. Ejecutá la migración de Supabase para habilitar el flujo desde la planilla:
 
    ```bash
-   supabase db execute --file sql/migrations/20250208_add_sheets_columns_to_grupos.sql
    supabase db execute --file sql/migrations/20250218_adjust_madrij_onboarding.sql
    ```
 
@@ -59,10 +58,24 @@ configuren hojas manualmente.
 
 ## Estructura de las hojas de cálculo
 
-La aplicación lee automáticamente dos pestañas:
+La aplicación lee automáticamente dos pestanas:
 
 - **Madrijim**: columnas `Nombre`, `Apellido`, `Email`, `Grupo`.
 - **Janijim**: columnas `Nombre`, `Apellido`, `Telefono Madre`, `Telefono Padre`, `Grupo`.
+
+Para evitar errores durante la sincronización:
+
+1. Usa exactamente el mismo texto en la columna `Grupo` de ambas pestañas.
+2. Cada email en la pestaña de madrijim debe ser único y debe coincidir con la cuenta de Google que usará el madrij.
+3. Si falta un dato (por ejemplo un teléfono) dejá la celda vacía, sin guiones ni texto auxiliar.
+4. No cambies los nombres de las pestañas: dejá `Madrijim` y `Janijim` tal como están.
+
+Columnas sugeridas:
+
+| Hoja | Columnas obligatorias | Uso |
+| --- | --- | --- |
+| Madrijim | `Nombre`, `Apellido`, `Email`, `Grupo` | Vincula cada email con un grupo y genera el perfil de acceso. |
+| Janijim | `Nombre`, `Apellido`, `Grupo`, `Telefono Madre`, `Telefono Padre` | Construye el padrón del grupo visible en la app. |
 
 Cada fila debe tener el nombre del grupo exactamente como querés que aparezca en
 la app. La sincronización normaliza mayúsculas/minúsculas y acentos, pero es

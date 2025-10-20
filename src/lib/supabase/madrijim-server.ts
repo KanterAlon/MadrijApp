@@ -1,14 +1,15 @@
 import { supabase } from "@/lib/supabase";
 import { clerkClient } from "@clerk/nextjs/server";
-import { getGrupoIdForProyecto } from "./projects";
+import { getGrupoIdsForProyecto } from "./projects";
 
 export async function getMadrijimPorProyecto(proyectoId: string) {
-  const grupoId = await getGrupoIdForProyecto(proyectoId);
+  const grupoIds = await getGrupoIdsForProyecto(proyectoId);
+  if (grupoIds.length === 0) return [];
 
   const { data: relaciones, error } = await supabase
     .from("madrijim_grupos")
     .select("madrij_id")
-    .eq("grupo_id", grupoId)
+    .in("grupo_id", grupoIds)
     .eq("invitado", false)
     .eq("activo", true);
 

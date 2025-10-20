@@ -1,7 +1,21 @@
 import removeAccents from "remove-accents";
 
-import { getJanijSheetConfig, getMadrijSheetConfig } from "./config";
-import { getJanijimRows, getMadrijimRows } from "./sheets";
+import {
+  getAdminSheetConfig,
+  getCoordinatorSheetConfig,
+  getDirectorSheetConfig,
+  getJanijSheetConfig,
+  getMadrijSheetConfig,
+  getProyectoSheetConfig,
+} from "./config";
+import {
+  getAdminsRows,
+  getCoordinadoresRows,
+  getDirectoresRows,
+  getJanijimRows,
+  getMadrijimRows,
+  getProyectosRows,
+} from "./sheets";
 
 function normaliseKey(value: string) {
   return removeAccents(value).trim().toLowerCase();
@@ -125,22 +139,166 @@ export function buildJanijEntries(rows: unknown[][]) {
   return entries;
 }
 
+export type ProyectoSheetEntry = {
+  nombre: string;
+  grupos: string[];
+};
+
+const PROYECTO_HEADERS: Record<string, "proyecto"> = {
+  proyecto: "proyecto",
+  nombre: "proyecto",
+  "nombre del proyecto": "proyecto",
+};
+
+export function buildProyectoEntries(rows: unknown[][]) {
+  if (rows.length === 0) return [] as ProyectoSheetEntry[];
+  const [header, ...dataRows] = rows;
+
+  let proyectoIndex: number | undefined;
+  header.forEach((value, index) => {
+    const key = PROYECTO_HEADERS[normaliseHeader(String(value))];
+    if (key === "proyecto" && proyectoIndex === undefined) {
+      proyectoIndex = index;
+    }
+  });
+  if (proyectoIndex === undefined) {
+    proyectoIndex = 0;
+  }
+  const groupIndexes = header
+    .map((_, index) => index)
+    .filter((index) => index !== proyectoIndex);
+
+  const entries: ProyectoSheetEntry[] = [];
+  for (const row of dataRows) {
+    const nombre = readCell(row, proyectoIndex);
+    if (!nombre) continue;
+    const grupos = groupIndexes
+      .map((index) => readCell(row, index))
+      .filter((value): value is string => Boolean(value && value.trim()));
+    entries.push({ nombre, grupos });
+  }
+  return entries;
+}
+
+export type CoordinadorSheetEntry = {
+  email: string;
+  nombre: string;
+  proyectos: string[];
+};
+
+const COORD_HEADERS: Record<string, "nombre" | "apellido" | "email" | "proyectos"> = {
+  nombre: "nombre",
+  apellido: "apellido",
+  "nombre y apellido": "nombre",
+  "nombre completo": "nombre",
+  email: "email",
+  mail: "email",
+  correo: "email",
+  proyecto: "proyectos",
+  proyectos: "proyectos",
+  "lista de proyectos": "proyectos",
+};
+
+function parseProjectList(value: string | null) {
+  if (!value) return [] as string[];
+  return value
+    .split(/[,;\n\r]+/u)
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
+export function buildCoordinadorEntries(rows: unknown[][]) {
+  if (rows.length === 0) return [] as CoordinadorSheetEntry[];
+  const [header, ...dataRows] = rows;
+  const mapping = {} as Record<"nombre" | "apellido" | "email" | "proyectos", number | undefined>;
+  header.forEach((value, index) => {
+    const key = COORD_HEADERS[normaliseHeader(String(value))];
+    if (key && mapping[key] === undefined) {
+      mapping[key] = index;
+    }
+  });
+
+  const entries: CoordinadorSheetEntry[] = [];
+  for (const row of dataRows) {
+    const emailRaw = readCell(row, mapping.email);
+    if (!emailRaw) continue;
+    const email = emailRaw.toLowerCase();
+    const nombre = joinNombre(readCell(row, mapping.nombre), readCell(row, mapping.apellido)) ?? email;
+    const proyectos = parseProjectList(readCell(row, mapping.proyectos));
+    entries.push({ email, nombre, proyectos });
+  }
+  return entries;
+}
+
+export type RolBasicoSheetEntry = {
+  email: string;
+  nombre: string;
+};
+
+const ROL_BASICO_HEADERS: Record<string, "nombre" | "apellido" | "email"> = {
+  nombre: "nombre",
+  apellido: "apellido",
+  "nombre y apellido": "nombre",
+  "nombre completo": "nombre",
+  email: "email",
+  mail: "email",
+  correo: "email",
+};
+
+export function buildRolBasicoEntries(rows: unknown[][], _role: "director" | "admin") {
+  if (rows.length === 0) return [] as RolBasicoSheetEntry[];
+  const [header, ...dataRows] = rows;
+  const mapping = {} as Record<"nombre" | "apellido" | "email", number | undefined>;
+  header.forEach((value, index) => {
+    const key = ROL_BASICO_HEADERS[normaliseHeader(String(value))];
+    if (key && mapping[key] === undefined) {
+      mapping[key] = index;
+    }
+  });
+
+  const entries: RolBasicoSheetEntry[] = [];
+  for (const row of dataRows) {
+    const emailRaw = readCell(row, mapping.email);
+    if (!emailRaw) continue;
+    const email = emailRaw.toLowerCase();
+    const nombre = joinNombre(readCell(row, mapping.nombre), readCell(row, mapping.apellido)) ?? email;
+    entries.push({ email, nombre });
+  }
+  return entries;
+}
+
 export type SheetsData = {
   madrijes: MadrijSheetEntry[];
   janijim: JanijSheetEntry[];
+  proyectos: ProyectoSheetEntry[];
+  coordinadores: CoordinadorSheetEntry[];
+  directores: RolBasicoSheetEntry[];
+  admins: RolBasicoSheetEntry[];
 };
 
 export async function loadSheetsData(): Promise<SheetsData> {
   const madConfig = getMadrijSheetConfig();
   const janConfig = getJanijSheetConfig();
-  const [madRows, janRows] = await Promise.all([
+  const proyectoConfig = getProyectoSheetConfig();
+  const coordConfig = getCoordinatorSheetConfig();
+  const dirConfig = getDirectorSheetConfig();
+  const adminConfig = getAdminSheetConfig();
+  const [madRows, janRows, proyectoRows, coordRows, dirRows, adminRows] = await Promise.all([
     getMadrijimRows(madConfig.spreadsheetId, madConfig.sheetName),
     getJanijimRows(janConfig.spreadsheetId, janConfig.sheetName),
+    getProyectosRows(proyectoConfig.spreadsheetId, proyectoConfig.sheetName),
+    getCoordinadoresRows(coordConfig.spreadsheetId, coordConfig.sheetName),
+    getDirectoresRows(dirConfig.spreadsheetId, dirConfig.sheetName),
+    getAdminsRows(adminConfig.spreadsheetId, adminConfig.sheetName),
   ]);
 
   return {
     madrijes: buildMadrijEntries(madRows),
     janijim: buildJanijEntries(janRows),
+    proyectos: buildProyectoEntries(proyectoRows),
+    coordinadores: buildCoordinadorEntries(coordRows),
+    directores: buildRolBasicoEntries(dirRows, "director"),
+    admins: buildRolBasicoEntries(adminRows, "admin"),
   };
 }
 
