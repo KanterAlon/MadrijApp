@@ -284,6 +284,14 @@ export default function DashboardPage() {
     }
   };
 
+  const shouldShowGroups = (project: DashboardProyecto) => {
+    if (project.roles.length === 0) return false;
+    if (project.roles.length === 1 && project.roles[0] === "director") {
+      return false;
+    }
+    return project.roles.some((role) => role === "admin" || role === "coordinador" || role === "madrij");
+  };
+
   return (
     <div className="space-y-6">
       <div>
