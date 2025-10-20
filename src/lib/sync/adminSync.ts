@@ -3,6 +3,7 @@ import {
   normaliseEmail,
   normaliseGroupName,
   type JanijSheetEntry,
+  type SheetsData,
 } from "@/lib/google/sheetData";
 import { supabase } from "@/lib/supabase";
 import type { AppRole } from "@/lib/supabase/access";
@@ -476,8 +477,8 @@ function buildSummary(
   } satisfies SyncPreview["resumen"];
 }
 
-export async function buildSyncPreview(): Promise<SyncPreview> {
-  const sheets = await loadSheetsData();
+export async function buildSyncPreview(options?: { data?: SheetsData }): Promise<SyncPreview> {
+  const sheets = options?.data ?? (await loadSheetsData());
 
   const [proyectosRes, gruposRes, janijimRes, rolesRes, coordinatorLinksRes, grupoLinksRes] = await Promise.all([
     supabase.from("proyectos").select("id, nombre, grupo_id"),
@@ -777,6 +778,35 @@ async function deactivateGroup(grupoId: string, grupoNombre: string, proyectos: 
   };
 }
 
+async function applyPreviewWithSheets(
+  preview: SyncPreview,
+  sheetsData: SheetsData,
+): Promise<AdminSyncCommitResult> {
+  const processedGroups: AdminSyncCommitResult["grupos"] = [];
+  for (const grupo of preview.grupos.detalle) {
+    const result = await syncGroupFromSheets(grupo.grupoNombre, {
+      expectedGrupoId: grupo.grupoId ?? undefined,
+      data: sheetsData,
+    });
+    processedGroups.push(summarizeGroupResult(grupo, result));
+  }
+
+  const cleanupResults: AdminSyncCommitResult["limpieza"] = [];
+  for (const orphan of preview.grupos.orfanos) {
+    const proyectos = orphan.proyectos.map((p) => p.nombre).filter((nombre) => nombre.length > 0);
+    const cleanup = await deactivateGroup(orphan.grupoId, orphan.grupoNombre, proyectos);
+    cleanupResults.push(cleanup);
+  }
+
+  const rolesResult = await syncAppRolesFromSheets(sheetsData);
+
+  return {
+    grupos: processedGroups,
+    limpieza: cleanupResults,
+    roles: rolesResult,
+  };
+}
+
 export async function createAdminSyncRun(adminId: string) {
   const preview = await buildSyncPreview();
 
@@ -823,30 +853,7 @@ export async function commitAdminSyncRun(runId: string, adminId: string) {
   const preview = run.preview as SyncPreview;
 
   const sheetsData = await loadSheetsData();
-
-  const processedGroups: AdminSyncCommitResult["grupos"] = [];
-  for (const grupo of preview.grupos.detalle) {
-    const result = await syncGroupFromSheets(grupo.grupoNombre, {
-      expectedGrupoId: grupo.grupoId ?? undefined,
-      data: sheetsData,
-    });
-    processedGroups.push(summarizeGroupResult(grupo, result));
-  }
-
-  const cleanupResults: AdminSyncCommitResult["limpieza"] = [];
-  for (const orphan of preview.grupos.orfanos) {
-    const proyectos = orphan.proyectos.map((p) => p.nombre).filter((nombre) => nombre.length > 0);
-    const cleanup = await deactivateGroup(orphan.grupoId, orphan.grupoNombre, proyectos);
-    cleanupResults.push(cleanup);
-  }
-
-  const rolesResult = await syncAppRolesFromSheets(sheetsData);
-
-  const commitResult: AdminSyncCommitResult = {
-    grupos: processedGroups,
-    limpieza: cleanupResults,
-    roles: rolesResult,
-  };
+  const commitResult = await applyPreviewWithSheets(preview, sheetsData);
 
   const { error: updateError } = await supabase
     .from("admin_sync_runs")
@@ -861,4 +868,10 @@ export async function commitAdminSyncRun(runId: string, adminId: string) {
   if (updateError) throw updateError;
 
   return { preview, result: commitResult };
+}
+
+export async function applySheetsDataDirectly(data: SheetsData) {
+  const preview = await buildSyncPreview({ data });
+  const result = await applyPreviewWithSheets(preview, data);
+  return { preview, result };
 }
