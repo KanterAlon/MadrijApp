@@ -84,16 +84,16 @@ export default function DashboardPage() {
   const [claim, setClaim] = useState<ClaimState>({ status: "loading" });
   const [confirming, setConfirming] = useState(false);
   const [userRoles, setUserRoles] = useState<AppRole[]>([]);
-  const groupCards = useMemo(() => {
-    return projects.flatMap((proyecto) => {
-      const canSeeGroups = proyecto.roles.some((role) => role === "madrij" || role === "admin");
-      if (!canSeeGroups) return [] as { proyecto: DashboardProyecto; grupo: DashboardProyecto["grupos"][number] }[];
-      return proyecto.grupos.map((grupo) => ({ proyecto, grupo }));
-    });
-  }, [projects]);
-  const hasGroupAccess = useMemo(
-    () => projects.some((proyecto) => proyecto.roles.some((role) => role === "madrij" || role === "admin")),
+  const groupSourceProjects = useMemo(
+    () => projects.filter((proyecto) => proyecto.roles.some((role) => role === "madrij" || role === "admin")),
     [projects],
+  );
+  const groupCards = useMemo(
+    () =>
+      groupSourceProjects.flatMap((proyecto) =>
+        proyecto.grupos.map((grupo) => ({ proyecto, grupo })),
+      ),
+    [groupSourceProjects],
   );
   const projectCards = useMemo(
     () =>
@@ -102,11 +102,9 @@ export default function DashboardPage() {
       ),
     [projects],
   );
-  const canSeeGroupSection = useMemo(() => userRoles.some((rol) => rol === "madrij" || rol === "admin"), [userRoles]);
-  const canSeeProjectSection = useMemo(
-    () => userRoles.some((rol) => rol === "coordinador" || rol === "director" || rol === "admin"),
-    [userRoles],
-  );
+  const canSeeGroupSection = groupSourceProjects.length > 0;
+  const canSeeProjectSection = projectCards.length > 0;
+  const hasAssignments = canSeeGroupSection || canSeeProjectSection;
 
   useEffect(() => {
     if (!user) {
@@ -328,9 +326,9 @@ export default function DashboardPage() {
             <div className="flex justify-center py-12">
               <Loader className="h-6 w-6" />
             </div>
-          ) : projects.length === 0 ? (
+          ) : projects.length === 0 || !hasAssignments ? (
             <div className="py-6 text-center text-gray-600">
-              Todavía no tenés proyectos asignados. Confirmá que tus datos estén cargados en la hoja institucional o consultá al equipo.
+              Todavía no encontramos grupos o proyectos vinculados a tu cuenta. Confirmá que tus datos estén cargados en la hoja institucional o consultá al equipo.
             </div>
           ) : (
             <div className="space-y-8">
@@ -352,7 +350,7 @@ export default function DashboardPage() {
                   </div>
                 </section>
               )}
-              {canSeeGroupSection && hasGroupAccess && (
+              {canSeeGroupSection && (
                 <section>
                   <h2 className="text-lg font-semibold text-blue-900">Tus grupos</h2>
                   <p className="mt-1 text-sm text-blue-900/70">Estos son los grupos que ya están vinculados a tu usuario.</p>
