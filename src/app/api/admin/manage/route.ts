@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 
 import { saveSheetsData } from "@/lib/google/sheetWriter";
-import { loadSheetsData, type SheetsData } from "@/lib/google/sheetData";
+import {
+  loadSheetsData,
+  normaliseEmail,
+  type SheetsData,
+} from "@/lib/google/sheetData";
 import { supabase } from "@/lib/supabase";
 import { AccessDeniedError, ensureAdminAccess } from "@/lib/supabase/access";
 import { applySheetsDataDirectly } from "@/lib/sync/adminSync";
@@ -125,8 +129,72 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Acción no soportada" }, { status: 400 });
   }
 
+  const adminIdentity = await (async () => {
+    if (!userId) return null;
+    const { data, error } = await supabase
+      .from("app_roles")
+      .select("email, nombre")
+      .eq("role", "admin")
+      .eq("clerk_id", userId)
+      .maybeSingle();
+    if (error) {
+      console.error("Error buscando el rol de administrador actual", error);
+    }
+    if (data) {
+      const email = typeof data.email === "string" ? normaliseEmail(data.email) : null;
+      return email
+        ? {
+            email,
+            nombre: (typeof data.nombre === "string" && data.nombre.trim().length > 0
+              ? data.nombre.trim()
+              : null) ?? null,
+          }
+        : null;
+    }
+    if (!userId) return null;
+    try {
+      const user = await clerkClient.users.getUser(userId);
+      const email = user?.primaryEmailAddress?.emailAddress ?? null;
+      if (!email) return null;
+      const nombre = user?.fullName?.trim();
+      return { email: normaliseEmail(email), nombre: nombre && nombre.length > 0 ? nombre : null };
+    } catch (err) {
+      console.error("Error obteniendo el usuario de Clerk", err);
+      return null;
+    }
+  })();
+
+  async function ensureAdminRestored() {
+    if (!userId) return;
+    if (!adminIdentity) {
+      const { error } = await supabase
+        .from("app_roles")
+        .update({ activo: true })
+        .eq("clerk_id", userId)
+        .eq("role", "admin");
+      if (error) {
+        console.error("No se pudo restaurar el rol de administrador", error);
+      }
+      return;
+    }
+    const { email, nombre } = adminIdentity;
+    const payload = {
+      email,
+      nombre: nombre ?? email,
+      role: "admin" as const,
+      clerk_id: userId,
+      activo: true,
+    };
+    const { error } = await supabase
+      .from("app_roles")
+      .upsert(payload, { onConflict: "email,role" });
+    if (error) {
+      console.error("No se pudo asegurar el rol de administrador", error);
+    }
+  }
+
   try {
-    await Promise.all([
+    const resetResults = await Promise.all([
       supabase.from("janijim").update({ activo: false }).eq("activo", true),
       supabase.from("madrijim_grupos").update({ activo: false }).eq("activo", true),
       supabase.from("app_roles").update({ activo: false }).eq("activo", true),
@@ -134,13 +202,33 @@ export async function POST(request: Request) {
         .from("proyecto_coordinadores")
         .delete()
         .neq("id", "00000000-0000-0000-0000-000000000000"),
-    ]);
+    ] as const);
+
+    for (const result of resetResults) {
+      if (result.error) throw result.error;
+    }
 
     const sheets = await loadSheetsData();
+
+    if (adminIdentity) {
+      const adminEmail = normaliseEmail(adminIdentity.email);
+      const alreadyPresent = sheets.admins.some(
+        (admin) => normaliseEmail(admin.email) === adminEmail,
+      );
+      if (!alreadyPresent) {
+        sheets.admins.push({
+          email: adminEmail,
+          nombre: adminIdentity.nombre ?? adminEmail,
+        });
+      }
+    }
+
     const result = await applySheetsDataDirectly(sheets);
     return NextResponse.json(result);
   } catch (err) {
     console.error("Error reseteando la base desde la hoja", err);
     return NextResponse.json({ error: "No se pudo reinicializar la base" }, { status: 500 });
+  } finally {
+    await ensureAdminRestored();
   }
 }

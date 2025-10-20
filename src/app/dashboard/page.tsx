@@ -115,6 +115,12 @@ export default function DashboardPage() {
   }, [router, userRoles]);
 
   useEffect(() => {
+    if (userRoles.includes("admin")) {
+      router.replace("/admin");
+    }
+  }, [router, userRoles]);
+
+  useEffect(() => {
     if (!user) {
       setClaim({ status: "loading" });
       setProjects([]);
