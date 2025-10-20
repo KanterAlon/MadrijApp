@@ -197,14 +197,25 @@ export async function listAllProyectoIds() {
     .filter((id): id is string => Boolean(id));
 }
 
-export async function listProyectoMetadata(ids: string[]) {
+export type ProyectoMetadataRow = {
+  id: string;
+  nombre: string;
+  creador_id: string | null;
+  grupo_id: string | null;
+};
+
+export async function listProyectoMetadata(ids: string[]): Promise<ProyectoMetadataRow[]> {
+  if (ids.length === 0) {
+    return [];
+  }
+
   const { data, error } = await supabase
     .from("proyectos")
-    .select("id, nombre, creador_id")
+    .select("id, nombre, creador_id, grupo_id")
     .in("id", ids);
 
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as ProyectoMetadataRow[];
 }
 
 export async function fetchProyectoGruposByIds(grupoIds: string[]) {

@@ -7,14 +7,7 @@ import { toast } from "react-hot-toast";
 
 import Loader from "@/components/ui/loader";
 import { showError } from "@/lib/alerts";
-import { getProyectosParaUsuario } from "@/lib/supabase/projects";
-
-type Proyecto = {
-  id: string;
-  nombre: string;
-  creador_id: string;
-  grupo_id: string;
-};
+import { getProyectosParaUsuario, type DashboardProyecto } from "@/lib/supabase/projects";
 
 type AppRole = "madrij" | "coordinador" | "director" | "admin";
 
@@ -86,7 +79,7 @@ async function confirmClaim(email: string) {
 
 export default function DashboardPage() {
   const { user } = useUser();
-  const [projects, setProjects] = useState<Proyecto[]>([]);
+  const [projects, setProjects] = useState<DashboardProyecto[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [claim, setClaim] = useState<ClaimState>({ status: "loading" });
   const [confirming, setConfirming] = useState(false);
@@ -275,6 +268,14 @@ export default function DashboardPage() {
     }
   };
 
+  const shouldShowGroups = (project: DashboardProyecto) => {
+    if (project.roles.length === 0) return false;
+    if (project.roles.length === 1 && project.roles[0] === "director") {
+      return false;
+    }
+    return project.roles.some((role) => role === "admin" || role === "coordinador" || role === "madrij");
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -318,6 +319,32 @@ export default function DashboardPage() {
                 >
                   <h3 className="text-lg font-semibold text-blue-900">{proyecto.nombre}</h3>
                   <p className="mt-2 text-sm text-blue-900/70">Ingresá para ver janijim, tareas y materiales.</p>
+                  {shouldShowGroups(proyecto) && (
+                    <div className="mt-4 rounded-lg bg-white/70 p-3">
+                      <h4 className="text-sm font-semibold text-blue-900">Grupos del {proyecto.nombre}</h4>
+                      {proyecto.grupos.length > 0 ? (
+                        <ul className="mt-2 space-y-1 text-sm text-blue-900/80">
+                          {proyecto.grupos.map((grupo) => (
+                            <li key={grupo.id}>{grupo.nombre}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-2 text-sm text-blue-900/70">Todavía no hay grupos asignados.</p>
+                      )}
+                    </div>
+                  )}
+                  {proyecto.roles.length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {proyecto.roles.map((rol) => (
+                        <span
+                          key={rol}
+                          className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800"
+                        >
+                          {rol.toUpperCase()}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </Link>
               ))}
             </div>
