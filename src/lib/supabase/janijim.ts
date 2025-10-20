@@ -1,5 +1,9 @@
 import { supabase } from "@/lib/supabase";
-import { getGrupoIdsForProyecto } from "./projects";
+import {
+  AccessDeniedError,
+  ensureProyectoAccess,
+  getUserAccessContext,
+} from "@/lib/supabase/access";
 
 export type JanijData = {
   /** Nombre y apellido del janij */
@@ -50,8 +54,8 @@ export type JanijSearchResult = {
   extras?: Record<string, unknown> | null;
 };
 
-export async function getJanijim(proyectoId: string) {
-  const grupoIds = await getGrupoIdsForProyecto(proyectoId);
+export async function getJanijim(proyectoId: string, userId: string) {
+  const { grupoIds } = await ensureProyectoAccess(userId, proyectoId);
   if (grupoIds.length === 0) return [];
 
   const { data, error } = await supabase
@@ -86,10 +90,15 @@ export async function removeJanij(_id: string) {
   throw new Error("Los janijim se desactivan desde la hoja de calculo institucional");
 }
 
-export async function searchJanijimGlobal(query: string) {
+export async function searchJanijimGlobal(userId: string, query: string) {
   const term = query.trim();
   if (!term) {
     return [] as JanijSearchResult[];
+  }
+
+  const context = await getUserAccessContext(userId);
+  if (!context.isAdmin && !context.isDirector) {
+    throw new AccessDeniedError("No tenés permisos para buscar en toda la aplicación");
   }
 
   const { data, error } = await supabase

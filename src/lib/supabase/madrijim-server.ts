@@ -1,10 +1,10 @@
 import { supabase } from "@/lib/supabase";
 import { clerkClient } from "@clerk/nextjs/server";
-import { getGrupoIdsForProyecto } from "./projects";
+import { ensureProyectoAccess } from "@/lib/supabase/access";
 
-export async function getMadrijimPorProyecto(proyectoId: string) {
-  const grupoIds = await getGrupoIdsForProyecto(proyectoId);
-  if (grupoIds.length === 0) return [];
+export async function getMadrijimPorProyecto(userId: string, proyectoId: string) {
+  const { grupoIds } = await ensureProyectoAccess(userId, proyectoId);
+  if (grupoIds.length === 0) return [] as { clerk_id: string; nombre: string }[];
 
   const { data: relaciones, error } = await supabase
     .from("madrijim_grupos")
@@ -15,7 +15,9 @@ export async function getMadrijimPorProyecto(proyectoId: string) {
 
   if (error) throw error;
 
-  const ids = relaciones.map((r) => r.madrij_id);
+  const ids = (relaciones ?? [])
+    .map((r) => r.madrij_id as string | null)
+    .filter((id): id is string => Boolean(id));
   if (ids.length === 0) return [];
 
   const { data: madrijim, error: e2 } = await supabase
@@ -26,7 +28,11 @@ export async function getMadrijimPorProyecto(proyectoId: string) {
   if (e2) throw e2;
 
   const nombreMap = new Map<string, string>();
-  madrijim.forEach((m) => nombreMap.set(m.clerk_id, m.nombre));
+  (madrijim ?? []).forEach((m) => {
+    if (m.clerk_id) {
+      nombreMap.set(m.clerk_id, m.nombre ?? "");
+    }
+  });
 
   const missingIds = ids.filter((id) => !nombreMap.has(id));
 
