@@ -1,7 +1,7 @@
 import removeAccents from "remove-accents";
 import { google } from "googleapis";
 
-const SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"];
+const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
 const SERVICE_ACCOUNT_HINT =
   "Confirma que GOOGLE_SERVICE_ACCOUNT_EMAIL use el correo de la cuenta de servicio (termina en gserviceaccount.com) y que compartiste las planillas con ese usuario.";
 
@@ -223,4 +223,36 @@ export async function getAdminsRows(
   sheetName: string,
 ) {
   return fetchSheet(spreadsheetId, sheetName);
+}
+
+export async function overwriteSheetValues(
+  spreadsheetId: string,
+  sheetName: string,
+  rows: unknown[][],
+) {
+  const sheets = await getSheetsClient();
+  const trimmed = sheetName.trim();
+  if (!trimmed) {
+    throw new Error("Sheet name is required");
+  }
+
+  let range = buildRange(trimmed);
+  try {
+    await sheets.spreadsheets.values.clear({ spreadsheetId, range });
+  } catch (error) {
+    if (!isParseRangeError(error)) {
+      throw error;
+    }
+    range = await resolveSheetRange(spreadsheetId, trimmed);
+    await sheets.spreadsheets.values.clear({ spreadsheetId, range });
+  }
+
+  if (rows.length > 0) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range,
+      valueInputOption: "RAW",
+      requestBody: { values: rows },
+    });
+  }
 }
