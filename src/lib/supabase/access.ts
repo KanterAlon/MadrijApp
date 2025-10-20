@@ -231,3 +231,11 @@ export async function fetchProyectoGruposByIds(grupoIds: string[]) {
     .map((row) => row.id as string | null)
     .filter((id): id is string => Boolean(id));
 }
+
+export async function ensureAdminAccess(userId: string) {
+  const context = await getUserAccessContext(userId);
+  if (!context.isAdmin) {
+    throw new AccessDeniedError("Solo el administrador de la aplicación puede realizar esta acción");
+  }
+  return context;
+}
