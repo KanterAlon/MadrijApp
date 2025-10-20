@@ -140,8 +140,8 @@ export default function JanijimPage() {
     [selectedGrupo],
   );
 
-  const canEdit =
-    !sheetManaged && (roles.includes("admin") || roles.includes("coordinador"));
+  const isAdmin = useMemo(() => roles.includes("admin"), [roles]);
+  const canEdit = isAdmin && !sheetManaged;
   const canStartSesion = roles.some((rol) =>
     ["admin", "coordinador", "madrij"].includes(rol),
   );
@@ -497,7 +497,7 @@ export default function JanijimPage() {
       toast.error("No tenés permisos para sincronizar este proyecto");
       return;
     }
-    if (!roles.includes("admin")) {
+    if (!isAdmin) {
       toast.error("Solo el administrador puede sincronizar los datos desde la hoja institucional");
       return;
     }
@@ -707,31 +707,48 @@ export default function JanijimPage() {
             Sincronizado con Google Sheets
           </p>
           <p className="text-xs text-blue-700">
-            {syncMessage || "Los datos se leen desde la planilla institucional. Usa \"Sincronizar ahora\" solo despues de actualizar la hoja."}
+            Los datos se actualizan cuando el administrador confirma la sincronización anual desde la interfaz de administración.
           </p>
-          <div className="flex gap-2 flex-col sm:flex-row sm:items-center sm:justify-end">
-            <Button
-              onClick={syncWithSheets}
-              loading={syncing}
-              icon={<RefreshCcw className="w-4 h-4" />}
-              disabled={!roles.includes("admin") || forbidden}
-              title={!roles.includes("admin") ? "Solo el administrador puede sincronizar los datos" : undefined}
-            >
-              Sincronizar ahora
-            </Button>
-          </div>
+          {syncMessage ? (
+            <p className="text-xs text-blue-700">{syncMessage}</p>
+          ) : (
+            <p className="text-xs text-blue-700">
+              Si detectás diferencias, solicitá al administrador que genere una nueva importación.
+            </p>
+          )}
+          {isAdmin ? (
+            <div className="flex gap-2 flex-col sm:flex-row sm:items-center sm:justify-end">
+              <Button
+                onClick={syncWithSheets}
+                loading={syncing}
+                icon={<RefreshCcw className="w-4 h-4" />}
+                disabled={forbidden}
+                title={forbidden ? "No tenés permisos para sincronizar este proyecto" : undefined}
+              >
+                Sincronizar ahora
+              </Button>
+            </div>
+          ) : (
+            <p className="text-xs text-blue-700">
+              Solo el administrador puede ejecutar la sincronización manual de este proyecto.
+            </p>
+          )}
         </div>
       ) : (
         <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
           <p>
-            Esta lista todavía no se sincroniza automáticamente. Podés cargar nombres manualmente o configurar una hoja en la pantalla de creación del proyecto.
+            Este proyecto todavía no está vinculado a la planilla institucional. El administrador puede cargar janijim manualmente o configurar la sincronización desde la interfaz anual.
           </p>
         </div>
       )}
 
       {janijim.length === 0 ? (
         <div className="text-center space-y-4 py-12 border rounded-lg">
-          <p className="text-gray-600">Insertá janijim para comenzar</p>
+          <p className="text-gray-600">
+            {canEdit
+              ? "Insertá janijim para comenzar"
+              : "Todavía no hay janijim cargados. Se mostrarán una vez que el administrador sincronice la planilla institucional."}
+          </p>
           {canEdit && (
             <Button
               className="mx-auto"

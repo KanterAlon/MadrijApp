@@ -327,6 +327,24 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-8">
+              {userRoles.includes("admin") && (
+                <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h2 className="text-lg font-semibold text-emerald-900">Actualización anual</h2>
+                      <p className="mt-1 text-sm text-emerald-900/80">
+                        Generá la vista previa con los datos de Google Sheets, revisá los cambios y confirmá la importación desde la interfaz de administrador.
+                      </p>
+                    </div>
+                    <Link
+                      href="/admin/sync"
+                      className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                    >
+                      Abrir sincronización anual
+                    </Link>
+                  </div>
+                </section>
+              )}
               {hasGroupAccess && (
                 <section>
                   <h2 className="text-lg font-semibold text-blue-900">Tus grupos</h2>
