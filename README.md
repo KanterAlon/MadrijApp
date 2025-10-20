@@ -81,25 +81,38 @@ Cada fila debe tener el nombre del grupo exactamente como querés que aparezca e
 la app. La sincronización normaliza mayúsculas/minúsculas y acentos, pero es
 recomendable mantener la ortografía consistente.
 
+## Flujo anual administrado
+
+1. El administrador nacional ingresa a la interfaz `/admin/sync`.
+2. Genera una vista previa con los datos actuales de Google Sheets y revisa los
+   cambios detectados grupo por grupo.
+3. Confirma la importación para aplicar altas, actualizaciones y bajas en
+   Supabase. Sólo después de este paso quedan habilitados los proyectos,
+   grupos, madrijim y janijim del nuevo ciclo.
+
+Durante el año se puede repetir el proceso cuando la planilla se actualiza; las
+ejecuciones anteriores quedan registradas en la tabla `admin_sync_runs` para su
+auditoría.
+
 ## Flujo de onboarding
 
-1. El madrij inicia sesión con la misma cuenta de Google que figura en la hoja
-   de madrijim.
-2. La app busca su email en la planilla, sincroniza el grupo correspondiente y
-   muestra un panel para confirmar su identidad.
-3. Al confirmar, se vincula la cuenta de Clerk con el registro del madrij y se
-   habilita el acceso al proyecto del grupo. No existe la opción de crear
-   proyectos manualmente: todo proviene de la planilla.
+1. El madrij, coordinador o director inicia sesión con la cuenta que figura en
+   la planilla.
+2. La app verifica sus roles y le muestra un panel para confirmar la identidad.
+3. Una vez confirmado, sólo obtiene acceso de lectura a los proyectos y grupos
+   asignados. Las ediciones siguen dependiendo del administrador.
 
 Si el email no está en la hoja, el usuario verá un mensaje para contactar al
-administrador y actualizar la planilla antes de volver a ingresar.
+administrador y solicitar la actualización de la planilla antes de volver a
+ingresar.
 
 ## Sincronización manual
 
-En la vista de janijim de cada proyecto hay un botón "Sincronizar ahora". Al
-presionarlo se reimportan los datos de ambas hojas para el grupo actual. Los
-madrijim y janijim que dejan de figurar en la planilla se marcan como inactivos
-sin eliminar su historial.
+La importación de datos desde Google Sheets es exclusiva del administrador.
+Puede ejecutarla desde `/admin/sync`, donde se muestran los cambios detectados
+y un resumen del impacto antes de confirmar. En cada proyecto el botón
+"Sincronizar ahora" sólo está disponible para el administrador y sirve como
+atajo para refrescar un grupo puntual después de revisar la planilla.
 
 ## Desarrollo
 
