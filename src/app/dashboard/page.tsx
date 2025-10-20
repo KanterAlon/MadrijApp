@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
@@ -79,6 +80,7 @@ async function confirmClaim(email: string) {
 
 export default function DashboardPage() {
   const { user } = useUser();
+  const router = useRouter();
   const [projects, setProjects] = useState<DashboardProyecto[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [claim, setClaim] = useState<ClaimState>({ status: "loading" });
@@ -105,6 +107,12 @@ export default function DashboardPage() {
   const canSeeGroupSection = groupSourceProjects.length > 0;
   const canSeeProjectSection = projectCards.length > 0;
   const hasAssignments = canSeeGroupSection || canSeeProjectSection;
+
+  useEffect(() => {
+    if (userRoles.includes("admin")) {
+      router.replace("/admin");
+    }
+  }, [router, userRoles]);
 
   useEffect(() => {
     if (!user) {
@@ -334,7 +342,7 @@ export default function DashboardPage() {
                       </p>
                     </div>
                     <Link
-                      href="/admin/sync"
+                      href="/admin"
                       className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
                     >
                       Abrir sincronización anual

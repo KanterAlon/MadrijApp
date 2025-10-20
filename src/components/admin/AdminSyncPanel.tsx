@@ -24,7 +24,7 @@ type PreviewResponse = { runId: string; preview: SyncPreview };
 
 type CommitResponse = { preview: SyncPreview; result: AdminSyncCommitResult };
 
-export default function AdminSyncPage() {
+export function AdminSyncPanel() {
   const { user } = useUser();
   const [roles, setRoles] = useState<string[] | null>(null);
   const [loadingRoles, setLoadingRoles] = useState(false);
