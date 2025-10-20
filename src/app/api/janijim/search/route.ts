@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { AccessDeniedError } from "@/lib/supabase/access";
 import { searchJanijimGlobal } from "@/lib/supabase/janijim";
 
 export async function GET(req: Request) {
@@ -17,9 +18,12 @@ export async function GET(req: Request) {
   }
 
   try {
-    const results = await searchJanijimGlobal(query);
+    const results = await searchJanijimGlobal(userId, query);
     return NextResponse.json({ results });
   } catch (error) {
+    if (error instanceof AccessDeniedError) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
     console.error("Error searching janijim", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }

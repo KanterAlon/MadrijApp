@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect, notFound } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-server";
+import { AccessDeniedError, ensureProyectoAccess } from "@/lib/supabase/access";
 import ActiveSesionCard from "@/components/active-sesion-card";
 import CopyButton from "@/components/ui/copy-button";
 
@@ -23,14 +24,14 @@ export default async function ProyectoHome({ params }: PageProps) {
 
   let { data: proyecto, error: errorProyecto } = await supabase
     .from("proyectos")
-    .select("nombre, codigo_invite, grupo_id")
+    .select("nombre, codigo_invite")
     .eq("id", proyectoId)
     .single();
 
   if (errorProyecto && errorProyecto.code === "42703") {
     const res = await supabase
       .from("proyectos")
-      .select("nombre, grupo_id")
+      .select("nombre")
       .eq("id", proyectoId)
       .single();
     proyecto = res.data ? { ...res.data, codigo_invite: null } : null;
@@ -42,19 +43,24 @@ export default async function ProyectoHome({ params }: PageProps) {
     notFound();
   }
 
-  const { data: relacion, error: errorRelacion } = await supabase
-    .from("madrijim_grupos")
-    .select("id")
-    .eq("grupo_id", proyecto.grupo_id)
-    .eq("madrij_id", userId)
-    .eq("activo", true)
-    .single();
-
-  if (!relacion || errorRelacion) {
-    redirect("/dashboard");
+  try {
+    await ensureProyectoAccess(userId, proyectoId);
+  } catch (err) {
+    if (err instanceof AccessDeniedError) {
+      redirect("/dashboard");
+    }
+    throw err;
   }
 
-  const madrijim = await getMadrijimPorProyecto(proyectoId);
+  let madrijim;
+  try {
+    madrijim = await getMadrijimPorProyecto(userId, proyectoId);
+  } catch (err) {
+    if (err instanceof AccessDeniedError) {
+      redirect("/dashboard");
+    }
+    throw err;
+  }
 
   return (
     <div className="p-6 space-y-4">
