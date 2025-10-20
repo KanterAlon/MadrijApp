@@ -48,6 +48,7 @@ import { crearSesion } from "@/lib/supabase/asistencias";
 import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
 import { showError, confirmDialog } from "@/lib/alerts";
 import { getGruposByProyecto, type Grupo } from "@/lib/supabase/grupos";
+import { AccessDeniedError } from "@/lib/supabase/access";
 
 
 type Janij = {
@@ -113,6 +114,8 @@ export default function JanijimPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
+  const [forbidden, setForbidden] = useState(false);
+  const [forbiddenMessage, setForbiddenMessage] = useState<string | null>(null);
   const pendingScrollId = useRef<string | null>(null);
   const normalize = (s: string) =>
     s
@@ -137,11 +140,21 @@ export default function JanijimPage() {
     [selectedGrupo],
   );
 
+  const isAdmin = useMemo(() => roles.includes("admin"), [roles]);
+  const canEdit = isAdmin && !sheetManaged;
+  const canStartSesion = roles.some((rol) =>
+    ["admin", "coordinador", "madrij"].includes(rol),
+  );
+
   const ensureWritable = useCallback(() => {
+    if (!canEdit) {
+      toast.error("No tenés permisos para editar este proyecto");
+      return false;
+    }
     if (!sheetManaged) return true;
     toast.error("Los datos se sincronizan desde Google Sheets y son de solo lectura");
     return false;
-  }, [sheetManaged]);
+  }, [canEdit, sheetManaged]);
 
   const seleccionar = useCallback(
     (id: string) => {
@@ -178,50 +191,77 @@ export default function JanijimPage() {
     };
   }, []);
 
-  const loadJanijim = useCallback(async (targetGrupoId: string | null) => {
-    setLoading(true);
-    try {
-      const data = await getJanijim(proyectoId);
-      const filtered = targetGrupoId ? data.filter((j) => j.grupo_id === targetGrupoId) : data;
-      setJanijim(
-        filtered.map((j) => ({
-          id: j.id,
-          nombre: j.nombre,
-          dni: j.dni ?? null,
-          numero_socio: j.numero_socio ?? null,
-          grupo: j.grupo ?? null,
-          grupo_id: j.grupo_id as string,
-          tel_madre: j.tel_madre ?? null,
-          tel_padre: j.tel_padre ?? null,
-          estado: "ausente" as const,
-        })),
-      );
-    } catch (err) {
-      console.error("Error cargando janijim", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [proyectoId]);
+  const loadJanijim = useCallback(
+    async (targetGrupoId: string | null) => {
+      if (!user) return;
+      setLoading(true);
+      try {
+        const data = await getJanijim(proyectoId, user.id);
+        setForbidden(false);
+        setForbiddenMessage(null);
+        const filtered = targetGrupoId ? data.filter((j) => j.grupo_id === targetGrupoId) : data;
+        setJanijim(
+          filtered.map((j) => ({
+            id: j.id,
+            nombre: j.nombre,
+            dni: j.dni ?? null,
+            numero_socio: j.numero_socio ?? null,
+            grupo: j.grupo ?? null,
+            grupo_id: j.grupo_id as string,
+            tel_madre: j.tel_madre ?? null,
+            tel_padre: j.tel_padre ?? null,
+            estado: "ausente" as const,
+          })),
+        );
+      } catch (err) {
+        if (err instanceof AccessDeniedError) {
+          setForbidden(true);
+          setForbiddenMessage(err.message);
+          setJanijim([]);
+        } else {
+          console.error("Error cargando janijim", err);
+          showError("No se pudieron cargar los janijim");
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [proyectoId, user],
+  );
 
   useEffect(() => {
-    if (!selectedGrupoId) return;
+    if (!selectedGrupoId || forbidden) return;
     loadJanijim(selectedGrupoId);
-  }, [selectedGrupoId, loadJanijim]);
+  }, [selectedGrupoId, forbidden, loadJanijim]);
 
   useEffect(() => {
+    if (!user) return;
     let ignore = false;
-    getGruposByProyecto(proyectoId)
+    getGruposByProyecto(proyectoId, user.id)
       .then((data) => {
         if (ignore) return;
+        setForbidden(false);
+        setForbiddenMessage(null);
         setGrupos(data);
         setSelectedGrupoId((prev) => prev ?? data[0]?.id ?? null);
         setSyncMessage(null);
       })
-      .catch((err) => console.error("Error cargando grupos", err));
+      .catch((err) => {
+        if (ignore) return;
+        if (err instanceof AccessDeniedError) {
+          setForbidden(true);
+          setForbiddenMessage(err.message);
+          setGrupos([]);
+          setSelectedGrupoId(null);
+        } else {
+          console.error("Error cargando grupos", err);
+          showError("No se pudieron cargar los grupos");
+        }
+      });
     return () => {
       ignore = true;
     };
-  }, [proyectoId]);
+  }, [proyectoId, user]);
 
   useEffect(() => {
     if (sheetManaged) {
@@ -230,17 +270,26 @@ export default function JanijimPage() {
   }, [sheetManaged]);
 
   useEffect(() => {
-    if (!proyectoId) return;
+    if (!proyectoId || !user || forbidden) return;
     getMadrijimPorProyecto(proyectoId)
       .then((m) => {
         setMadrijes(m);
         if (m.length > 0 && !sesionMadrij) {
-          const def = m.find((md) => md.clerk_id === user?.id) || m[0];
+          const def = m.find((md) => md.clerk_id === user.id) || m[0];
           setSesionMadrij(def.clerk_id);
         }
       })
-      .catch((err) => console.error("Error cargando madrijim", err));
-  }, [proyectoId, sesionMadrij, user]);
+      .catch((err) => {
+        if (err instanceof AccessDeniedError) {
+          setForbidden(true);
+          setForbiddenMessage(err.message);
+          setMadrijes([]);
+        } else {
+          console.error("Error cargando madrijim", err);
+          showError("No se pudieron cargar los madrijim");
+        }
+      });
+  }, [proyectoId, sesionMadrij, user, forbidden]);
 
   useEffect(() => {
     const stored = localStorage.getItem(`asistencia-tags-${proyectoId}`);
@@ -444,7 +493,11 @@ export default function JanijimPage() {
   };
 
   const syncWithSheets = async () => {
-    if (!roles.includes("admin")) {
+    if (forbidden) {
+      toast.error("No tenés permisos para sincronizar este proyecto");
+      return;
+    }
+    if (!isAdmin) {
       toast.error("Solo el administrador puede sincronizar los datos desde la hoja institucional");
       return;
     }
@@ -540,6 +593,10 @@ export default function JanijimPage() {
 
   const iniciarSesion = async () => {
     if (!user) return;
+    if (!canStartSesion) {
+      toast.error("No tenés permisos para iniciar la asistencia");
+      return;
+    }
     try {
       const ahora = new Date();
       const rounded = new Date(
@@ -559,6 +616,7 @@ export default function JanijimPage() {
         tagPart ? `-${tagPart}` : ""
       }`;
       const sesion = await crearSesion(
+        user.id,
         proyectoId,
         nombre,
         fecha,
@@ -569,7 +627,12 @@ export default function JanijimPage() {
       router.push(
         `/proyecto/${proyectoId}/janijim/asistencia?sesion=${sesion.id}`
       );
-    } catch {
+    } catch (err) {
+      if (err instanceof AccessDeniedError) {
+        toast.error(err.message);
+        setSesionOpen(false);
+        return;
+      }
       showError("Error iniciando asistencia");
     }
   };
@@ -599,7 +662,6 @@ export default function JanijimPage() {
   }, [search, data, exactMatches]);
 
   const resultados = [...exactMatches, ...fuzzyMatches];
-  const canEdit = !sheetManaged;
 
   if (loading) {
     return (
@@ -607,6 +669,29 @@ export default function JanijimPage() {
         {Array.from({ length: 8 }).map((_, i) => (
           <Skeleton key={i} className="h-10 w-full" />
         ))}
+      </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <div className="max-w-2xl mx-auto mt-12 space-y-4">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-red-800 space-y-3">
+          <div className="space-y-1">
+            <p className="font-semibold text-red-900">
+              No tenés permisos para ver este proyecto
+            </p>
+            <p className="text-sm text-red-700">
+              {forbiddenMessage ||
+                "Contactá a tu coordinador o administrador para obtener acceso."}
+            </p>
+          </div>
+          <div>
+            <Button variant="outline" onClick={() => router.back()}>
+              Volver atrás
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -622,30 +707,49 @@ export default function JanijimPage() {
             Sincronizado con Google Sheets
           </p>
           <p className="text-xs text-blue-700">
-            {syncMessage || "Los datos se leen desde la planilla institucional. Usa \"Sincronizar ahora\" solo despues de actualizar la hoja."}
+            Los datos se actualizan cuando el administrador confirma la sincronización anual desde la interfaz de administración.
           </p>
-          <div className="flex gap-2 flex-col sm:flex-row sm:items-center sm:justify-end">
-            <Button
-              onClick={syncWithSheets}
-              loading={syncing}
-              icon={<RefreshCcw className="w-4 h-4" />}
-            >
-              Sincronizar ahora
-            </Button>
-          </div>
+          {syncMessage ? (
+            <p className="text-xs text-blue-700">{syncMessage}</p>
+          ) : (
+            <p className="text-xs text-blue-700">
+              Si detectás diferencias, solicitá al administrador que genere una nueva importación.
+            </p>
+          )}
+          {isAdmin ? (
+            <div className="flex gap-2 flex-col sm:flex-row sm:items-center sm:justify-end">
+              <Button
+                onClick={syncWithSheets}
+                loading={syncing}
+                icon={<RefreshCcw className="w-4 h-4" />}
+                disabled={forbidden}
+                title={forbidden ? "No tenés permisos para sincronizar este proyecto" : undefined}
+              >
+                Sincronizar ahora
+              </Button>
+            </div>
+          ) : (
+            <p className="text-xs text-blue-700">
+              Solo el administrador puede ejecutar la sincronización manual de este proyecto.
+            </p>
+          )}
         </div>
       ) : (
         <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
           <p>
-            Esta lista todavía no se sincroniza automáticamente. Podés cargar nombres manualmente o configurar una hoja en la pantalla de creación del proyecto.
+            Este proyecto todavía no está vinculado a la planilla institucional. El administrador puede cargar janijim manualmente o configurar la sincronización desde la interfaz anual.
           </p>
         </div>
       )}
 
       {janijim.length === 0 ? (
         <div className="text-center space-y-4 py-12 border rounded-lg">
-          <p className="text-gray-600">Insertá janijim para comenzar</p>
-          {!sheetManaged && (
+          <p className="text-gray-600">
+            {canEdit
+              ? "Insertá janijim para comenzar"
+              : "Todavía no hay janijim cargados. Se mostrarán una vez que el administrador sincronice la planilla institucional."}
+          </p>
+          {canEdit && (
             <Button
               className="mx-auto"
               icon={<PlusCircle className="w-4 h-4" />}
@@ -773,6 +877,8 @@ export default function JanijimPage() {
               className="w-full sm:w-auto shrink-0 sm:ml-2"
               icon={<Check className="w-4 h-4" />}
               onClick={() => setSesionOpen(true)}
+              disabled={!canStartSesion || forbidden}
+              title={!canStartSesion ? "No tenés permisos para iniciar la asistencia" : undefined}
             >
               Iniciar asistencia del día
             </Button>

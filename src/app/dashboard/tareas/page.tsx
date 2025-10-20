@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import BackLink from "@/components/ui/back-link";
-import { getProyectosParaUsuario } from "@/lib/supabase/projects";
+import { getProyectosParaUsuario, type DashboardProyecto } from "@/lib/supabase/projects";
 import { getMateriales, MaterialRow, getMaterialLists } from "@/lib/supabase/materiales";
 import { getMadrijNombre } from "@/lib/supabase/madrijim";
 import Loader from "@/components/ui/loader";
@@ -24,7 +24,7 @@ export default function MisTareasPage() {
       setLoading(true);
       try {
         const nombre = await getMadrijNombre(user.id);
-        const proyectos = (await getProyectosParaUsuario(user.id)) as unknown as { id: string }[];
+        const proyectos: DashboardProyecto[] = await getProyectosParaUsuario(user.id);
         const all: Tarea[] = [];
         for (const p of proyectos) {
           const listas = await getMaterialLists(p.id);
