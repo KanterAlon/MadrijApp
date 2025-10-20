@@ -83,7 +83,7 @@ recomendable mantener la ortografía consistente.
 
 ## Flujo anual administrado
 
-1. El administrador nacional ingresa a la interfaz `/admin/sync`.
+1. El administrador nacional ingresa a la interfaz `/admin`.
 2. Genera una vista previa con los datos actuales de Google Sheets y revisa los
    cambios detectados grupo por grupo.
 3. Confirma la importación para aplicar altas, actualizaciones y bajas en
@@ -109,7 +109,7 @@ ingresar.
 ## Sincronización manual
 
 La importación de datos desde Google Sheets es exclusiva del administrador.
-Puede ejecutarla desde `/admin/sync`, donde se muestran los cambios detectados
+Puede ejecutarla desde `/admin`, donde se muestran los cambios detectados
 y un resumen del impacto antes de confirmar. En cada proyecto el botón
 "Sincronizar ahora" sólo está disponible para el administrador y sirve como
 atajo para refrescar un grupo puntual después de revisar la planilla.

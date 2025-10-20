@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
@@ -79,6 +80,7 @@ async function confirmClaim(email: string) {
 
 export default function DashboardPage() {
   const { user } = useUser();
+  const router = useRouter();
   const [projects, setProjects] = useState<DashboardProyecto[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [claim, setClaim] = useState<ClaimState>({ status: "loading" });
@@ -107,6 +109,12 @@ export default function DashboardPage() {
     () => userRoles.some((rol) => rol === "coordinador" || rol === "director" || rol === "admin"),
     [userRoles],
   );
+
+  useEffect(() => {
+    if (userRoles.includes("admin")) {
+      router.replace("/admin");
+    }
+  }, [router, userRoles]);
 
   useEffect(() => {
     if (!user) {
@@ -291,14 +299,6 @@ export default function DashboardPage() {
     }
   };
 
-  const shouldShowGroups = (project: DashboardProyecto) => {
-    if (project.roles.length === 0) return false;
-    if (project.roles.length === 1 && project.roles[0] === "director") {
-      return false;
-    }
-    return project.roles.some((role) => role === "admin" || role === "coordinador" || role === "madrij");
-  };
-
   return (
     <div className="space-y-6">
       <div>
@@ -344,7 +344,7 @@ export default function DashboardPage() {
                       </p>
                     </div>
                     <Link
-                      href="/admin/sync"
+                      href="/admin"
                       className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
                     >
                       Abrir sincronización anual
