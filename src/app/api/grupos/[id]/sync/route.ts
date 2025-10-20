@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { loadSheetsData } from "@/lib/google/sheetData";
 import { syncGroupFromSheets } from "@/lib/sync/sheetsSync";
 import { supabase } from "@/lib/supabase";
+import { AccessDeniedError, ensureAdminAccess } from "@/lib/supabase/access";
 
 export async function POST(
   _req: Request,
@@ -30,16 +31,14 @@ export async function POST(
       return NextResponse.json({ error: "Grupo no encontrado" }, { status: 404 });
     }
 
-    const { data: membership } = await supabase
-      .from("madrijim_grupos")
-      .select("id")
-      .eq("grupo_id", grupoId)
-      .eq("madrij_id", userId)
-      .eq("activo", true)
-      .maybeSingle();
-
-    if (!membership) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    try {
+      await ensureAdminAccess(userId);
+    } catch (err) {
+      if (err instanceof AccessDeniedError) {
+        return NextResponse.json({ error: err.message }, { status: 403 });
+      }
+      console.error("Error verificando permisos de administrador", err);
+      return NextResponse.json({ error: "No se pudo verificar el rol del usuario" }, { status: 500 });
     }
 
     const nombre = grupo.nombre?.trim();

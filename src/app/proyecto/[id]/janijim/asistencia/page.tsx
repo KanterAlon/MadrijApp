@@ -27,6 +27,7 @@ import {
   ModalHeader,
   ModalTitle,
 } from "@/components/ui/modal";
+import { AccessDeniedError } from "@/lib/supabase/access";
 
 type AsistenciaRow = {
   janij_id: string;
@@ -67,7 +68,7 @@ export default function AsistenciaPage() {
     { key: "tel_padre", label: "Tel. padre" },
   ];
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
-  const { highlightId, scrollTo } = useHighlightScroll({ prefix: "janij-" });
+  const { scrollTo } = useHighlightScroll({ prefix: "janij-" });
   const esCreador = user?.id === sesion?.madrij_id;
 
   const presentesCount = useMemo(
@@ -75,7 +76,8 @@ export default function AsistenciaPage() {
     [janijim, estado]
   );
 
-  const [presentesArriba, setPresentesArriba] = useState(false);
+  const [forbidden, setForbidden] = useState(false);
+  const [forbiddenMessage, setForbiddenMessage] = useState<string | null>(null);
 
   const normalize = (s: string) =>
     s
@@ -83,19 +85,6 @@ export default function AsistenciaPage() {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
       .trim();
-
-  const janijimOrdenados = useMemo(() => {
-    return [...janijim].sort((a, b) => {
-      if (presentesArriba) {
-        const aPres = estado[a.id] ? 1 : 0;
-        const bPres = estado[b.id] ? 1 : 0;
-        if (aPres !== bPres) {
-          return bPres - aPres;
-        }
-      }
-      return a.nombre.localeCompare(b.nombre);
-    });
-  }, [janijim, estado, presentesArriba]);
 
   useEffect(() => {
     const handle = () => setShowTopButton(window.scrollY > 200);
@@ -105,11 +94,14 @@ export default function AsistenciaPage() {
   }, []);
 
   useEffect(() => {
-    if (!sesionId) return;
+    if (!sesionId || !user) return;
+    setLoading(true);
+    setForbidden(false);
+    setForbiddenMessage(null);
     Promise.all([
-      getSesion(sesionId),
-      getJanijim(proyectoId),
-      getAsistencias(sesionId),
+      getSesion(user.id, sesionId),
+      getJanijim(proyectoId, user.id),
+      getAsistencias(user.id, sesionId),
     ])
       .then(([s, j, a]) => {
         setSesion(s);
@@ -120,8 +112,20 @@ export default function AsistenciaPage() {
         });
         setEstado(m);
       })
+      .catch((err) => {
+        if (err instanceof AccessDeniedError) {
+          setForbidden(true);
+          setForbiddenMessage(err.message);
+          setJanijim([]);
+          setEstado({});
+          setSesion(null);
+        } else {
+          console.error("Error cargando asistencia", err);
+          showError("No se pudo cargar la asistencia");
+        }
+      })
       .finally(() => setLoading(false));
-  }, [sesionId, proyectoId]);
+  }, [sesionId, proyectoId, user]);
 
   const exactMatches = useMemo(() => {
     if (!search.trim()) return [];
@@ -156,7 +160,7 @@ const seleccionar = (id: string) => {
   };
 
   useEffect(() => {
-    if (!sesionId) return;
+    if (!sesionId || !user || forbidden) return;
 
     const canal = supabase
       .channel(`asistencia_sesion_${sesionId}`)
@@ -199,14 +203,14 @@ const seleccionar = (id: string) => {
     return () => {
       supabase.removeChannel(canal);
     };
-  }, [sesionId, user?.id]);
+  }, [sesionId, user, forbidden]);
 
   // Refresco periódico cada 5 segundos para asegurarnos de que
   // el estado esté siempre sincronizado, incluso si se pierde un evento
   useEffect(() => {
-    if (!sesionId) return;
+    if (!sesionId || !user || forbidden) return;
     const id = setInterval(() => {
-      Promise.all([getSesion(sesionId), getAsistencias(sesionId)])
+      Promise.all([getSesion(user.id, sesionId), getAsistencias(user.id, sesionId)])
         .then(([s, a]) => {
           if (s) {
             setFinalizado(s.finalizado);
@@ -217,45 +221,82 @@ const seleccionar = (id: string) => {
           });
           setEstado(m);
         })
-        .catch(() => {
-          /* ignore errors */
+        .catch((err) => {
+          if (err instanceof AccessDeniedError) {
+            setForbidden(true);
+            setForbiddenMessage(err.message);
+            clearInterval(id);
+          }
         });
     }, 5000);
     return () => clearInterval(id);
-  }, [sesionId]);
+  }, [sesionId, user, forbidden]);
 
-  const toggle = async (janijId: string) => {
-    if (!user || !sesionId) return;
-    const nuevo = !estado[janijId];
-    setEstado((p) => ({ ...p, [janijId]: nuevo }));
-    try {
-      await marcarAsistencia(sesionId, proyectoId, janijId, user.id, nuevo);
-      // No se necesita broadcast
-    } catch (e) {
-      console.error(e);
-    }
-  };
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const toggle = async (janijId: string) => {
+      if (!user || !sesionId || forbidden) return;
+      const nuevo = !estado[janijId];
+      setEstado((p) => ({ ...p, [janijId]: nuevo }));
+      try {
+        await marcarAsistencia(user.id, sesionId, janijId, user.id, nuevo);
+        // No se necesita broadcast
+      } catch (e) {
+        setEstado((p) => ({ ...p, [janijId]: !nuevo }));
+        if (e instanceof AccessDeniedError) {
+          setForbidden(true);
+          setForbiddenMessage(e.message);
+          toast.error(e.message);
+        } else {
+          console.error(e);
+          showError("No se pudo actualizar la asistencia");
+        }
+      }
+    };
 
-  const finalizar = async () => {
-    await finalizarSesion(sesionId);
-    setFinalizado(true);
-  };
+    const finalizar = async () => {
+      if (!user || !sesionId) return;
+      try {
+        await finalizarSesion(user.id, sesionId);
+        setFinalizado(true);
+      } catch (e) {
+        if (e instanceof AccessDeniedError) {
+          setForbidden(true);
+          setForbiddenMessage(e.message);
+          toast.error(e.message);
+        } else {
+          showError("No se pudo finalizar la sesión");
+        }
+      }
+    };
 
   const irArriba = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-8">
-        <Loader className="h-6 w-6" />
-      </div>
-    );
-  }
+    if (loading) {
+      return (
+        <div className="flex justify-center py-8">
+          <Loader className="h-6 w-6" />
+        </div>
+      );
+    }
 
-  if (finalizado) {
-    const presentes = janijim.filter((j) => estado[j.id]);
-    const ausentes = janijim.filter((j) => !estado[j.id]);
+    if (forbidden) {
+      return (
+        <div className="max-w-3xl mx-auto mt-12">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-6 shadow-sm text-red-800">
+            <h2 className="text-xl font-semibold text-red-900">Acceso restringido</h2>
+            <p className="mt-3">
+              {forbiddenMessage ?? "No tenés permisos para gestionar la asistencia de este proyecto."}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (finalizado) {
+      const presentes = janijim.filter((j) => estado[j.id]);
+      const ausentes = janijim.filter((j) => !estado[j.id]);
 
     const exportar = () => {
       const data = presentes.map((j) => {

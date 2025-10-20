@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { getGrupoIdsForProyecto } from "./projects";
+import { ensureProyectoAccess } from "@/lib/supabase/access";
 
 export type Grupo = {
   id: string;
@@ -9,8 +9,8 @@ export type Grupo = {
   madrij_sheet: string | null;
 };
 
-export async function getGruposByProyecto(proyectoId: string) {
-  const grupoIds = await getGrupoIdsForProyecto(proyectoId);
+export async function getGruposByProyecto(proyectoId: string, userId: string) {
+  const { grupoIds } = await ensureProyectoAccess(userId, proyectoId);
   if (grupoIds.length === 0) return [] as Grupo[];
 
   const { data, error } = await supabase

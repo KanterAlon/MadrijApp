@@ -1,20 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
 
 import Loader from "@/components/ui/loader";
 import { showError } from "@/lib/alerts";
-import { getProyectosParaUsuario } from "@/lib/supabase/projects";
-
-type Proyecto = {
-  id: string;
-  nombre: string;
-  creador_id: string;
-  grupo_id: string;
-};
+import { getProyectosParaUsuario, type DashboardProyecto } from "@/lib/supabase/projects";
 
 type AppRole = "madrij" | "coordinador" | "director" | "admin";
 
@@ -86,11 +79,27 @@ async function confirmClaim(email: string) {
 
 export default function DashboardPage() {
   const { user } = useUser();
-  const [projects, setProjects] = useState<Proyecto[]>([]);
+  const [projects, setProjects] = useState<DashboardProyecto[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [claim, setClaim] = useState<ClaimState>({ status: "loading" });
   const [confirming, setConfirming] = useState(false);
   const [userRoles, setUserRoles] = useState<AppRole[]>([]);
+  const groupCards = useMemo(() => {
+    return projects.flatMap((proyecto) => {
+      const canSeeGroups = proyecto.roles.some((role) => role === "madrij" || role === "coordinador" || role === "admin");
+      if (!canSeeGroups) return [] as { proyecto: DashboardProyecto; grupo: DashboardProyecto["grupos"][number] }[];
+      return proyecto.grupos.map((grupo) => ({ proyecto, grupo }));
+    });
+  }, [projects]);
+  const hasGroupAccess = useMemo(
+    () =>
+      projects.some((proyecto) => proyecto.roles.some((role) => role === "madrij" || role === "coordinador" || role === "admin")),
+    [projects],
+  );
+  const projectCards = useMemo(
+    () => projects.filter((proyecto) => proyecto.roles.some((role) => role === "director" || role === "admin")),
+    [projects],
+  );
 
   useEffect(() => {
     if (!user) {
@@ -278,9 +287,9 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-blue-900">Mis proyectos</h1>
+        <h1 className="text-3xl font-bold text-blue-900">Panel principal</h1>
         <p className="mt-1 text-sm text-blue-900/70">
-          Cada proyecto proviene de la hoja institucional compartida. Accede para gestionar tus janijim y herramientas del grupo.
+          Revisá los proyectos y grupos que ya fueron importados por el equipo nacional. Si detectás algún dato incorrecto, avisá al administrador para que vuelva a sincronizar la hoja institucional.
         </p>
       </div>
 
@@ -306,20 +315,66 @@ export default function DashboardPage() {
             </div>
           ) : projects.length === 0 ? (
             <div className="py-6 text-center text-gray-600">
-              Todavia no tenes proyectos asignados. Asegurate de que la planilla tenga tus datos o consulta con el equipo.
+              Todavía no tenés proyectos asignados. Confirmá que tus datos estén cargados en la hoja institucional o consultá al equipo.
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {projects.map((proyecto) => (
-                <Link
-                  key={proyecto.id}
-                  href={`/proyecto/${proyecto.id}`}
-                  className="block rounded-xl border border-gray-200 bg-gradient-to-br from-white to-blue-50 p-4 shadow transition hover:shadow-md"
-                >
-                  <h3 className="text-lg font-semibold text-blue-900">{proyecto.nombre}</h3>
-                  <p className="mt-2 text-sm text-blue-900/70">Ingresá para ver janijim, tareas y materiales.</p>
-                </Link>
-              ))}
+            <div className="space-y-8">
+              {hasGroupAccess && (
+                <section>
+                  <h2 className="text-lg font-semibold text-blue-900">Tus grupos</h2>
+                  <p className="mt-1 text-sm text-blue-900/70">Estos son los grupos que ya están vinculados a tu usuario.</p>
+                  {groupCards.length === 0 ? (
+                    <div className="mt-4 rounded-lg border border-dashed border-blue-200 bg-blue-50 p-4 text-sm text-blue-900/70">
+                      Todavía no hay grupos cargados en tu proyecto. Avisale al administrador para que revise la hoja institucional.
+                    </div>
+                  ) : (
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {groupCards.map(({ proyecto, grupo }) => (
+                        <Link
+                          key={`${proyecto.id}-${grupo.id}`}
+                          href={`/proyecto/${proyecto.id}/janijim`}
+                          className="block rounded-xl border border-gray-200 bg-gradient-to-br from-white to-blue-50 p-4 shadow transition hover:shadow-md"
+                        >
+                          <h3 className="text-lg font-semibold text-blue-900">Grupo {grupo.nombre}</h3>
+                          <p className="mt-1 text-sm text-blue-900/70">Proyecto {proyecto.nombre}</p>
+                          <p className="mt-3 text-xs text-blue-900/60">Ingresá para revisar a tus janijim y materiales del grupo.</p>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {projectCards.length > 0 && (
+                <section>
+                  <h2 className="text-lg font-semibold text-blue-900">Tus proyectos</h2>
+                  <p className="mt-1 text-sm text-blue-900/70">Visualizá la información general de cada proyecto y sus referentes.</p>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {projectCards.map((proyecto) => (
+                      <Link
+                        key={proyecto.id}
+                        href={`/proyecto/${proyecto.id}`}
+                        className="block rounded-xl border border-gray-200 bg-gradient-to-br from-white to-slate-50 p-4 shadow transition hover:shadow-md"
+                      >
+                        <h3 className="text-lg font-semibold text-blue-900">{proyecto.nombre}</h3>
+                        <p className="mt-2 text-sm text-blue-900/70">Ingresá para ver coordinadores, grupos y recursos del proyecto.</p>
+                        {proyecto.roles.length > 0 && (
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {proyecto.roles.map((rol) => (
+                              <span
+                                key={`${proyecto.id}-${rol}`}
+                                className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800"
+                              >
+                                {rol.toUpperCase()}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
             </div>
           )}
         </div>

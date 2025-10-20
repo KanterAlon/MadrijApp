@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 
-import { loadSheetsData, normaliseEmail } from "@/lib/google/sheetData";
-import { syncAppRolesFromSheets } from "@/lib/sync/rolesSync";
-import { syncGroupFromSheets } from "@/lib/sync/sheetsSync";
+import { normaliseEmail } from "@/lib/google/sheetData";
 import { supabase } from "@/lib/supabase";
 
 type AppRole = "madrij" | "coordinador" | "director" | "admin";
@@ -124,63 +122,12 @@ export async function GET(req: Request) {
     });
   }
 
-  const sheetsData = await loadSheetsData().catch((sheetsError) => {
-    console.error("Error leyendo la hoja de calculo", sheetsError);
-    return null;
-  });
-
-  if (!sheetsData) {
-    return NextResponse.json(
-      {
-        status: "error",
-        message:
-          "No se pudo acceder a la hoja de calculo institucional. Revisa las credenciales de Google en el servidor.",
-      } satisfies ClaimStatus,
-      { status: 500 },
-    );
-  }
-
-  await syncAppRolesFromSheets(sheetsData);
-
-  const personaEntries = sheetsData.madrijes.filter((entry) => entry.email === email);
-  const gruposMap = new Map<string, string>();
-  for (const entry of personaEntries) {
-    if (entry.grupoKey) {
-      gruposMap.set(entry.grupoKey, entry.grupoNombre);
-    }
-  }
-
-  const syncErrors: unknown[] = [];
-  for (const [, grupoNombre] of gruposMap) {
-    try {
-      await syncGroupFromSheets(grupoNombre, { data: sheetsData });
-    } catch (syncError) {
-      syncErrors.push(syncError);
-    }
-  }
-  if (syncErrors.length > 0) {
-    console.warn("Errores sincronizando grupos para claim", syncErrors);
-  }
-
-  const { data: refreshedMadrij, error: refreshedError } = await supabase
-    .from("madrijim")
-    .select("id, clerk_id, email, nombre")
-    .eq("email", email)
-    .maybeSingle();
-
-  if (refreshedError) {
-    console.error("Error refrescando madrij", refreshedError);
-    return NextResponse.json({ status: "error", message: "No se pudo preparar tu usuario" } satisfies ClaimStatus, {
-      status: 500,
-    });
-  }
-
-  const madrij = refreshedMadrij ?? initialMadrij ?? null;
+  const madrij = initialMadrij ?? null;
 
   const rolesRows = await getRolesByEmail(email);
   const roles = new Set<AppRole>();
 
-  if (personaEntries.length > 0 || madrij) {
+  if (madrij) {
     roles.add("madrij");
   }
   for (const row of rolesRows) {
@@ -218,10 +165,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ status: "ready", roles: Array.from(roles) } satisfies ClaimStatus);
   }
 
-  const personaNombre = ensureNombre(
-    madrij?.nombre ?? rolesRows[0]?.nombre ?? personaEntries[0]?.nombre ?? null,
-    email,
-  );
+  const personaNombre = ensureNombre(madrij?.nombre ?? rolesRows[0]?.nombre ?? null, email);
 
   const { data: grupos, error: gruposError } = await supabase
     .from("madrijim_grupos")
