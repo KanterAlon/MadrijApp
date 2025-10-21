@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { ensureProyectoAccess } from "@/lib/supabase/access";
+import { AccessDeniedError, ensureProyectoAccess } from "@/lib/supabase/access";
 
 export type Grupo = {
   id: string;
@@ -7,6 +7,51 @@ export type Grupo = {
   spreadsheet_id: string | null;
   janij_sheet: string | null;
   madrij_sheet: string | null;
+};
+
+export type GrupoQuickStats = {
+  id: string;
+  nombre: string;
+  isGeneral: boolean;
+  totalJanijim: number;
+  totalMadrijim: number;
+};
+
+export type GrupoMadrijInfo = {
+  id: string | null;
+  nombre: string;
+  email: string | null;
+  rol: string | null;
+  invitado: boolean;
+};
+
+export type GrupoCoordinadorInfo = {
+  nombre: string;
+  email: string;
+};
+
+export type GrupoDetalle = {
+  id: string;
+  nombre: string;
+  isGeneral: boolean;
+  totalJanijim: number;
+  totalMadrijim: number;
+  madrijim: GrupoMadrijInfo[];
+  coordinadores: GrupoCoordinadorInfo[];
+};
+
+type MadrijGrupoRow = {
+  grupo_id?: string | null;
+  madrij_id?: string | null;
+  nombre?: string | null;
+  email?: string | null;
+  rol?: string | null;
+  invitado?: boolean | null;
+  madrij?: {
+    clerk_id?: string | null;
+    nombre?: string | null;
+    email?: string | null;
+  } | null;
 };
 
 export async function getGruposByProyecto(proyectoId: string, userId: string) {
@@ -45,4 +90,311 @@ export async function getGruposByProyecto(proyectoId: string, userId: string) {
   return grupoIds
     .map((id) => map.get(id))
     .filter((grupo): grupo is Grupo => Boolean(grupo));
+}
+
+async function listProjectGroupIds(proyectoId: string) {
+  const ids = new Set<string>();
+
+  const { data: linkRows, error: linkError } = await supabase
+    .from("proyecto_grupos")
+    .select("grupo_id")
+    .eq("proyecto_id", proyectoId);
+
+  if (linkError) throw linkError;
+
+  for (const row of linkRows ?? []) {
+    const id = row?.grupo_id as string | null;
+    if (id) {
+      ids.add(id);
+    }
+  }
+
+  const { data: legacyProject, error: legacyError } = await supabase
+    .from("proyectos")
+    .select("grupo_id")
+    .eq("id", proyectoId)
+    .maybeSingle();
+
+  if (legacyError) throw legacyError;
+
+  const legacyId = legacyProject?.grupo_id as string | null;
+  if (legacyId) {
+    ids.add(legacyId);
+  }
+
+  return Array.from(ids);
+}
+
+async function fetchProyectoCoordinadores(proyectoId: string): Promise<GrupoCoordinadorInfo[]> {
+  const { data: coordinadorLinks, error: coordinadorError } = await supabase
+    .from("proyecto_coordinadores")
+    .select("role_id")
+    .eq("proyecto_id", proyectoId);
+
+  if (coordinadorError) throw coordinadorError;
+
+  const roleIds = (coordinadorLinks ?? [])
+    .map((row) => row.role_id as string | null)
+    .filter((id): id is string => Boolean(id));
+
+  if (roleIds.length === 0) {
+    return [];
+  }
+
+  const { data: roles, error: rolesError } = await supabase
+    .from("app_roles")
+    .select("nombre, email")
+    .in("id", roleIds)
+    .eq("activo", true);
+
+  if (rolesError) throw rolesError;
+
+  return (roles ?? [])
+    .map<GrupoCoordinadorInfo>((row) => {
+      const nombre = ((row?.nombre as string | null) ?? "").trim();
+      const email = ((row?.email as string | null) ?? "").trim();
+      return {
+        nombre: nombre.length > 0 ? nombre : email,
+        email,
+      };
+    })
+    .filter((row) => row.nombre || row.email)
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
+}
+
+function mapMadrijRow(row: MadrijGrupoRow): GrupoMadrijInfo {
+  const rawNombre =
+    (row.madrij?.nombre as string | null) ??
+    (row.nombre as string | null) ??
+    "";
+  const nombre = rawNombre.trim().length > 0 ? rawNombre.trim() : "Madrij sin nombre";
+  const rawEmail =
+    (row.madrij?.email as string | null) ??
+    (row.email as string | null) ??
+    null;
+  const email = rawEmail && rawEmail.trim().length > 0 ? rawEmail.trim() : null;
+  const id =
+    (row.madrij?.clerk_id as string | null) ??
+    (row.madrij_id as string | null) ??
+    null;
+
+  return {
+    id,
+    nombre,
+    email,
+    rol: (row.rol as string | null) ?? null,
+    invitado: Boolean(row.invitado),
+  };
+}
+
+export async function getGruposQuickStats(proyectoId: string, userId: string): Promise<GrupoQuickStats[]> {
+  const grupos = await getGruposByProyecto(proyectoId, userId);
+  if (grupos.length === 0) {
+    return [];
+  }
+
+  let targetGroupIds = grupos
+    .filter((grupo) => !grupo.id.startsWith("general:"))
+    .map((grupo) => grupo.id);
+
+  const hasGeneralEntry = grupos.some((grupo) => grupo.id.startsWith("general:"));
+  if (targetGroupIds.length === 0 && hasGeneralEntry) {
+    targetGroupIds = await listProjectGroupIds(proyectoId);
+  }
+
+  const janijCounts = new Map<string, number>();
+  if (targetGroupIds.length > 0) {
+    const { data: janijRows, error: janijError } = await supabase
+      .from("janijim")
+      .select("grupo_id")
+      .eq("activo", true)
+      .in("grupo_id", targetGroupIds);
+
+    if (janijError) throw janijError;
+
+    for (const row of janijRows ?? []) {
+      const grupoId = row?.grupo_id as string | null;
+      if (!grupoId) continue;
+      janijCounts.set(grupoId, (janijCounts.get(grupoId) ?? 0) + 1);
+    }
+  }
+
+  const madCounts = new Map<string, number>();
+  const projectMadKeys = new Set<string>();
+  if (targetGroupIds.length > 0) {
+    const { data: madRows, error: madError } = await supabase
+      .from("madrijim_grupos")
+      .select("grupo_id, madrij_id, email, nombre")
+      .eq("activo", true)
+      .in("grupo_id", targetGroupIds);
+
+    if (madError) throw madError;
+
+    for (const row of madRows ?? []) {
+      const grupoId = row?.grupo_id as string | null;
+      if (!grupoId) continue;
+      madCounts.set(grupoId, (madCounts.get(grupoId) ?? 0) + 1);
+
+      const key =
+        (row?.madrij_id as string | null) ??
+        ((row?.email as string | null)?.trim() || null) ??
+        ((row?.nombre as string | null)?.trim() || null);
+
+      if (key) {
+        projectMadKeys.add(key);
+      }
+    }
+  }
+
+  const { count: projectJanijCount, error: projectJanijError } = await supabase
+    .from("janijim")
+    .select("id", { count: "exact", head: true })
+    .eq("activo", true)
+    .eq("proyecto_id", proyectoId);
+
+  if (projectJanijError) throw projectJanijError;
+
+  const totalMadProyecto = projectMadKeys.size;
+
+  return grupos.map((grupo) => {
+    const isGeneral = grupo.id.startsWith("general:");
+    return {
+      id: grupo.id,
+      nombre: grupo.nombre,
+      isGeneral,
+      totalJanijim: isGeneral ? projectJanijCount ?? 0 : janijCounts.get(grupo.id) ?? 0,
+      totalMadrijim: isGeneral ? totalMadProyecto : madCounts.get(grupo.id) ?? 0,
+    };
+  });
+}
+
+export async function getGrupoDetalle(
+  proyectoId: string,
+  grupoId: string,
+  userId: string,
+): Promise<GrupoDetalle> {
+  const grupos = await getGruposByProyecto(proyectoId, userId);
+  const target = grupos.find((grupo) => grupo.id === grupoId);
+
+  if (!target) {
+    throw new AccessDeniedError("No tenes acceso a este grupo");
+  }
+
+  const coordinadores = await fetchProyectoCoordinadores(proyectoId);
+
+  const isGeneral = grupoId.startsWith("general:");
+  let totalJanijim = 0;
+  let totalMadrijim = 0;
+  let madrijim: GrupoMadrijInfo[] = [];
+
+  if (isGeneral) {
+    const groupIds = await listProjectGroupIds(proyectoId);
+
+    if (groupIds.length > 0) {
+      const { data: madRows, error: madError } = await supabase
+        .from("madrijim_grupos")
+        .select(
+          `
+            grupo_id,
+            madrij_id,
+            nombre,
+            email,
+            rol,
+            invitado,
+            madrij:madrijim (
+              clerk_id,
+              nombre,
+              email
+            )
+          `,
+        )
+        .eq("activo", true)
+        .in("grupo_id", groupIds);
+
+      if (madError) throw madError;
+
+      const unique = new Map<string, GrupoMadrijInfo>();
+      for (const row of (madRows ?? []) as MadrijGrupoRow[]) {
+        const info = mapMadrijRow(row);
+        const key =
+          info.id ??
+          info.email ??
+          (info.nombre ? `${info.nombre}-${row.grupo_id ?? ""}` : null);
+        if (!key || unique.has(key)) continue;
+        unique.set(key, info);
+      }
+
+      madrijim = Array.from(unique.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
+      totalMadrijim = madrijim.length;
+    } else {
+      madrijim = [];
+      totalMadrijim = 0;
+    }
+
+    const { count: janijCount, error: janijError } = await supabase
+      .from("janijim")
+      .select("id", { count: "exact", head: true })
+      .eq("activo", true)
+      .eq("proyecto_id", proyectoId);
+
+    if (janijError) throw janijError;
+    totalJanijim = janijCount ?? 0;
+  } else {
+    const { data: grupoRow, error: grupoError } = await supabase
+      .from("grupos")
+      .select("id")
+      .eq("id", grupoId)
+      .maybeSingle();
+
+    if (grupoError) throw grupoError;
+    if (!grupoRow) {
+      throw new AccessDeniedError("El grupo ya no existe");
+    }
+
+    const { data: madRows, error: madError } = await supabase
+      .from("madrijim_grupos")
+      .select(
+        `
+          madrij_id,
+          nombre,
+          email,
+          rol,
+          invitado,
+          madrij:madrijim (
+            clerk_id,
+            nombre,
+            email
+          )
+        `,
+      )
+      .eq("grupo_id", grupoId)
+      .eq("activo", true)
+      .order("nombre", { ascending: true });
+
+    if (madError) throw madError;
+
+    madrijim = ((madRows ?? []) as MadrijGrupoRow[])
+      .map(mapMadrijRow)
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
+    totalMadrijim = madrijim.length;
+
+    const { count: janijCount, error: janijError } = await supabase
+      .from("janijim")
+      .select("id", { count: "exact", head: true })
+      .eq("activo", true)
+      .eq("grupo_id", grupoId);
+
+    if (janijError) throw janijError;
+    totalJanijim = janijCount ?? 0;
+  }
+
+  return {
+    id: grupoId,
+    nombre: target.nombre,
+    isGeneral,
+    totalJanijim,
+    totalMadrijim,
+    madrijim,
+    coordinadores,
+  };
 }

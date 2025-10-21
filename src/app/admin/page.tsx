@@ -7,27 +7,35 @@ import { FileSpreadsheet, RefreshCw } from "lucide-react";
 import { AdminManagePanel } from "@/components/admin/AdminManagePanel";
 import { AdminSyncPanel } from "@/components/admin/AdminSyncPanel";
 
-const sections = [
+type AdminSection = {
+  id: "manage" | "sync";
+  label: string;
+  description: string;
+  icon: typeof FileSpreadsheet;
+  component: JSX.Element;
+};
+
+const sections: AdminSection[] = [
   {
-    id: "manage" as const,
+    id: "manage",
     label: "Editar hoja institucional",
     description:
-      "Actualizá los datos compartidos directamente desde la app, guardalos en la planilla y reflejalos en Supabase en un solo paso.",
+      "Actualiza los datos compartidos directamente desde la app, guardalos en la planilla y reflejalos en Supabase en un solo paso.",
     icon: FileSpreadsheet,
     component: <AdminManagePanel />,
   },
   {
-    id: "sync" as const,
-    label: "Sincronización avanzada",
+    id: "sync",
+    label: "Sincronizacion avanzada",
     description:
-      "Generá vistas previas, revisá diferencias y aplicá sincronizaciones completas entre la hoja y la base de datos cuando lo necesites.",
+      "Genera vistas previas, revisa diferencias y aplica sincronizaciones completas entre la hoja y la base de datos cuando lo necesites.",
     icon: RefreshCw,
     component: <AdminSyncPanel />,
   },
 ];
 
 export default function AdminPage() {
-  const [activeSection, setActiveSection] = useState<(typeof sections)[number]["id"]>("manage");
+  const [activeSection, setActiveSection] = useState<AdminSection["id"]>("manage");
 
   const section = useMemo(() => sections.find((entry) => entry.id === activeSection) ?? sections[0], [activeSection]);
 
@@ -44,13 +52,13 @@ export default function AdminPage() {
           </div>
           <Link
             href="/admin/preview"
-            className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+            className="inline-flex items-center justify-center rounded-md border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-900 transition hover:border-blue-300 hover:bg-blue-50"
           >
             Abrir vista completa
           </Link>
         </header>
 
-        <nav className="flex flex-wrap gap-3 rounded-2xl border border-blue-100 bg-white/70 p-4 shadow-sm backdrop-blur">
+        <nav className="flex flex-wrap gap-3 rounded-2xl border border-blue-100 bg-white/80 p-4 shadow-sm backdrop-blur">
           {sections.map(({ id, icon: Icon, label, description }) => {
             const isActive = id === section.id;
             return (
@@ -63,6 +71,7 @@ export default function AdminPage() {
                     ? "border-blue-500 bg-blue-50 text-blue-900 shadow-md"
                     : "border-transparent bg-white text-blue-900/70 hover:border-blue-200 hover:bg-blue-50/70"
                 }`}
+                aria-pressed={isActive}
               >
                 <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide">
                   <Icon className={`h-4 w-4 ${isActive ? "text-blue-600" : "text-blue-400"}`} />
@@ -74,10 +83,9 @@ export default function AdminPage() {
           })}
         </nav>
 
-        <section className="rounded-2xl border border-blue-100 bg-white/80 p-6 shadow-md backdrop-blur">
-          {section.component}
-        </section>
+        <section className="rounded-2xl border border-blue-100 bg-white/80 p-6 shadow-md backdrop-blur">{section.component}</section>
       </div>
     </div>
   );
 }
+

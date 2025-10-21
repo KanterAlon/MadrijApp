@@ -11,6 +11,7 @@ import {
   FolderKanban,
   Utensils,
   Wrench,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -22,6 +23,7 @@ export interface NavigationLink {
 
 export const projectNavigationLinks: NavigationLink[] = [
   { href: "", label: "Inicio", icon: Home },
+  { href: "grupos", label: "Grupos", icon: Users },
   { href: "janijim", label: "Janijim", icon: ClipboardList },
   { href: "materiales", label: "Materiales", icon: FolderKanban },
   { href: "notas", label: "Notas", icon: Book },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { toast } from "react-hot-toast";
 import useHighlightScroll from "@/hooks/useHighlightScroll";
@@ -81,6 +81,7 @@ export default function JanijimPage() {
   const { id: proyectoId } = useParams<{ id: string }>();
   const { user } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [dupOpen, setDupOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [janijim, setJanijim] = useState<Janij[]>([]);
@@ -117,6 +118,7 @@ export default function JanijimPage() {
   const [forbidden, setForbidden] = useState(false);
   const [forbiddenMessage, setForbiddenMessage] = useState<string | null>(null);
   const pendingScrollId = useRef<string | null>(null);
+  const requestedGrupoId = useMemo(() => searchParams.get("grupo"), [searchParams]);
   const normalize = (s: string) =>
     s
       .normalize("NFD")
@@ -244,7 +246,18 @@ export default function JanijimPage() {
         setForbidden(false);
         setForbiddenMessage(null);
         setGrupos(data);
-        setSelectedGrupoId((prev) => prev ?? data[0]?.id ?? null);
+        const fallbackId = data[0]?.id ?? null;
+        const preferredId =
+          requestedGrupoId && data.some((grupo) => grupo.id === requestedGrupoId) ? requestedGrupoId : null;
+        setSelectedGrupoId((prev) => {
+          if (preferredId) {
+            return preferredId;
+          }
+          if (prev && data.some((grupo) => grupo.id === prev)) {
+            return prev;
+          }
+          return fallbackId;
+        });
         setSyncMessage(null);
       })
       .catch((err) => {
@@ -262,7 +275,7 @@ export default function JanijimPage() {
     return () => {
       ignore = true;
     };
-  }, [proyectoId, user]);
+  }, [proyectoId, user, requestedGrupoId]);
 
   useEffect(() => {
     if (sheetManaged) {

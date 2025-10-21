@@ -1,83 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { toast } from "react-hot-toast";
-import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
-import BackLink from "@/components/ui/back-link";
-import { supabase } from "@/lib/supabase";
+import Link from "next/link";
+
 import Button from "@/components/ui/button";
-import { Handshake } from "lucide-react";
 
 export default function UnirseProyectoPage() {
-  const { user } = useUser();
-  const router = useRouter();
-  const [codigo, setCodigo] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleJoin = async () => {
-    if (!user || !codigo || loading) return;
-    setLoading(true);
-
-    const { data: proyecto, error } = await supabase
-      .from("proyectos")
-      .select("id, grupo_id")
-      .eq("codigo_invite", codigo)
-      .single();
-
-    if (!proyecto || error) {
-      toast.error("Código inválido");
-      setLoading(false);
-      return;
-    }
-
-    const { error: e2 } = await supabase
-      .from("madrijim_grupos")
-      .insert({
-        grupo_id: proyecto.grupo_id,
-        madrij_id: user.id,
-        invitado: false,
-        activo: true,
-        rol: "miembro",
-      });
-
-    if (e2 && e2.code !== "23505") {
-      toast.error("Error uniéndose al proyecto");
-      setLoading(false);
-      return;
-    }
-
-    toast.success("Te uniste al proyecto correctamente");
-
-    router.push(`/proyecto/${proyecto.id}`);
-  };
-
   return (
-    <div className="max-w-md mx-auto mt-24 bg-white p-6 rounded-2xl shadow">
-      <BackLink href="/dashboard" className="mb-4 inline-flex" />
-      <h1 className="text-2xl font-bold mb-6 text-center text-blue-700">
-        Unirse a un Proyecto
-      </h1>
-      <label htmlFor="codigo" className="sr-only">
-        Código de invitación
-      </label>
-      <input
-        id="codigo"
-        type="text"
-        placeholder="Pegá aquí el código de invitación"
-        className="w-full px-3 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        value={codigo}
-        onChange={(e) => setCodigo(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && handleJoin()}
-      />
-      <Button
-        className="w-full"
-        onClick={handleJoin}
-        loading={loading}
-        icon={<Handshake className="w-4 h-4" />}
-      >
-        Unirse
-      </Button>
+    <div className="mx-auto mt-24 max-w-md rounded-2xl border border-blue-100 bg-white p-6 text-center shadow">
+      <h1 className="text-2xl font-bold text-blue-900">Acceso por invitacion</h1>
+      <p className="mt-4 text-sm text-blue-900/70">
+        Los codigos de invitacion ya no se utilizan. Si necesitas sumarte a un proyecto, pedile al administrador que vincule tu cuenta
+        desde la hoja institucional o desde el panel de gestion.
+      </p>
+      <div className="mt-6 flex flex-col gap-3">
+        <Button asChild>
+          <Link href="/dashboard">Volver al tablero</Link>
+        </Button>
+        <p className="text-xs text-blue-900/60">
+          Si tu correo no figura en la planilla compartida, comparti tus datos con el equipo para que puedan asignarte el grupo correcto.
+        </p>
+      </div>
     </div>
   );
 }
+

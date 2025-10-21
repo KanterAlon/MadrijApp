@@ -17,6 +17,8 @@ const inputStyles =
 const textareaStyles =
   "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200";
 
+const JANIJIM_DEFAULT_BATCH = 25;
+
 type RolesResponse = { roles: string[] };
 
 type AdminManageSummary = {
@@ -35,8 +37,13 @@ type AdminManageResponse = {
 };
 
 function normaliseGroupKey(value: string) {
-  return removeAccents(value).trim().toLowerCase();
+  return removeAccents(value).replace(/\s+/g, " ").trim().toLowerCase();
 }
+
+const normaliseGroupName = (value: string) => normaliseGroupKey(value);
+const normaliseEmail = (value: string) => value.trim().toLowerCase();
+const normalisePersonName = (value: string) =>
+  removeAccents(value).replace(/\s+/g, " ").trim().toLowerCase();
 
 function SectionLabel({ title, description }: { title: string; description?: string }) {
   return (
@@ -45,6 +52,142 @@ function SectionLabel({ title, description }: { title: string; description?: str
       {description ? <p className="text-sm text-blue-900/70">{description}</p> : null}
     </div>
   );
+}
+
+function sanitiseSheetsData(source: SheetsData): SheetsData {
+  const seenCoordinatorEmails = new Set<string>();
+  const seenDirectorEmails = new Set<string>();
+  const seenAdminEmails = new Set<string>();
+
+  const dedupeStrings = (values: string[]) => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const raw of values) {
+      const normalised = normaliseGroupName(raw);
+      if (seen.has(normalised)) continue;
+      seen.add(normalised);
+      result.push(raw);
+    }
+    return result;
+  };
+
+  const seenMadrijEmails = new Set<string>();
+  const sanitisedMadrijes = source.madrijes
+    .map((entry) => {
+      const email = normaliseEmail(entry.email);
+      const nombre = entry.nombre.trim() || email;
+      const grupoNombre = entry.grupoNombre.trim();
+      return {
+        ...entry,
+        nombre,
+        email,
+        grupoNombre,
+        grupoKey: normaliseGroupKey(grupoNombre),
+      };
+    })
+    .filter((entry) => {
+      if (!entry.email) return false;
+      if (seenMadrijEmails.has(entry.email)) return false;
+      seenMadrijEmails.add(entry.email);
+      return true;
+    });
+
+  const seenJanijKeys = new Set<string>();
+  const sanitisedJanijim = source.janijim
+    .map((entry) => {
+      const nombre = entry.nombre.trim();
+      const grupoNombre = entry.grupoNombre.trim();
+      const telMadre = entry.telMadre?.trim() ?? null;
+      const telPadre = entry.telPadre?.trim() ?? null;
+      return {
+        ...entry,
+        nombre,
+        grupoNombre,
+        grupoKey: normaliseGroupKey(grupoNombre),
+        telMadre: telMadre === "" ? null : telMadre,
+        telPadre: telPadre === "" ? null : telPadre,
+      };
+    })
+    .filter((entry) => {
+      const key = `${normalisePersonName(entry.nombre)}|${entry.grupoKey}`;
+      if (seenJanijKeys.has(key)) return false;
+      seenJanijKeys.add(key);
+      return true;
+    });
+
+  const sanitisedProyectos = source.proyectos
+    .map((entry) => {
+      const nombre = entry.nombre.trim();
+      const grupos = dedupeStrings(
+        entry.grupos
+          .map((grupo) => grupo.trim())
+          .filter((grupo) => grupo.length > 0),
+      );
+      return { nombre, grupos };
+    })
+    .filter((entry) => entry.nombre.length > 0);
+
+  const sanitisedCoordinadores = source.coordinadores
+    .map((entry) => {
+      const email = normaliseEmail(entry.email);
+      const nombre = entry.nombre.trim() || email;
+      const proyectos = dedupeStrings(
+        entry.proyectos
+          .map((linea) => linea.trim())
+          .filter((linea) => linea.length > 0),
+      );
+      return { nombre, email, proyectos };
+    })
+    .filter((entry) => {
+      if (entry.email.length === 0) {
+        return false;
+      }
+      if (seenCoordinatorEmails.has(entry.email)) {
+        return false;
+      }
+      seenCoordinatorEmails.add(entry.email);
+      return true;
+    });
+
+  const sanitisedDirectores = source.directores
+    .map((entry) => {
+      const email = normaliseEmail(entry.email);
+      const nombre = entry.nombre.trim() || email;
+      return { nombre, email };
+    })
+    .filter((entry) => {
+      if (entry.email.length === 0) return false;
+      if (seenDirectorEmails.has(entry.email)) return false;
+      seenDirectorEmails.add(entry.email);
+      return true;
+    });
+
+  const sanitisedAdmins = source.admins
+    .map((entry) => {
+      const email = normaliseEmail(entry.email);
+      const nombre = entry.nombre.trim() || email;
+      return { nombre, email };
+    })
+    .filter((entry) => {
+      if (entry.email.length === 0) return false;
+      if (seenAdminEmails.has(entry.email)) return false;
+      seenAdminEmails.add(entry.email);
+      return true;
+    });
+
+  return {
+    madrijes: sanitisedMadrijes.filter((entry) => {
+      if (entry.email.length === 0) return false;
+      if (seenEmails.has(entry.email)) return false;
+      seenEmails.add(entry.email);
+      return true;
+    }),
+    janijim: sanitisedJanijim,
+    proyectos: sanitisedProyectos,
+    coordinadores: sanitisedCoordinadores,
+    directores: sanitisedDirectores,
+    admins: sanitisedAdmins,
+  };
 }
 
 export function AdminManagePanel() {
@@ -57,6 +200,7 @@ export function AdminManagePanel() {
   const [loadingData, setLoadingData] = useState(false);
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [janijimLimit, setJanijimLimit] = useState(JANIJIM_DEFAULT_BATCH);
 
   const isAdmin = useMemo(() => roles?.includes("admin") ?? false, [roles]);
 
@@ -64,6 +208,30 @@ export function AdminManagePanel() {
     if (!sheets || !data?.sheets) return false;
     return JSON.stringify(sheets) !== JSON.stringify(data.sheets);
   }, [sheets, data?.sheets]);
+
+  const janijimCount = sheets?.janijim.length ?? 0;
+
+  const displayedJanijim = useMemo(() => {
+    if (!sheets) return [];
+    const safeLimit = Math.max(0, Math.min(janijimLimit, sheets.janijim.length));
+    return sheets.janijim.slice(0, safeLimit);
+  }, [sheets, janijimLimit]);
+
+  const showingAllJanijim = janijimCount === 0 || janijimLimit >= janijimCount;
+  const canShowMoreJanijim = janijimCount > janijimLimit;
+
+  const janijimSummaryLabel = useMemo(() => {
+    if (janijimCount === 0) {
+      return "Sin registros";
+    }
+    if (showingAllJanijim) {
+      return `Mostrando ${janijimCount} registros`;
+    }
+    return `Mostrando ${displayedJanijim.length} de ${janijimCount}`;
+  }, [displayedJanijim.length, janijimCount, showingAllJanijim]);
+
+  const remainingJanijim = Math.max(0, janijimCount - displayedJanijim.length);
+  const nextJanijimBatch = Math.min(remainingJanijim, JANIJIM_DEFAULT_BATCH);
 
   useEffect(() => {
     if (!user) {
@@ -98,6 +266,11 @@ export function AdminManagePanel() {
       const payload = (await res.json()) as AdminManageResponse;
       setData(payload);
       setSheets(payload.sheets);
+      const nextLimit =
+        payload.sheets.janijim.length > 0
+          ? Math.min(JANIJIM_DEFAULT_BATCH, payload.sheets.janijim.length)
+          : JANIJIM_DEFAULT_BATCH;
+      setJanijimLimit(nextLimit);
     } catch (err) {
       const message = err instanceof Error ? err.message : "No se pudieron cargar los datos administrativos";
       showError(message);
@@ -111,6 +284,19 @@ export function AdminManagePanel() {
       void fetchData();
     }
   }, [fetchData, isAdmin]);
+
+  useEffect(() => {
+    if (janijimCount === 0) {
+      setJanijimLimit(JANIJIM_DEFAULT_BATCH);
+      return;
+    }
+    setJanijimLimit((limit) => {
+      if (limit > janijimCount) {
+        return janijimCount;
+      }
+      return limit;
+    });
+  }, [janijimCount]);
 
   const updateMadrijField = (index: number, field: "nombre" | "email" | "grupoNombre", value: string) => {
     setSheets((prev) => {
@@ -192,6 +378,21 @@ export function AdminManagePanel() {
     });
   };
 
+  const expandAllJanijim = () => {
+    if (!sheets) return;
+    setJanijimLimit(sheets.janijim.length);
+  };
+
+  const expandMoreJanijim = () => {
+    if (!sheets) return;
+    setJanijimLimit((limit) => Math.min(limit + JANIJIM_DEFAULT_BATCH, sheets.janijim.length));
+  };
+
+  const collapseJanijim = () => {
+    const target = janijimCount > 0 ? Math.min(JANIJIM_DEFAULT_BATCH, janijimCount) : JANIJIM_DEFAULT_BATCH;
+    setJanijimLimit(target);
+  };
+
   const updateProyecto = (index: number, field: "nombre" | "grupos", value: string) => {
     setSheets((prev) => {
       if (!prev) return prev;
@@ -234,10 +435,7 @@ export function AdminManagePanel() {
       const coordinadores = [...prev.coordinadores];
       const current = { ...coordinadores[index] };
       if (field === "proyectos") {
-        current.proyectos = value
-          .split(/\n+/u)
-          .map((item) => item.trim())
-          .filter((item) => item.length > 0);
+        current.proyectos = value.split(/\r?\n/u);
       } else if (field === "email") {
         current.email = value.trim().toLowerCase();
       } else {
@@ -306,12 +504,17 @@ export function AdminManagePanel() {
 
   const saveChanges = async () => {
     if (!sheets) return;
+    const confirmed = await confirmDialog(
+      "Esta accion va a modificar la hoja institucional compartida en Google Sheets. Estas seguro de guardar los cambios?",
+    );
+    if (!confirmed) return;
+    const payload = sanitiseSheetsData(sheets);
     setSaving(true);
     try {
       const res = await fetch("/api/admin/manage", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sheets }),
+        body: JSON.stringify({ sheets: payload }),
       });
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
@@ -330,7 +533,7 @@ export function AdminManagePanel() {
 
   const resetDatabase = async () => {
     const confirmed = await confirmDialog(
-      "Â¿Seguro que querÃ©s limpiar la base y reconstruirla con la hoja actual? Esta acciÃ³n no se puede deshacer.",
+      "Estas seguro de limpiar la base y reconstruirla con la hoja actual? Esta accion no se puede deshacer.",
     );
     if (!confirmed) return;
 
@@ -377,8 +580,8 @@ export function AdminManagePanel() {
       <div className="mx-auto max-w-3xl rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
         <h1 className="text-2xl font-bold text-amber-900">Acceso restringido</h1>
         <p className="mt-2 text-amber-900">
-          Esta secciÃ³n es exclusiva para el administrador de la aplicaciÃ³n. Si necesitÃ¡s actualizar la hoja institucional,
-          solicitÃ¡ acceso al equipo nacional.
+          Esta seccion es exclusiva para el administrador de la aplicacion. Si necesitas actualizar la hoja institucional,
+          solicita acceso al equipo nacional.
         </p>
       </div>
     );
@@ -387,10 +590,10 @@ export function AdminManagePanel() {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold text-blue-900">GestiÃ³n institucional</h1>
+        <h1 className="text-3xl font-bold text-blue-900">Gestion institucional</h1>
         <p className="text-sm text-blue-900/70">
-          ModificÃ¡ la hoja institucional, sincronizÃ¡ los cambios con Supabase y controlÃ¡ la base nacional desde un solo lugar.
-          Los cambios que realices acÃ¡ reemplazan los datos de la planilla compartida.
+          Modifica la hoja institucional, sincroniza los cambios con Supabase y controla la base nacional desde un solo lugar.
+          Los cambios que realices aca reemplazan los datos de la planilla compartida, asi que usalos solo cuando sea necesario y previa coordinacion con el equipo.
         </p>
       </div>
 
@@ -513,75 +716,105 @@ export function AdminManagePanel() {
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle className="text-xl text-blue-900">Janijim ({sheets.janijim.length})</CardTitle>
+              <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <CardTitle className="text-xl text-blue-900">Janijim ({janijimCount})</CardTitle>
+                <span className="text-sm text-blue-900/70">{janijimSummaryLabel}</span>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="overflow-x-auto rounded-lg border border-slate-200">
-                  <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-slate-50">
-                      <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-                        <th className="px-4 py-3">Nombre</th>
-                        <th className="px-4 py-3">Grupo</th>
-                        <th className="px-4 py-3">Tel. madre</th>
-                        <th className="px-4 py-3">Tel. padre</th>
-                        <th className="px-4 py-3 text-right">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 bg-white">
-                      {sheets.janijim.map((janij, index) => (
-                        <tr key={`janij-${index}`} className="text-sm text-slate-800">
-                          <td className="px-4 py-3">
-                            <input
-                              className={inputStyles}
-                              value={janij.nombre}
-                              onChange={(event) => updateJanijField(index, "nombre", event.target.value)}
-                              placeholder="Nombre completo"
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input
-                              className={inputStyles}
-                              value={janij.grupoNombre}
-                              onChange={(event) => updateJanijField(index, "grupoNombre", event.target.value)}
-                              placeholder="Nombre del grupo"
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input
-                              className={inputStyles}
-                              value={janij.telMadre ?? ""}
-                              onChange={(event) => updateJanijField(index, "telMadre", event.target.value)}
-                              placeholder="TelÃ©fono madre"
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input
-                              className={inputStyles}
-                              value={janij.telPadre ?? ""}
-                              onChange={(event) => updateJanijField(index, "telPadre", event.target.value)}
-                              placeholder="TelÃ©fono padre"
-                            />
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeJanij(index)}
-                              type="button"
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              Quitar
-                            </Button>
-                          </td>
+                {janijimCount === 0 ? (
+                  <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                    Todavia no hay janijim cargados. Usa el boton &quot;Agregar janij&quot; para sumar el primero.
+                  </div>
+                ) : (
+                  <div className="max-h-[480px] overflow-x-auto overflow-y-auto rounded-lg border border-slate-200">
+                    <table className="min-w-full divide-y divide-slate-200">
+                      <thead className="sticky top-0 bg-slate-50">
+                        <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                          <th className="px-4 py-3">Nombre</th>
+                          <th className="px-4 py-3">Grupo</th>
+                          <th className="px-4 py-3">Tel. madre</th>
+                          <th className="px-4 py-3">Tel. padre</th>
+                          <th className="px-4 py-3 text-right">Acciones</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 bg-white">
+                        {displayedJanijim.map((janij, index) => (
+                          <tr key={`janij-${index}`} className="text-sm text-slate-800">
+                            <td className="px-4 py-3">
+                              <input
+                                className={inputStyles}
+                                value={janij.nombre}
+                                onChange={(event) => updateJanijField(index, "nombre", event.target.value)}
+                                placeholder="Nombre completo"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                className={inputStyles}
+                                value={janij.grupoNombre}
+                                onChange={(event) => updateJanijField(index, "grupoNombre", event.target.value)}
+                                placeholder="Nombre del grupo"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                className={inputStyles}
+                                value={janij.telMadre ?? ""}
+                                onChange={(event) => updateJanijField(index, "telMadre", event.target.value)}
+                                placeholder="Telefono madre"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                className={inputStyles}
+                                value={janij.telPadre ?? ""}
+                                onChange={(event) => updateJanijField(index, "telPadre", event.target.value)}
+                                placeholder="Telefono padre"
+                              />
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeJanij(index)}
+                                type="button"
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                Quitar
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <Button variant="outline" onClick={addJanij} type="button">
+                    Agregar janij
+                  </Button>
+                  {janijimCount > JANIJIM_DEFAULT_BATCH && (
+                    <div className="flex flex-wrap gap-2">
+                      {canShowMoreJanijim && nextJanijimBatch > 0 && (
+                        <>
+                          <Button variant="outline" type="button" onClick={expandMoreJanijim}>
+                            Mostrar {nextJanijimBatch} mas
+                          </Button>
+                          {remainingJanijim > nextJanijimBatch && (
+                            <Button variant="ghost" type="button" onClick={expandAllJanijim} className="text-blue-900 hover:text-blue-900/80">
+                              Mostrar todo
+                            </Button>
+                          )}
+                        </>
+                      )}
+                      {!canShowMoreJanijim && (
+                        <Button variant="ghost" type="button" onClick={collapseJanijim} className="text-blue-900 hover:text-blue-900/80">
+                          Mostrar menos
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <Button variant="outline" onClick={addJanij} type="button">
-                  Agregar janij
-                </Button>
               </CardContent>
             </Card>
 
@@ -604,7 +837,7 @@ export function AdminManagePanel() {
                           />
                         </div>
                         <div>
-                          <SectionLabel title="Grupos asociados" description="IngresÃ¡ un grupo por lÃ­nea" />
+                          <SectionLabel title="Grupos asociados" description="Ingresa un grupo por linea" />
                           <textarea
                             className={`${textareaStyles} mt-2 min-h-[96px]`}
                             value={proyecto.grupos.join("\n")}
@@ -661,7 +894,7 @@ export function AdminManagePanel() {
                           />
                         </div>
                         <div className="lg:col-span-1">
-                          <SectionLabel title="Proyectos" description="Un proyecto por lÃ­nea" />
+                          <SectionLabel title="Proyectos" description="Un proyecto por linea" />
                           <textarea
                             className={`${textareaStyles} mt-2 min-h-[96px]`}
                             value={coordinador.proyectos.join("\n")}
