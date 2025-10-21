@@ -89,6 +89,7 @@ export type JanijSheetEntry = {
   nombre: string;
   grupoPrincipalNombre: string;
   grupoPrincipalKey: string;
+  grupoKey?: string;
   otrosGrupos: { nombre: string; key: string }[];
   telMadre: string | null;
   telPadre: string | null;
@@ -177,6 +178,7 @@ export function buildJanijEntries(rows: unknown[][]) {
       nombre,
       grupoPrincipalNombre,
       grupoPrincipalKey,
+      grupoKey: grupoPrincipalKey,
       otrosGrupos,
       telMadre: readCell(row, mapping.telMadre),
       telPadre: readCell(row, mapping.telPadre),

@@ -61,7 +61,7 @@ type Janij = {
   grupo_id?: string | null;
   tel_madre: string | null;
   tel_padre: string | null;
-  gruposAdicionales: { id: string; nombre: string | null }[];
+  gruposAdicionales?: { id: string; nombre: string | null }[];
   estado: "presente" | "ausente";
 };
 
@@ -1022,7 +1022,7 @@ export default function JanijimPage() {
                         >
                           Principal: {janij.grupo || "Sin grupo"}
                         </span>
-                        {janij.gruposAdicionales.map((extra) => {
+                        {(janij.gruposAdicionales ?? []).map((extra) => {
                           const activeExtra = extra.id === selectedGrupoId;
                           return (
                             <span
