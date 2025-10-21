@@ -75,6 +75,30 @@ export function AdminSyncPanel() {
     return preview.grupos.detalle.filter((grupo) => !withChanges.has(grupo.grupoKey));
   }, [preview, gruposConCambios]);
 
+  const generalStats = useMemo(() => {
+    if (!preview) {
+      return { enHoja: 0, activar: [] as string[], desactivar: [] as string[], tieneCambios: false };
+    }
+    const stats = preview.resumen.proyectosGenerales;
+    return {
+      enHoja: stats.enHoja,
+      activar: stats.activar,
+      desactivar: stats.desactivar,
+      tieneCambios: stats.activar.length > 0 || stats.desactivar.length > 0,
+    };
+  }, [preview]);
+
+  const generalStatsMessage = useMemo(() => {
+    if (!preview) return "";
+    if (generalStats.tieneCambios) {
+      return "Vamos a ajustar los proyectos generales para que coincidan con la hoja. Revisalos antes de confirmar.";
+    }
+    if (generalStats.enHoja > 0) {
+      return "Los proyectos generales ya estan alineados: se aplican a todos los janijim a partir de una sola fila en la hoja.";
+    }
+    return "No encontramos proyectos marcados como generales en la hoja. Si alguno representa a toda la base, marca la casilla en la planilla.";
+  }, [generalStats, preview]);
+
   const generarVistaPrevia = async () => {
     setLoadingPreview(true);
     setCommitResult(null);
@@ -319,35 +343,35 @@ export function AdminSyncPanel() {
                 </ul>
               </div>
             )}
-            {(preview.resumen.proyectosGenerales.activar.length > 0 ||
-              preview.resumen.proyectosGenerales.desactivar.length > 0) && (
-              <div className="mt-4 rounded-lg bg-purple-50 p-4 text-sm text-purple-900">
-                <p className="font-semibold">Cambios en proyectos generales</p>
-                <p className="mt-1 text-xs text-purple-900/70">
-                  Proyectos generales en la hoja: {preview.resumen.proyectosGenerales.enHoja}
-                </p>
-                {preview.resumen.proyectosGenerales.activar.length > 0 && (
-                  <div className="mt-3">
-                    <p className="font-semibold">Se configuraran como generales</p>
-                    <ul className="mt-1 list-disc space-y-1 pl-5">
-                      {preview.resumen.proyectosGenerales.activar.map((nombre) => (
-                        <li key={`general-activar-${nombre}`}>{nombre}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {preview.resumen.proyectosGenerales.desactivar.length > 0 && (
-                  <div className="mt-3">
-                    <p className="font-semibold">Dejaran de ser generales</p>
-                    <ul className="mt-1 list-disc space-y-1 pl-5">
-                      {preview.resumen.proyectosGenerales.desactivar.map((nombre) => (
-                        <li key={`general-desactivar-${nombre}`}>{nombre}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+            <div className="mt-4 rounded-lg bg-purple-50 p-4 text-sm text-purple-900">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-semibold">Proyectos generales</p>
+                <span className="text-xs font-semibold uppercase tracking-wide text-purple-800">
+                  En la hoja: {generalStats.enHoja}
+                </span>
               </div>
-            )}
+              {generalStatsMessage ? <p className="mt-1 text-xs text-purple-900/80">{generalStatsMessage}</p> : null}
+              {generalStats.activar.length > 0 && (
+                <div className="mt-3">
+                  <p className="font-semibold">Se configuraran como generales</p>
+                  <ul className="mt-1 list-disc space-y-1 pl-5">
+                    {generalStats.activar.map((nombre) => (
+                      <li key={`general-activar-${nombre}`}>{nombre}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {generalStats.desactivar.length > 0 && (
+                <div className="mt-3">
+                  <p className="font-semibold">Dejaran de ser generales</p>
+                  <ul className="mt-1 list-disc space-y-1 pl-5">
+                    {generalStats.desactivar.map((nombre) => (
+                      <li key={`general-desactivar-${nombre}`}>{nombre}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
             {preview.resumen.nuevosGrupos.length > 0 && (
               <div className="mt-4 rounded-lg bg-green-50 p-4 text-sm text-green-900">
                 <p className="font-semibold">Nuevos grupos en la hoja</p>

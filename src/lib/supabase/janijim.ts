@@ -76,7 +76,10 @@ export async function getJanijim(proyectoId: string, userId: string) {
     .order("nombre", { ascending: true });
 
   if (appliesToAll) {
-    query.eq("proyecto_id", proyectoId);
+    // A general project represents the entire sheet, so expose every active janij.
+    const { data, error } = await query;
+    if (error) throw error;
+    return data;
   } else {
     if (grupoIds.length === 0) return [];
     query.in("grupo_id", grupoIds);

@@ -93,6 +93,30 @@ export async function getGruposByProyecto(proyectoId: string, userId: string) {
 }
 
 async function listProjectGroupIds(proyectoId: string) {
+  // For projects flagged as general we need the complete universe of groups,
+  // because the admin sheet lists the project once with applies_to_all=true.
+  const { data: proyectoRow, error: proyectoError } = await supabase
+    .from("proyectos")
+    .select("applies_to_all, grupo_id")
+    .eq("id", proyectoId)
+    .maybeSingle();
+
+  if (proyectoError) throw proyectoError;
+
+  if (!proyectoRow) {
+    return [];
+  }
+
+  if (Boolean(proyectoRow.applies_to_all)) {
+    const { data: allGroups, error: allGroupsError } = await supabase.from("grupos").select("id");
+
+    if (allGroupsError) throw allGroupsError;
+
+    return (allGroups ?? [])
+      .map((row) => row?.id as string | null)
+      .filter((id): id is string => Boolean(id));
+  }
+
   const ids = new Set<string>();
 
   const { data: linkRows, error: linkError } = await supabase
@@ -109,15 +133,7 @@ async function listProjectGroupIds(proyectoId: string) {
     }
   }
 
-  const { data: legacyProject, error: legacyError } = await supabase
-    .from("proyectos")
-    .select("grupo_id")
-    .eq("id", proyectoId)
-    .maybeSingle();
-
-  if (legacyError) throw legacyError;
-
-  const legacyId = legacyProject?.grupo_id as string | null;
+  const legacyId = proyectoRow?.grupo_id as string | null;
   if (legacyId) {
     ids.add(legacyId);
   }
@@ -246,14 +262,20 @@ export async function getGruposQuickStats(proyectoId: string, userId: string): P
     }
   }
 
-  const { count: projectJanijCount, error: projectJanijError } = await supabase
-    .from("janijim")
-    .select("id", { count: "exact", head: true })
-    .eq("activo", true)
-    .eq("proyecto_id", proyectoId);
+  const totalJanijAcrossGroups = Array.from(janijCounts.values()).reduce((sum, value) => sum + value, 0);
 
-  if (projectJanijError) throw projectJanijError;
+  let globalJanijCount: number | null = null;
+  if (hasGeneralEntry) {
+    const { count: janijGlobalCount, error: janijGlobalError } = await supabase
+      .from("janijim")
+      .select("id", { count: "exact", head: true })
+      .eq("activo", true);
 
+    if (janijGlobalError) throw janijGlobalError;
+    globalJanijCount = janijGlobalCount ?? 0;
+  }
+
+  const generalJanijTotal = globalJanijCount ?? totalJanijAcrossGroups;
   const totalMadProyecto = projectMadKeys.size;
 
   return grupos.map((grupo) => {
@@ -262,7 +284,7 @@ export async function getGruposQuickStats(proyectoId: string, userId: string): P
       id: grupo.id,
       nombre: grupo.nombre,
       isGeneral,
-      totalJanijim: isGeneral ? projectJanijCount ?? 0 : janijCounts.get(grupo.id) ?? 0,
+      totalJanijim: isGeneral ? generalJanijTotal : janijCounts.get(grupo.id) ?? 0,
       totalMadrijim: isGeneral ? totalMadProyecto : madCounts.get(grupo.id) ?? 0,
     };
   });
@@ -334,8 +356,7 @@ export async function getGrupoDetalle(
     const { count: janijCount, error: janijError } = await supabase
       .from("janijim")
       .select("id", { count: "exact", head: true })
-      .eq("activo", true)
-      .eq("proyecto_id", proyectoId);
+      .eq("activo", true);
 
     if (janijError) throw janijError;
     totalJanijim = janijCount ?? 0;
