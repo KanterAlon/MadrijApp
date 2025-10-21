@@ -86,13 +86,20 @@ export type CoordinatorProjectPreview = {
   proyectosInexistentes: string[];
 };
 
+export type GeneralProjectPreview = {
+  nombre: string;
+  estado: "alineado" | "activar" | "desactivar";
+  janijimSheet: number;
+  janijimActivos: number;
+};
+
 export type SyncPreview = {
   generatedAt: string;
   resumen: {
     totalProyectosHoja: number;
     nuevosProyectos: string[];
     totalGruposHoja: number;
-    nuevosGrupos: { grupo: string; proyecto: string | null }[];
+    nuevosGrupos: { grupo: string; proyecto: string | null; esGeneral: boolean }[];
     gruposOrfanos: number;
     janijim: {
       totalSheet: number;
@@ -106,6 +113,7 @@ export type SyncPreview = {
       enHoja: number;
       activar: string[];
       desactivar: string[];
+      detalle: GeneralProjectPreview[];
     };
     roles: {
       role: AppRole;
@@ -164,6 +172,7 @@ type JanijRow = {
   id: string;
   nombre: string | null;
   grupo_id: string | null;
+  proyecto_id: string | null;
   tel_madre: string | null;
   tel_padre: string | null;
   activo: boolean | null;
@@ -438,10 +447,10 @@ function buildCoordinatorPreview(
 function buildSummary(
   detalle: GroupJanijPreview[],
   nuevosProyectos: string[],
-  nuevosGrupos: { grupo: string; proyecto: string | null }[],
+  nuevosGrupos: { grupo: string; proyecto: string | null; esGeneral: boolean }[],
   roleDiffs: RoleDiffPreview[],
   orphanCount: number,
-  generalStats: { enHoja: number; activar: string[]; desactivar: string[] },
+  generalStats: { enHoja: number; activar: string[]; desactivar: string[]; detalle: GeneralProjectPreview[] },
 ) {
   let totalSheet = 0;
   let totalActivos = 0;
@@ -491,7 +500,7 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
   const [proyectosRes, gruposRes, janijimRes, rolesRes, coordinatorLinksRes, grupoLinksRes] = await Promise.all([
     supabase.from("proyectos").select("id, nombre, grupo_id, applies_to_all"),
     supabase.from("grupos").select("id, nombre"),
-    supabase.from("janijim").select("id, nombre, grupo_id, tel_madre, tel_padre, activo"),
+    supabase.from("janijim").select("id, nombre, grupo_id, proyecto_id, tel_madre, tel_padre, activo"),
     supabase.from("app_roles").select("id, email, nombre, role, activo"),
     supabase.from("proyecto_coordinadores").select("role_id, proyecto_id"),
     supabase.from("proyecto_grupos").select("proyecto_id, grupo_id"),
@@ -599,6 +608,16 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
     janijRows,
     (row) => row.grupo_id ?? "",
   );
+  let activeJanijTotal = 0;
+  const janijCountByProyectoId = new Map<string, number>();
+  for (const row of janijRows) {
+    if (row.activo === false) continue;
+    activeJanijTotal += 1;
+    const proyectoId = row.proyecto_id;
+    if (!proyectoId) continue;
+    janijCountByProyectoId.set(proyectoId, (janijCountByProyectoId.get(proyectoId) ?? 0) + 1);
+  }
+  const totalSheetJanijim = sheets.janijim.length;
 
   const proyectoByGrupoId = new Map<string, ProyectoRow[]>();
   for (const link of proyectoGrupoLinks ?? []) {
@@ -623,7 +642,7 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
 
   const detalle: GroupJanijPreview[] = [];
   const nuevosProyectos: string[] = [];
-  const nuevosGrupos: { grupo: string; proyecto: string | null }[] = [];
+  const nuevosGrupos: { grupo: string; proyecto: string | null; esGeneral: boolean }[] = [];
   const generalActivar: string[] = [];
   const generalDesactivar: string[] = [];
 
@@ -642,7 +661,9 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
       nuevosProyectos.push(info.proyectoNombre ?? info.proyectoKey);
     }
     if (!grupo) {
-      nuevosGrupos.push({ grupo: info.nombre, proyecto: info.proyectoNombre ?? null });
+      const inferredKey = info.proyectoKey ?? normaliseProjectName(info.nombre);
+      const esGeneral = sheetGeneralKeys.has(inferredKey);
+      nuevosGrupos.push({ grupo: info.nombre, proyecto: info.proyectoNombre ?? null, esGeneral });
     }
     const existingJanij = grupo ? janijByGrupoId.get(grupo.id) ?? [] : [];
     const sheetEntries = sheetJanijByGroup.get(key) ?? [];
@@ -685,10 +706,45 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
     }
   }
 
+  const generalDetailByKey = new Map<string, GeneralProjectPreview>();
+  for (const key of sheetGeneralKeys) {
+    const displayName = generalDisplayByKey.get(key) ?? key;
+    if (generalDetailByKey.has(key)) continue;
+    const proyecto = proyectoByKey.get(key) ?? null;
+    const estado: GeneralProjectPreview["estado"] =
+      !proyecto ? "activar" : proyecto.applies_to_all ? "alineado" : "activar";
+    const janijActivos =
+      estado === "desactivar"
+        ? (proyecto ? janijCountByProyectoId.get(proyecto.id) ?? 0 : 0)
+        : activeJanijTotal;
+    generalDetailByKey.set(key, {
+      nombre: displayName,
+      estado,
+      janijimSheet: totalSheetJanijim,
+      janijimActivos: janijActivos,
+    });
+  }
+
+  for (const proyecto of proyectos) {
+    if (!proyecto.nombre) continue;
+    if (!proyecto.applies_to_all) continue;
+    const key = normaliseProjectName(proyecto.nombre);
+    if (generalDetailByKey.has(key)) continue;
+    generalDetailByKey.set(key, {
+      nombre: proyecto.nombre,
+      estado: "desactivar",
+      janijimSheet: 0,
+      janijimActivos: janijCountByProyectoId.get(proyecto.id) ?? 0,
+    });
+  }
+
+  const generalDetails = Array.from(generalDetailByKey.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
+
   const generalStats = {
     enHoja: sheetGeneralKeys.size,
     activar: Array.from(new Set(generalActivar)),
     desactivar: Array.from(new Set(generalDesactivar)),
+    detalle: generalDetails,
   };
   const orphanGroups: OrphanGroupPreview[] = [];
   for (const grupo of grupos) {

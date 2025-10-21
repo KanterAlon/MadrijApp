@@ -19,6 +19,15 @@ function Badge({ children }: { children: ReactNode }) {
 }
 
 type RolesResponse = { roles: string[] };
+type GeneralEstado = "alineado" | "activar" | "desactivar";
+
+function normaliseKey(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
 
 type PreviewResponse = { runId: string; preview: SyncPreview };
 
@@ -77,13 +86,14 @@ export function AdminSyncPanel() {
 
   const generalStats = useMemo(() => {
     if (!preview) {
-      return { enHoja: 0, activar: [] as string[], desactivar: [] as string[], tieneCambios: false };
+      return { enHoja: 0, activar: [] as string[], desactivar: [] as string[], detalle: [] as SyncPreview["resumen"]["proyectosGenerales"]["detalle"], tieneCambios: false };
     }
     const stats = preview.resumen.proyectosGenerales;
     return {
       enHoja: stats.enHoja,
       activar: stats.activar,
       desactivar: stats.desactivar,
+      detalle: stats.detalle,
       tieneCambios: stats.activar.length > 0 || stats.desactivar.length > 0,
     };
   }, [preview]);
@@ -98,6 +108,28 @@ export function AdminSyncPanel() {
     }
     return "No encontramos proyectos marcados como generales en la hoja. Si alguno representa a toda la base, marca la casilla en la planilla.";
   }, [generalStats, preview]);
+
+  const generalNameSet = useMemo(() => {
+    return new Set(
+      generalStats.detalle
+        .filter((item) => item.estado !== "desactivar")
+        .map((item) => normaliseKey(item.nombre)),
+    );
+  }, [generalStats.detalle]);
+
+  const generalDetailLookup = useMemo(() => {
+    const map = new Map<string, (typeof generalStats.detalle)[number]>();
+    generalStats.detalle.forEach((item) => {
+      map.set(normaliseKey(item.nombre), item);
+    });
+    return map;
+  }, [generalStats.detalle]);
+
+  const generalEstadoStyles: Record<GeneralEstado, { label: string; className: string }> = {
+    activar: { label: "Se activara", className: "bg-blue-100 text-blue-800" },
+    desactivar: { label: "Se desactivara", className: "bg-amber-100 text-amber-800" },
+    alineado: { label: "General activo", className: "bg-purple-100 text-purple-800" },
+  };
 
   const generarVistaPrevia = async () => {
     setLoadingPreview(true);
@@ -351,6 +383,26 @@ export function AdminSyncPanel() {
                 </span>
               </div>
               {generalStatsMessage ? <p className="mt-1 text-xs text-purple-900/80">{generalStatsMessage}</p> : null}
+              {generalStats.detalle.length > 0 && (
+                <div className="mt-3 space-y-3">
+                  {generalStats.detalle.map((general) => {
+                    const style = generalEstadoStyles[general.estado];
+                    return (
+                      <div key={general.nombre} className="rounded-md border border-purple-200 bg-white/60 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-semibold text-purple-900">{general.nombre}</span>
+                          <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ${style.className}`}>
+                            {style.label}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-purple-900/80">
+                          Janijim en hoja: {general.janijimSheet} - Activos en base: {general.janijimActivos}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               {generalStats.activar.length > 0 && (
                 <div className="mt-3">
                   <p className="font-semibold">Se configuraran como generales</p>
@@ -378,7 +430,43 @@ export function AdminSyncPanel() {
                 <ul className="mt-2 list-disc space-y-1 pl-5">
                   {preview.resumen.nuevosGrupos.map((item) => (
                     <li key={`${item.grupo}-${item.proyecto ?? "sin-proyecto"}`}>
-                      {item.grupo} {item.proyecto ? `- Proyecto ${item.proyecto}` : "- Sin proyecto asignado"}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-green-900">{item.grupo}</span>
+                        {(() => {
+                          const normalisedGrupo = normaliseKey(item.grupo);
+                          const normalisedProyecto = item.proyecto ? normaliseKey(item.proyecto) : null;
+                          const isGeneralGroup =
+                            item.esGeneral ||
+                            generalNameSet.has(normalisedGrupo) ||
+                            (normalisedProyecto ? generalNameSet.has(normalisedProyecto) : false);
+                          if (isGeneralGroup) {
+                            return (
+                              <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
+                                General
+                              </span>
+                            );
+                          }
+                          if (item.proyecto) {
+                            return <span className="text-xs font-semibold text-green-800">Proyecto {item.proyecto}</span>;
+                          }
+                          return <span className="text-xs font-semibold text-green-800">Sin proyecto asignado</span>;
+                        })()}
+                      </div>
+                      {(() => {
+                        const normalisedGrupo = normaliseKey(item.grupo);
+                        const normalisedProyecto = item.proyecto ? normaliseKey(item.proyecto) : null;
+                        const detail =
+                          (normalisedProyecto ? generalDetailLookup.get(normalisedProyecto) : undefined) ??
+                          generalDetailLookup.get(normalisedGrupo);
+                        if (!detail || detail.estado === "desactivar") {
+                          return null;
+                        }
+                        return (
+                          <p className="mt-1 text-xs text-green-900/80">
+                            Janijim en hoja: {detail.janijimSheet} - Activos en base: {detail.janijimActivos}
+                          </p>
+                        );
+                      })()}
                     </li>
                   ))}
                 </ul>
