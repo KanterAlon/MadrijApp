@@ -288,6 +288,7 @@ async function syncJanijRecords(
     grupo: string;
     tel_madre: string | null;
     tel_padre: string | null;
+    numero_socio: string | null;
     activo: boolean;
   }[] = [];
   const inserts: {
@@ -297,6 +298,7 @@ async function syncJanijRecords(
     grupo: string;
     tel_madre: string | null;
     tel_padre: string | null;
+    numero_socio: string | null;
     activo: boolean;
   }[] = [];
 
@@ -313,6 +315,7 @@ async function syncJanijRecords(
         grupo: grupoNombre,
         tel_madre: entry.telMadre,
         tel_padre: entry.telPadre,
+        numero_socio: entry.numeroSocio,
         activo: true,
       });
     } else {
@@ -323,6 +326,7 @@ async function syncJanijRecords(
         grupo: grupoNombre,
         tel_madre: entry.telMadre,
         tel_padre: entry.telPadre,
+        numero_socio: entry.numeroSocio,
         activo: true,
       });
     }

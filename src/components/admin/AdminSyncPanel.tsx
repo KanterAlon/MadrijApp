@@ -363,9 +363,21 @@ export function AdminSyncPanel() {
                       {grupo.inserts.length > 0 && (
                         <div className="mt-3">
                           <p className="text-sm font-semibold text-blue-900">Altas</p>
-                          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-blue-900/80">
+                          <ul className="mt-1 space-y-2 text-sm text-blue-900/80">
                             {grupo.inserts.map((entry) => (
-                              <li key={`insert-${grupo.grupoKey}-${entry.nombre}`}>{entry.nombre}</li>
+                              <li key={`insert-${grupo.grupoKey}-${entry.nombre}`} className="rounded-md bg-white/70 p-2">
+                                <div className="font-medium text-blue-900">{entry.nombre}</div>
+                                {(entry.telMadre || entry.telPadre || entry.numeroSocio || entry.otrosGrupos.length > 0) && (
+                                  <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-blue-900/70">
+                                    {entry.telMadre && <li>Tel. madre: {entry.telMadre}</li>}
+                                    {entry.telPadre && <li>Tel. padre: {entry.telPadre}</li>}
+                                    {entry.numeroSocio && <li>Nº socio: {entry.numeroSocio}</li>}
+                                    {entry.otrosGrupos.length > 0 && (
+                                      <li>Otros grupos: {entry.otrosGrupos.join(", ")}</li>
+                                    )}
+                                  </ul>
+                                )}
+                              </li>
                             ))}
                           </ul>
                         </div>
@@ -391,6 +403,26 @@ export function AdminSyncPanel() {
                                   {update.cambios.telPadre && (
                                     <li>
                                       Tel. padre: {update.cambios.telPadre.before ?? "(sin dato)"}{" -> "}{update.cambios.telPadre.after ?? "(sin dato)"}
+                                    </li>
+                                  )}
+                                  {update.cambios.numeroSocio && (
+                                    <li>
+                                      Nº socio: {update.cambios.numeroSocio.before ?? "(sin dato)"}{" -> "}{update.cambios.numeroSocio.after ?? "(sin dato)"}
+                                    </li>
+                                  )}
+                                  {update.cambios.otrosGrupos && (
+                                    <li>
+                                      Otros grupos:
+                                      <ul className="mt-1 list-disc space-y-1 pl-5">
+                                        {update.cambios.otrosGrupos.agregar.length > 0 && (
+                                          <li className="text-green-700">Agregar: {update.cambios.otrosGrupos.agregar.join(", ")}</li>
+                                        )}
+                                        {update.cambios.otrosGrupos.quitar.length > 0 && (
+                                          <li className="text-red-700">Quitar: {update.cambios.otrosGrupos.quitar.join(", ")}</li>
+                                        )}
+                                        {update.cambios.otrosGrupos.agregar.length === 0 &&
+                                          update.cambios.otrosGrupos.quitar.length === 0 && <li>(sin cambios)</li>}
+                                      </ul>
                                     </li>
                                   )}
                                   {update.reactivar && <li className="text-green-700">Se reactivara este janij</li>}

@@ -38,9 +38,11 @@ function buildJanijRows(entries: JanijSheetEntry[]) {
     "Otro Grupo 2",
     "TelÃ©fono madre",
     "TelÃ©fono padre",
+    "NÃºmero de socio/a",
   ];
   const rows = entries.map((entry) => {
-    const [extra1, extra2] = entry.otrosGrupos.map((grupo) => sanitizeCell(grupo.nombre));
+    const extras = entry.otrosGrupos.map((grupo) => sanitizeCell(grupo.nombre));
+    const [extra1, extra2] = extras;
     return [
       sanitizeCell(entry.nombre),
       sanitizeCell(entry.grupoPrincipalNombre),
@@ -48,6 +50,7 @@ function buildJanijRows(entries: JanijSheetEntry[]) {
       extra2 ?? "",
       sanitizeCell(entry.telMadre),
       sanitizeCell(entry.telPadre),
+      sanitizeCell(entry.numeroSocio),
     ];
   });
   return [header, ...rows];

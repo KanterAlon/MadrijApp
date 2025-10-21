@@ -96,16 +96,34 @@ function sanitiseSheetsData(source: SheetsData): SheetsData {
   const sanitisedJanijim = source.janijim
     .map((entry) => {
       const nombre = entry.nombre.trim();
-      const grupoNombre = entry.grupoNombre.trim();
+      const grupoPrincipalNombre = entry.grupoPrincipalNombre.trim();
+      const grupoPrincipalKey = normaliseGroupKey(grupoPrincipalNombre);
       const telMadre = entry.telMadre?.trim() ?? null;
       const telPadre = entry.telPadre?.trim() ?? null;
+      const numeroSocio = entry.numeroSocio?.trim() ?? null;
+      const extrasSeen = new Set<string>();
+      const otrosGrupos = (entry.otrosGrupos ?? [])
+        .map((extra) => {
+          const nombreExtra = extra.nombre.trim();
+          if (nombreExtra.length === 0) return null;
+          const key = normaliseGroupKey(nombreExtra);
+          if (key === grupoPrincipalKey) return null;
+          if (extrasSeen.has(key)) return null;
+          extrasSeen.add(key);
+          return { nombre: nombreExtra, key };
+        })
+        .filter((value): value is { nombre: string; key: string } => value !== null)
+        .slice(0, 2);
       return {
         ...entry,
         nombre,
-        grupoNombre,
-        grupoKey: normaliseGroupKey(grupoNombre),
+        grupoPrincipalNombre,
+        grupoPrincipalKey,
+        grupoKey: grupoPrincipalKey,
         telMadre: telMadre === "" ? null : telMadre,
         telPadre: telPadre === "" ? null : telPadre,
+        numeroSocio: numeroSocio === "" ? null : numeroSocio,
+        otrosGrupos,
       };
     })
     .filter((entry) => {
@@ -348,20 +366,60 @@ export function AdminManagePanel() {
 
   const updateJanijField = (
     index: number,
-    field: "nombre" | "grupoNombre" | "telMadre" | "telPadre",
+    field: "nombre" | "grupoPrincipalNombre" | "telMadre" | "telPadre" | "numeroSocio",
     value: string,
   ) => {
     setSheets((prev) => {
       if (!prev) return prev;
       const janijim = [...prev.janijim];
       const current = { ...janijim[index] };
-      current[field] = value;
-        if (field === "grupoNombre") {
-          current.grupoKey = normaliseGroupKey(value);
+      if (field === "grupoPrincipalNombre") {
+        current.grupoPrincipalNombre = value;
+        const normalised = normaliseGroupKey(value);
+        current.grupoPrincipalKey = normalised;
+        current.grupoKey = normalised;
+      } else if (field === "telMadre" || field === "telPadre" || field === "numeroSocio") {
+        const trimmed = value.trim();
+        current[field] = trimmed.length > 0 ? trimmed : null;
+      } else {
+        current[field] = value;
       }
-      if (field === "telMadre" || field === "telPadre") {
-        current[field] = value.trim() || null;
+      janijim[index] = current;
+      return { ...prev, janijim };
+    });
+  };
+
+  const updateJanijExtraGroup = (index: number, extraIndex: 0 | 1, value: string) => {
+    setSheets((prev) => {
+      if (!prev) return prev;
+      const janijim = [...prev.janijim];
+      const current = { ...janijim[index] };
+      const extras = [...(current.otrosGrupos ?? [])];
+      const trimmed = value.trim();
+      if (trimmed.length === 0) {
+        if (extras[extraIndex]) {
+          extras.splice(extraIndex, 1);
+        }
+      } else {
+        const key = normaliseGroupKey(trimmed);
+        const updated = { nombre: trimmed, key };
+        if (extras[extraIndex]) {
+          extras[extraIndex] = updated;
+        } else {
+          extras.push(updated);
+        }
       }
+      const deduped: { nombre: string; key: string }[] = [];
+      const seenKeys = new Set<string>();
+      for (const extra of extras) {
+        if (!extra) continue;
+        if (extra.key === current.grupoPrincipalKey) continue;
+        if (seenKeys.has(extra.key)) continue;
+        seenKeys.add(extra.key);
+        deduped.push(extra);
+        if (deduped.length === 2) break;
+      }
+      current.otrosGrupos = deduped;
       janijim[index] = current;
       return { ...prev, janijim };
     });
@@ -374,7 +432,16 @@ export function AdminManagePanel() {
         ...prev,
         janijim: [
           ...prev.janijim,
-          { nombre: "", grupoNombre: "", grupoKey: "", telMadre: null, telPadre: null },
+          {
+            nombre: "",
+            grupoPrincipalNombre: "",
+            grupoPrincipalKey: "",
+            grupoKey: "",
+            telMadre: null,
+            telPadre: null,
+            numeroSocio: null,
+            otrosGrupos: [],
+          },
         ],
       };
     });
@@ -741,9 +808,12 @@ export function AdminManagePanel() {
                       <thead className="sticky top-0 bg-slate-50">
                         <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
                           <th className="px-4 py-3">Nombre</th>
-                          <th className="px-4 py-3">Grupo</th>
+                          <th className="px-4 py-3">Grupo principal</th>
+                          <th className="px-4 py-3">Otro grupo 1</th>
+                          <th className="px-4 py-3">Otro grupo 2</th>
                           <th className="px-4 py-3">Tel. madre</th>
                           <th className="px-4 py-3">Tel. padre</th>
+                          <th className="px-4 py-3">Nº socio/a</th>
                           <th className="px-4 py-3 text-right">Acciones</th>
                         </tr>
                       </thead>
@@ -761,9 +831,27 @@ export function AdminManagePanel() {
                             <td className="px-4 py-3">
                               <input
                                 className={inputStyles}
-                                value={janij.grupoNombre}
-                                onChange={(event) => updateJanijField(index, "grupoNombre", event.target.value)}
+                                value={janij.grupoPrincipalNombre}
+                                onChange={(event) =>
+                                  updateJanijField(index, "grupoPrincipalNombre", event.target.value)
+                                }
                                 placeholder="Nombre del grupo"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                className={inputStyles}
+                                value={janij.otrosGrupos?.[0]?.nombre ?? ""}
+                                onChange={(event) => updateJanijExtraGroup(index, 0, event.target.value)}
+                                placeholder="Otro grupo 1"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                className={inputStyles}
+                                value={janij.otrosGrupos?.[1]?.nombre ?? ""}
+                                onChange={(event) => updateJanijExtraGroup(index, 1, event.target.value)}
+                                placeholder="Otro grupo 2"
                               />
                             </td>
                             <td className="px-4 py-3">
@@ -780,6 +868,14 @@ export function AdminManagePanel() {
                                 value={janij.telPadre ?? ""}
                                 onChange={(event) => updateJanijField(index, "telPadre", event.target.value)}
                                 placeholder="Telefono padre"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                className={inputStyles}
+                                value={janij.numeroSocio ?? ""}
+                                onChange={(event) => updateJanijField(index, "numeroSocio", event.target.value)}
+                                placeholder="Número de socio/a"
                               />
                             </td>
                             <td className="px-4 py-3 text-right">
