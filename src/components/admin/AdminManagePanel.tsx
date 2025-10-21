@@ -118,15 +118,12 @@ function sanitiseSheetsData(source: SheetsData): SheetsData {
   const sanitisedProyectos = source.proyectos
     .map((entry) => {
       const nombre = entry.nombre.trim();
-      const appliesToAll = entry.appliesToAll;
-      const grupos = appliesToAll
-        ? []
-        : dedupeStrings(
-            entry.grupos
-              .map((grupo) => grupo.trim())
-              .filter((grupo) => grupo.length > 0),
-          );
-      return { nombre, appliesToAll, grupos };
+      const grupos = dedupeStrings(
+        entry.grupos
+          .map((grupo) => grupo.trim())
+          .filter((grupo) => grupo.length > 0),
+      );
+      return { nombre, grupos };
     })
     .filter((entry) => entry.nombre.length > 0);
 
@@ -239,14 +236,10 @@ export function AdminManagePanel() {
 
   const proyectoStats = useMemo(() => {
     if (!sheets) {
-      return { total: 0, generales: 0, regulares: 0 };
+      return { total: 0 };
     }
-    const generales = sheets.proyectos.filter((proyecto) => proyecto.appliesToAll).length;
-    const total = sheets.proyectos.length;
     return {
-      total,
-      generales,
-      regulares: Math.max(total - generales, 0),
+      total: sheets.proyectos.length,
     };
   }, [sheets]);
 
@@ -428,26 +421,12 @@ export function AdminManagePanel() {
     });
   };
 
-  const setProyectoGeneral = (index: number, appliesToAll: boolean) => {
-    setSheets((prev) => {
-      if (!prev) return prev;
-      const proyectos = [...prev.proyectos];
-      const current = { ...proyectos[index] };
-      current.appliesToAll = appliesToAll;
-      if (appliesToAll) {
-        current.grupos = [];
-      }
-      proyectos[index] = current;
-      return { ...prev, proyectos };
-    });
-  };
-
   const addProyecto = () => {
     setSheets((prev) => {
       if (!prev) return prev;
       return {
         ...prev,
-        proyectos: [...prev.proyectos, { nombre: "", appliesToAll: false, grupos: [] }],
+        proyectos: [...prev.proyectos, { nombre: "", grupos: [] }],
       };
     });
   };
@@ -851,23 +830,11 @@ export function AdminManagePanel() {
 
             <Card>
               <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <CardTitle className="text-xl text-blue-900">Proyectos ({sheets.proyectos.length})</CardTitle>
-                <div className="text-sm text-blue-900/70">
-                  Generales: {proyectoStats.generales} / Especificos: {proyectoStats.regulares}
-                </div>
+                <CardTitle className="text-xl text-blue-900">Proyectos ({proyectoStats.total})</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="rounded-lg border border-blue-100 bg-blue-50/70 p-4 text-sm text-blue-900/80">
-                  <p className="font-semibold text-blue-900">Proyectos generales</p>
-                  <p className="mt-1">
-                    Marca como <strong>general</strong> cualquiera que represente a toda la planilla. Estos proyectos sincronizan
-                    todos los janijim y no necesitan listar grupos individuales. Usa esta opcion solo una vez por proyecto para evitar
-                    duplicados en la hoja.
-                  </p>
-                </div>
                 <div className="space-y-4">
                   {sheets.proyectos.map((proyecto, index) => {
-                    const isGeneral = proyecto.appliesToAll;
                     return (
                       <div key={`proyecto-${index}`} className="space-y-4 rounded-lg border border-slate-200 p-4">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -880,37 +847,15 @@ export function AdminManagePanel() {
                               placeholder="Nombre del proyecto"
                             />
                           </div>
-                          {isGeneral && (
-                            <span className="inline-flex h-fit items-center justify-center rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700">
-                              General
-                            </span>
-                          )}
                         </div>
                         <div>
                           <SectionLabel title="Grupos asociados" description="Ingresa un grupo por linea" />
                           <textarea
-                            className={`${textareaStyles} mt-2 min-h-[96px] ${isGeneral ? "cursor-not-allowed bg-slate-100 text-slate-500" : ""}`}
+                            className={`${textareaStyles} mt-2 min-h-[96px]`}
                             value={proyecto.grupos.join("\n")}
                             onChange={(event) => updateProyecto(index, "grupos", event.target.value)}
-                            placeholder={isGeneral ? "Proyecto general: no es necesario cargar grupos" : "Grupo 1\nGrupo 2"}
-                            disabled={isGeneral}
+                            placeholder="Grupo 1\nGrupo 2"
                           />
-                        </div>
-                        <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
-                          <label className="flex items-center gap-2 text-sm font-medium text-blue-900">
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 rounded border-slate-400 text-blue-600 focus:ring-blue-500"
-                              checked={isGeneral}
-                              onChange={(event) => setProyectoGeneral(index, event.target.checked)}
-                            />
-                            Este proyecto se aplica a todos los grupos
-                          </label>
-                          <p className="mt-1 text-xs text-blue-900/70">
-                            {isGeneral
-                              ? "Vamos a exportarlo como proyecto general: se tomaran todos los janijim de la base y su grupo quedara vacio en la hoja."
-                              : "Solo sincronizaremos los grupos listados arriba. Deja la casilla sin marcar si el proyecto tiene grupos propios."}
-                          </p>
                         </div>
                         <div className="flex justify-end">
                           <Button

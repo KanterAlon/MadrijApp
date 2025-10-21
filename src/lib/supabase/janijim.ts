@@ -4,7 +4,6 @@ import {
   ensureProyectoAccess,
   getUserAccessContext,
 } from "@/lib/supabase/access";
-import { listProjectGroupIds } from "@/lib/supabase/grupos";
 
 export type JanijData = {
   /** Nombre y apellido del janij */
@@ -27,6 +26,7 @@ export type JanijRecord = {
   tel_madre: string | null;
   tel_padre: string | null;
   extras?: Record<string, unknown> | null;
+  gruposAdicionales?: { id: string; nombre: string | null }[];
 };
 
 type RawMadrijGrupo = {
@@ -76,28 +76,75 @@ function baseJanijQuery(select: string, options?: { includeInactive?: boolean })
 }
 
 export async function getJanijim(proyectoId: string, userId: string) {
-  const { grupoIds, appliesToAll } = await ensureProyectoAccess(userId, proyectoId);
-
-  if (appliesToAll) {
-    const groupIds = await listProjectGroupIds(proyectoId);
-    const builder = baseJanijQuery(BASE_FIELDS, { includeInactive: true });
-
-    if (groupIds.length > 0) {
-      // Include janijim without grupo_id so general projects list the full base.
-      const quotedIds = groupIds.map((id) => `"${id}"`).join(",");
-      builder.or(`grupo_id.is.null,grupo_id.in.(${quotedIds})`);
-    }
-
-    const { data, error } = await builder;
-    if (error) throw error;
-    return data ?? [];
-  }
-
+  const { grupoIds } = await ensureProyectoAccess(userId, proyectoId);
   if (grupoIds.length === 0) return [];
 
-  const { data, error } = await baseJanijQuery(BASE_FIELDS).in("grupo_id", grupoIds);
+  const { data: extraLinks, error: extraError } = await supabase
+    .from("janijim_grupos_extra")
+    .select("janij_id, grupo_id")
+    .in("grupo_id", grupoIds);
+
+  if (extraError) throw extraError;
+
+  const extraJanijIds = new Set<string>();
+  for (const row of extraLinks ?? []) {
+    const janijId = row?.janij_id as string | null;
+    if (janijId) {
+      extraJanijIds.add(janijId);
+    }
+  }
+
+  const filterClauses: string[] = [];
+  if (grupoIds.length > 0) {
+    const quoted = grupoIds.map((id) => `"${id}"`).join(",");
+    filterClauses.push(`grupo_id.in.(${quoted})`);
+  }
+  if (extraJanijIds.size > 0) {
+    const quotedExtras = Array.from(extraJanijIds)
+      .map((id) => `"${id}"`)
+      .join(",");
+    filterClauses.push(`id.in.(${quotedExtras})`);
+  }
+
+  if (filterClauses.length === 0) {
+    return [];
+  }
+
+  const selectFields = `${BASE_FIELDS}, grupos_extra:janijim_grupos_extra ( grupo_id, grupo:grupos ( id, nombre ) )`;
+  const builder = baseJanijQuery(selectFields);
+  builder.or(filterClauses.join(","));
+
+  const { data, error } = await builder;
   if (error) throw error;
-  return data;
+
+  type RawJanijWithExtras = JanijRecord & {
+    grupos_extra?: {
+      grupo_id?: string | null;
+      grupo?: { id?: string | null; nombre?: string | null } | null;
+    }[];
+  };
+
+  return (data ?? []).map((row) => {
+    const raw = row as RawJanijWithExtras;
+    const gruposExtras = Array.isArray(raw.grupos_extra)
+      ? raw.grupos_extra
+          .map((extra) => {
+            const id = (extra?.grupo_id as string | null) ?? (extra?.grupo?.id as string | null) ?? null;
+            const nombre = (extra?.grupo?.nombre as string | null) ?? null;
+            if (!id) {
+              return null;
+            }
+            return { id, nombre };
+          })
+          .filter((value): value is { id: string; nombre: string | null } => value !== null)
+      : [];
+    const { grupos_extra: _omit, ...rest } = raw;
+    void _omit;
+    return {
+      ...rest,
+      gruposAdicionales: gruposExtras,
+    } satisfies JanijRecord;
+  });
 }
 
 export async function getGlobalJanijim(): Promise<JanijRecord[]> {

@@ -45,13 +45,10 @@ export default async function SobreGrupoPage({ params }: PageProps) {
   const grupos = await getGruposQuickStats(proyectoId, userId);
   const otrosGrupos = grupos.filter((grupo) => grupo.id !== grupoId);
 
-  const janijimHref = detalle.isGeneral
-    ? `/proyecto/${proyectoId}/janijim`
-    : `/proyecto/${proyectoId}/janijim?grupo=${encodeURIComponent(detalle.id)}`;
+  const janijimHref = `/proyecto/${proyectoId}/janijim?grupo=${encodeURIComponent(detalle.id)}`;
 
-  const resumenTexto = detalle.isGeneral
-    ? "Esta portada resume todos los grupos asociados al proyecto. Usa esta vista para tener un panorama rapido antes de profundizar en los janijim."
-    : "Conoce quienes son los madrijim responsables, que coordinadores acompañan el proceso y cuantos janijim estan vinculados segun la hoja institucional.";
+  const resumenTexto =
+    "Conoce quienes son los madrijim responsables, que coordinadores acompañan el proceso y cuantos janijim estan vinculados segun la hoja institucional.";
 
   return (
     <div className="space-y-6">
@@ -61,9 +58,7 @@ export default async function SobreGrupoPage({ params }: PageProps) {
             Proyecto {proyecto.nombre}
           </p>
           <h1 className="text-3xl font-bold text-blue-900">Sobre el grupo</h1>
-          <h2 className="text-xl font-semibold text-blue-800">
-            {detalle.isGeneral ? detalle.nombre : `Grupo ${detalle.nombre}`}
-          </h2>
+          <h2 className="text-xl font-semibold text-blue-800">Grupo {detalle.nombre}</h2>
           <p className="mt-2 text-sm text-blue-900/70">{resumenTexto}</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -188,7 +183,7 @@ export default async function SobreGrupoPage({ params }: PageProps) {
                 href={`/proyecto/${proyectoId}/grupos/${encodeURIComponent(grupo.id)}`}
                 className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 transition hover:border-blue-300"
               >
-                {grupo.isGeneral ? grupo.nombre : `Grupo ${grupo.nombre}`}
+                Grupo {grupo.nombre}
               </Link>
             ))}
           </div>
