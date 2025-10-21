@@ -330,7 +330,7 @@ export function AdminManagePanel() {
 
   const resetDatabase = async () => {
     const confirmed = await confirmDialog(
-      "¿Seguro que querés limpiar la base y reconstruirla con la hoja actual? Esta acción no se puede deshacer.",
+      "Â¿Seguro que querÃ©s limpiar la base y reconstruirla con la hoja actual? Esta acciÃ³n no se puede deshacer.",
     );
     if (!confirmed) return;
 
@@ -377,8 +377,8 @@ export function AdminManagePanel() {
       <div className="mx-auto max-w-3xl rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
         <h1 className="text-2xl font-bold text-amber-900">Acceso restringido</h1>
         <p className="mt-2 text-amber-900">
-          Esta sección es exclusiva para el administrador de la aplicación. Si necesitás actualizar la hoja institucional,
-          solicitá acceso al equipo nacional.
+          Esta secciÃ³n es exclusiva para el administrador de la aplicaciÃ³n. Si necesitÃ¡s actualizar la hoja institucional,
+          solicitÃ¡ acceso al equipo nacional.
         </p>
       </div>
     );
@@ -387,10 +387,10 @@ export function AdminManagePanel() {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold text-blue-900">Gestión institucional</h1>
+        <h1 className="text-3xl font-bold text-blue-900">GestiÃ³n institucional</h1>
         <p className="text-sm text-blue-900/70">
-          Modificá la hoja institucional, sincronizá los cambios con Supabase y controlá la base nacional desde un solo lugar.
-          Los cambios que realices acá reemplazan los datos de la planilla compartida.
+          ModificÃ¡ la hoja institucional, sincronizÃ¡ los cambios con Supabase y controlÃ¡ la base nacional desde un solo lugar.
+          Los cambios que realices acÃ¡ reemplazan los datos de la planilla compartida.
         </p>
       </div>
 
@@ -552,7 +552,7 @@ export function AdminManagePanel() {
                               className={inputStyles}
                               value={janij.telMadre ?? ""}
                               onChange={(event) => updateJanijField(index, "telMadre", event.target.value)}
-                              placeholder="Teléfono madre"
+                              placeholder="TelÃ©fono madre"
                             />
                           </td>
                           <td className="px-4 py-3">
@@ -560,7 +560,7 @@ export function AdminManagePanel() {
                               className={inputStyles}
                               value={janij.telPadre ?? ""}
                               onChange={(event) => updateJanijField(index, "telPadre", event.target.value)}
-                              placeholder="Teléfono padre"
+                              placeholder="TelÃ©fono padre"
                             />
                           </td>
                           <td className="px-4 py-3 text-right">
@@ -604,7 +604,7 @@ export function AdminManagePanel() {
                           />
                         </div>
                         <div>
-                          <SectionLabel title="Grupos asociados" description="Ingresá un grupo por línea" />
+                          <SectionLabel title="Grupos asociados" description="IngresÃ¡ un grupo por lÃ­nea" />
                           <textarea
                             className={`${textareaStyles} mt-2 min-h-[96px]`}
                             value={proyecto.grupos.join("\n")}
@@ -661,7 +661,7 @@ export function AdminManagePanel() {
                           />
                         </div>
                         <div className="lg:col-span-1">
-                          <SectionLabel title="Proyectos" description="Un proyecto por línea" />
+                          <SectionLabel title="Proyectos" description="Un proyecto por lÃ­nea" />
                           <textarea
                             className={`${textareaStyles} mt-2 min-h-[96px]`}
                             value={coordinador.proyectos.join("\n")}
