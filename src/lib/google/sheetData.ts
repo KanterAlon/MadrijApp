@@ -92,6 +92,7 @@ export type JanijSheetEntry = {
   otrosGrupos: { nombre: string; key: string }[];
   telMadre: string | null;
   telPadre: string | null;
+  numeroSocio: string | null;
 };
 
 const JANIJ_HEADERS: Record<
@@ -103,6 +104,7 @@ const JANIJ_HEADERS: Record<
   | "otroGrupo2"
   | "telMadre"
   | "telPadre"
+  | "numeroSocio"
 > = {
   nombre: "nombre",
   apellido: "apellido",
@@ -121,6 +123,10 @@ const JANIJ_HEADERS: Record<
   "telefono papa": "telPadre",
   "telefono padre": "telPadre",
   "tel padre": "telPadre",
+  "numero socio": "numeroSocio",
+  "numero de socio": "numeroSocio",
+  "n socio": "numeroSocio",
+  "num socio": "numeroSocio",
 };
 
 export function buildJanijEntries(rows: unknown[][]) {
@@ -133,7 +139,8 @@ export function buildJanijEntries(rows: unknown[][]) {
     | "otroGrupo1"
     | "otroGrupo2"
     | "telMadre"
-    | "telPadre",
+    | "telPadre"
+    | "numeroSocio",
     number | undefined
   >;
   header.forEach((value, index) => {
@@ -163,6 +170,7 @@ export function buildJanijEntries(rows: unknown[][]) {
         extrasSeen.add(normalised);
         otrosGrupos.push({ nombre: value, key: normalised });
       });
+    const numeroSocioRaw = readCell(row, mapping.numeroSocio);
     entries.push({
       nombre,
       grupoPrincipalNombre,
@@ -170,6 +178,7 @@ export function buildJanijEntries(rows: unknown[][]) {
       otrosGrupos,
       telMadre: readCell(row, mapping.telMadre),
       telPadre: readCell(row, mapping.telPadre),
+      numeroSocio: numeroSocioRaw ? numeroSocioRaw.trim() || null : null,
     });
   }
   return entries;

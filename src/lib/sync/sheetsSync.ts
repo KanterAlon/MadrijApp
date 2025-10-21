@@ -289,6 +289,7 @@ async function syncJanijRecords(
     tel_madre: string | null;
     tel_padre: string | null;
     activo: boolean;
+    numero_socio: string | null;
   }[] = [];
   const inserts: {
     proyecto_id: string;
@@ -298,32 +299,36 @@ async function syncJanijRecords(
     tel_madre: string | null;
     tel_padre: string | null;
     activo: boolean;
+    numero_socio: string | null;
   }[] = [];
 
   for (const entry of entries) {
     const key = normaliseGroupName(entry.nombre);
     const existingRow = existingMap.get(key);
     seen.add(key);
+    const grupoDisplay = entry.grupoPrincipalNombre?.trim() || grupoNombre;
     if (existingRow) {
       updates.push({
         id: existingRow.id as string,
         proyecto_id: proyectoId,
         grupo_id: grupoId,
         nombre: entry.nombre,
-        grupo: grupoNombre,
+        grupo: grupoDisplay,
         tel_madre: entry.telMadre,
         tel_padre: entry.telPadre,
         activo: true,
+        numero_socio: entry.numeroSocio ?? null,
       });
     } else {
       inserts.push({
         proyecto_id: proyectoId,
         grupo_id: grupoId,
         nombre: entry.nombre,
-        grupo: grupoNombre,
+        grupo: grupoDisplay,
         tel_madre: entry.telMadre,
         tel_padre: entry.telPadre,
         activo: true,
+        numero_socio: entry.numeroSocio ?? null,
       });
     }
   }

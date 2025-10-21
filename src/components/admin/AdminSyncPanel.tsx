@@ -393,6 +393,11 @@ export function AdminSyncPanel() {
                                       Tel. padre: {update.cambios.telPadre.before ?? "(sin dato)"}{" -> "}{update.cambios.telPadre.after ?? "(sin dato)"}
                                     </li>
                                   )}
+                                  {update.cambios.numeroSocio && (
+                                    <li>
+                                      N° socio: {update.cambios.numeroSocio.before ?? "(sin dato)"}{" -> "}{update.cambios.numeroSocio.after ?? "(sin dato)"}
+                                    </li>
+                                  )}
                                   {update.reactivar && <li className="text-green-700">Se reactivara este janij</li>}
                                 </ul>
                               </li>

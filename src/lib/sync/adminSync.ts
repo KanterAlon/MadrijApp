@@ -25,14 +25,18 @@ export type JanijUpdatePreview = {
     nombre?: FieldChange<string>;
     telMadre?: FieldChange<string>;
     telPadre?: FieldChange<string>;
+    numeroSocio?: FieldChange<string>;
   };
   reactivar: boolean;
 };
 
 export type JanijInsertPreview = {
   nombre: string;
+  grupoPrincipal: string;
+  otrosGrupos: string[];
   telMadre: string | null;
   telPadre: string | null;
+  numeroSocio: string | null;
 };
 
 export type JanijDeactivatePreview = {
@@ -162,6 +166,8 @@ type JanijRow = {
   tel_madre: string | null;
   tel_padre: string | null;
   activo: boolean | null;
+  numero_socio: string | null;
+  grupo: string | null;
 };
 type RoleRow = {
   id: string;
@@ -243,8 +249,11 @@ function computeJanijDiff(existing: JanijRow[], entries: JanijSheetEntry[]): {
     if (!existingRow) {
       inserts.push({
         nombre: entry.nombre,
+        grupoPrincipal: entry.grupoPrincipalNombre,
+        otrosGrupos: entry.otrosGrupos.map((extra) => extra.nombre),
         telMadre: entry.telMadre ?? null,
         telPadre: entry.telPadre ?? null,
+        numeroSocio: entry.numeroSocio ?? null,
       });
       continue;
     }
@@ -263,6 +272,12 @@ function computeJanijDiff(existing: JanijRow[], entries: JanijSheetEntry[]): {
       cambios.telPadre = {
         before: existingRow.tel_padre ?? null,
         after: entry.telPadre ?? null,
+      };
+    }
+    if ((existingRow.numero_socio ?? null) !== (entry.numeroSocio ?? null)) {
+      cambios.numeroSocio = {
+        before: existingRow.numero_socio ?? null,
+        after: entry.numeroSocio ?? null,
       };
     }
     const reactivarRegistro = existingRow.activo === false || existingRow.activo === null;
@@ -484,7 +499,9 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
   const [proyectosRes, gruposRes, janijimRes, rolesRes, coordinatorLinksRes, grupoLinksRes] = await Promise.all([
     supabase.from("proyectos").select("id, nombre, grupo_id"),
     supabase.from("grupos").select("id, nombre"),
-    supabase.from("janijim").select("id, nombre, grupo_id, proyecto_id, tel_madre, tel_padre, activo"),
+    supabase
+      .from("janijim")
+      .select("id, nombre, grupo_id, proyecto_id, tel_madre, tel_padre, numero_socio, grupo, activo"),
     supabase.from("app_roles").select("id, email, nombre, role, activo"),
     supabase.from("proyecto_coordinadores").select("role_id, proyecto_id"),
     supabase.from("proyecto_grupos").select("proyecto_id, grupo_id"),
