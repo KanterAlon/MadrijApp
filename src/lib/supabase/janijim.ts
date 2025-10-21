@@ -29,11 +29,9 @@ export type JanijRecord = {
 };
 
 type RawMadrijGrupo = {
-  madrij?: {
-    id: string;
-    nombre: string;
-    email?: string | null;
-  } | null;
+  madrij_id?: string | null;
+  nombre?: string | null;
+  email?: string | null;
 };
 
 type RawGrupoRelacion = {
@@ -137,11 +135,9 @@ export async function searchJanijimGlobal(userId: string, query: string) {
           id,
           nombre,
           madrijim_grupos (
-            madrij:madrijim (
-              id,
-              nombre,
-              email
-            )
+            madrij_id,
+            nombre,
+            email
           )
         )
       `,
@@ -159,14 +155,13 @@ export async function searchJanijimGlobal(userId: string, query: string) {
 
   return rows.map<JanijSearchResult>((row) => {
     const responsables = Array.isArray(row.grupo_rel?.madrijim_grupos)
-      ? row.grupo_rel!.madrijim_grupos!
-          .map((rel) => rel.madrij)
-          .filter((madrij): madrij is NonNullable<typeof madrij> => Boolean(madrij))
-          .map((madrij) => ({
-            id: madrij.id,
-            nombre: madrij.nombre,
-            email: madrij.email ?? null,
+      ? row.grupo_rel.madrijim_grupos!
+          .map((rel) => ({
+            id: rel.madrij_id ?? rel.nombre ?? "",
+            nombre: rel.nombre ?? "Madrij sin nombre",
+            email: rel.email ?? null,
           }))
+          .filter((entry) => entry.nombre || entry.email)
       : [];
 
     return {

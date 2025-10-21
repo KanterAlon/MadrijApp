@@ -315,21 +315,7 @@ export async function getGrupoDetalle(
     if (groupIds.length > 0) {
       const { data: madRows, error: madError } = await supabase
         .from("madrijim_grupos")
-        .select(
-          `
-            grupo_id,
-            madrij_id,
-            nombre,
-            email,
-            rol,
-            invitado,
-            madrij:madrijim (
-              clerk_id,
-              nombre,
-              email
-            )
-          `,
-        )
+        .select("grupo_id, madrij_id, nombre, email, rol, invitado")
         .eq("activo", true)
         .in("grupo_id", groupIds);
 
@@ -374,20 +360,7 @@ export async function getGrupoDetalle(
 
     const { data: madRows, error: madError } = await supabase
       .from("madrijim_grupos")
-      .select(
-        `
-          madrij_id,
-          nombre,
-          email,
-          rol,
-          invitado,
-          madrij:madrijim (
-            clerk_id,
-            nombre,
-            email
-          )
-        `,
-      )
+      .select("madrij_id, nombre, email, rol, invitado")
       .eq("grupo_id", grupoId)
       .eq("activo", true)
       .order("nombre", { ascending: true });
