@@ -25,6 +25,11 @@ export type JanijUpdatePreview = {
     nombre?: FieldChange<string>;
     telMadre?: FieldChange<string>;
     telPadre?: FieldChange<string>;
+    numeroSocio?: FieldChange<string>;
+    otrosGrupos?: {
+      agregar: string[];
+      quitar: string[];
+    };
   };
   reactivar: boolean;
 };
@@ -33,6 +38,8 @@ export type JanijInsertPreview = {
   nombre: string;
   telMadre: string | null;
   telPadre: string | null;
+  numeroSocio: string | null;
+  otrosGrupos: string[];
 };
 
 export type JanijDeactivatePreview = {
@@ -161,6 +168,7 @@ type JanijRow = {
   proyecto_id: string | null;
   tel_madre: string | null;
   tel_padre: string | null;
+  numero_socio: string | null;
   activo: boolean | null;
 };
 type RoleRow = {
@@ -217,7 +225,11 @@ function dedupeCoordinatorEntries(entries: { email: string; nombre: string; proy
   return Array.from(map.values());
 }
 
-function computeJanijDiff(existing: JanijRow[], entries: JanijSheetEntry[]): {
+function computeJanijDiff(
+  existing: JanijRow[],
+  entries: JanijSheetEntry[],
+  extrasByJanijId: Map<string, { nombre: string; key: string }[]>,
+): {
   inserts: JanijInsertPreview[];
   updates: JanijUpdatePreview[];
   deactivations: JanijDeactivatePreview[];
@@ -245,6 +257,8 @@ function computeJanijDiff(existing: JanijRow[], entries: JanijSheetEntry[]): {
         nombre: entry.nombre,
         telMadre: entry.telMadre ?? null,
         telPadre: entry.telPadre ?? null,
+        numeroSocio: entry.numeroSocio ?? null,
+        otrosGrupos: entry.otrosGrupos.map((extra) => extra.nombre),
       });
       continue;
     }
@@ -263,6 +277,29 @@ function computeJanijDiff(existing: JanijRow[], entries: JanijSheetEntry[]): {
       cambios.telPadre = {
         before: existingRow.tel_padre ?? null,
         after: entry.telPadre ?? null,
+      };
+    }
+    if ((existingRow.numero_socio ?? null) !== (entry.numeroSocio ?? null)) {
+      cambios.numeroSocio = {
+        before: existingRow.numero_socio ?? null,
+        after: entry.numeroSocio ?? null,
+      };
+    }
+
+    const existingExtras = extrasByJanijId.get(existingRow.id) ?? [];
+    const existingExtraKeys = new Set(existingExtras.map((extra) => extra.key));
+    const desiredExtras = entry.otrosGrupos;
+    const desiredExtraKeys = new Set(desiredExtras.map((extra) => extra.key));
+    const extrasAgregar = desiredExtras
+      .filter((extra) => !existingExtraKeys.has(extra.key))
+      .map((extra) => extra.nombre);
+    const extrasQuitar = existingExtras
+      .filter((extra) => !desiredExtraKeys.has(extra.key))
+      .map((extra) => extra.nombre);
+    if (extrasAgregar.length > 0 || extrasQuitar.length > 0) {
+      cambios.otrosGrupos = {
+        agregar: extrasAgregar,
+        quitar: extrasQuitar,
       };
     }
     const reactivarRegistro = existingRow.activo === false || existingRow.activo === null;
@@ -481,14 +518,18 @@ function buildSummary(
 export async function buildSyncPreview(options?: { data?: SheetsData }): Promise<SyncPreview> {
   const sheets = options?.data ?? (await loadSheetsData());
 
-  const [proyectosRes, gruposRes, janijimRes, rolesRes, coordinatorLinksRes, grupoLinksRes] = await Promise.all([
-    supabase.from("proyectos").select("id, nombre, grupo_id"),
-    supabase.from("grupos").select("id, nombre"),
-    supabase.from("janijim").select("id, nombre, grupo_id, proyecto_id, tel_madre, tel_padre, activo"),
-    supabase.from("app_roles").select("id, email, nombre, role, activo"),
-    supabase.from("proyecto_coordinadores").select("role_id, proyecto_id"),
-    supabase.from("proyecto_grupos").select("proyecto_id, grupo_id"),
-  ]);
+  const [proyectosRes, gruposRes, janijimRes, rolesRes, coordinatorLinksRes, grupoLinksRes, janijExtrasRes] =
+    await Promise.all([
+      supabase.from("proyectos").select("id, nombre, grupo_id"),
+      supabase.from("grupos").select("id, nombre"),
+      supabase
+        .from("janijim")
+        .select("id, nombre, grupo_id, proyecto_id, tel_madre, tel_padre, numero_socio, activo"),
+      supabase.from("app_roles").select("id, email, nombre, role, activo"),
+      supabase.from("proyecto_coordinadores").select("role_id, proyecto_id"),
+      supabase.from("proyecto_grupos").select("proyecto_id, grupo_id"),
+      supabase.from("janijim_grupos_extra").select("janij_id, grupo_id"),
+    ]);
 
   if (proyectosRes.error) throw proyectosRes.error;
   if (gruposRes.error) throw gruposRes.error;
@@ -496,6 +537,7 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
   if (rolesRes.error) throw rolesRes.error;
   if (coordinatorLinksRes.error) throw coordinatorLinksRes.error;
   if (grupoLinksRes.error) throw grupoLinksRes.error;
+  if (janijExtrasRes.error) throw janijExtrasRes.error;
 
   const proyectos = (proyectosRes.data ?? []) as ProyectoRow[];
   const grupos = (gruposRes.data ?? []) as GrupoRow[];
@@ -503,6 +545,7 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
   const roleRows = (rolesRes.data ?? []) as RoleRow[];
   const coordinatorLinks = coordinatorLinksRes.data ?? [];
   const proyectoGrupoLinks = grupoLinksRes.data ?? [];
+  const janijExtraRows = (janijExtrasRes.data ?? []) as { janij_id: string | null; grupo_id: string | null }[];
 
   const proyectoByKey = new Map<string, ProyectoRow>();
   const proyectoById = new Map<string, ProyectoRow>();
@@ -520,6 +563,19 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
     const key = normaliseGroupName(grupo.nombre);
     grupoByKey.set(key, grupo);
     grupoById.set(grupo.id, grupo);
+  }
+
+  const extrasByJanijId = new Map<string, { nombre: string; key: string }[]>();
+  for (const extra of janijExtraRows) {
+    const janijId = extra.janij_id ?? null;
+    const grupoId = extra.grupo_id ?? null;
+    if (!janijId || !grupoId) continue;
+    const grupo = grupoById.get(grupoId);
+    const nombre = grupo?.nombre ?? grupoId;
+    const key = grupo?.nombre ? normaliseGroupName(grupo.nombre) : grupoId;
+    const list = extrasByJanijId.get(janijId) ?? [];
+    list.push({ nombre, key });
+    extrasByJanijId.set(janijId, list);
   }
 
   const sheetGroups = new Map<
@@ -624,13 +680,11 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
       nuevosProyectos.push(info.proyectoNombre ?? info.proyectoKey);
     }
     if (!grupo) {
-      const inferredKey = info.proyectoKey ?? normaliseProjectName(info.nombre);
-      const esGeneral = sheetGeneralKeys.has(inferredKey);
-      nuevosGrupos.push({ grupo: info.nombre, proyecto: info.proyectoNombre ?? null, esGeneral });
+      nuevosGrupos.push({ grupo: info.nombre, proyecto: info.proyectoNombre ?? null });
     }
     const existingJanij = grupo ? janijByGrupoId.get(grupo.id) ?? [] : [];
     const sheetEntries = sheetJanijByGroup.get(key) ?? [];
-    const diff = computeJanijDiff(existingJanij, sheetEntries);
+    const diff = computeJanijDiff(existingJanij, sheetEntries, extrasByJanijId);
     detalle.push({
       grupoKey: key,
       grupoId: grupo?.id ?? null,

@@ -92,6 +92,7 @@ export type JanijSheetEntry = {
   otrosGrupos: { nombre: string; key: string }[];
   telMadre: string | null;
   telPadre: string | null;
+  numeroSocio: string | null;
 };
 
 const JANIJ_HEADERS: Record<
@@ -103,6 +104,7 @@ const JANIJ_HEADERS: Record<
   | "otroGrupo2"
   | "telMadre"
   | "telPadre"
+  | "numeroSocio"
 > = {
   nombre: "nombre",
   apellido: "apellido",
@@ -121,6 +123,13 @@ const JANIJ_HEADERS: Record<
   "telefono papa": "telPadre",
   "telefono padre": "telPadre",
   "tel padre": "telPadre",
+  "numero de socio": "numeroSocio",
+  "numero de socio a": "numeroSocio",
+  "numero socio": "numeroSocio",
+  "numero socio a": "numeroSocio",
+  "numero socio/a": "numeroSocio",
+  "numero socia": "numeroSocio",
+  "numero de socia": "numeroSocio",
 };
 
 export function buildJanijEntries(rows: unknown[][]) {
@@ -133,7 +142,8 @@ export function buildJanijEntries(rows: unknown[][]) {
     | "otroGrupo1"
     | "otroGrupo2"
     | "telMadre"
-    | "telPadre",
+    | "telPadre"
+    | "numeroSocio",
     number | undefined
   >;
   header.forEach((value, index) => {
@@ -170,6 +180,7 @@ export function buildJanijEntries(rows: unknown[][]) {
       otrosGrupos,
       telMadre: readCell(row, mapping.telMadre),
       telPadre: readCell(row, mapping.telPadre),
+      numeroSocio: readCell(row, mapping.numeroSocio),
     });
   }
   return entries;
