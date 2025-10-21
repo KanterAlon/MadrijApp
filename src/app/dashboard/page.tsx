@@ -471,7 +471,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-8">
-              {userRoles.includes("admin") && (
+              {isAdmin && (
                 <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>

@@ -118,12 +118,15 @@ function sanitiseSheetsData(source: SheetsData): SheetsData {
   const sanitisedProyectos = source.proyectos
     .map((entry) => {
       const nombre = entry.nombre.trim();
-      const grupos = dedupeStrings(
-        entry.grupos
-          .map((grupo) => grupo.trim())
-          .filter((grupo) => grupo.length > 0),
-      );
-      return { nombre, grupos };
+      const appliesToAll = entry.appliesToAll;
+      const grupos = appliesToAll
+        ? []
+        : dedupeStrings(
+            entry.grupos
+              .map((grupo) => grupo.trim())
+              .filter((grupo) => grupo.length > 0),
+          );
+      return { nombre, appliesToAll, grupos };
     })
     .filter((entry) => entry.nombre.length > 0);
 
@@ -175,6 +178,7 @@ function sanitiseSheetsData(source: SheetsData): SheetsData {
       return true;
     });
 
+  const seenEmails = new Set<string>();
   return {
     madrijes: sanitisedMadrijes.filter((entry) => {
       if (entry.email.length === 0) return false;
@@ -416,7 +420,7 @@ export function AdminManagePanel() {
       if (!prev) return prev;
       return {
         ...prev,
-        proyectos: [...prev.proyectos, { nombre: "", grupos: [] }],
+        proyectos: [...prev.proyectos, { nombre: "", appliesToAll: false, grupos: [] }],
       };
     });
   };

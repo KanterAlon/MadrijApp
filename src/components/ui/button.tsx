@@ -1,4 +1,11 @@
-import { ButtonHTMLAttributes } from "react";
+import {
+  cloneElement,
+  isValidElement,
+  type ButtonHTMLAttributes,
+  type MouseEvent as ReactMouseEvent,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,8 +20,16 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   /** Optional size preset */
   size?: "icon" | "sm";
   loading?: boolean;
-  icon?: React.ReactNode;
+  icon?: ReactNode;
   iconRight?: boolean;
+  /** Apply button styles to the child element instead of rendering a <button> */
+  asChild?: boolean;
+};
+
+type ChildComponentProps = {
+  className?: string;
+  children?: ReactNode;
+  onClick?: (event: ReactMouseEvent<HTMLElement>) => void;
 };
 
 export default function Button({
@@ -26,7 +41,9 @@ export default function Button({
   className,
   children,
   disabled,
-  ...props
+  asChild = false,
+  onClick,
+  ...rest
 }: ButtonProps) {
   const base =
     "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 disabled:pointer-events-none";
@@ -43,15 +60,56 @@ export default function Button({
     sm: "px-2 py-1 text-sm",
   };
 
+  const variantClass = variants[variant] ?? variants.primary;
+  const sizeClass = size ? sizes[size] : undefined;
+  const disabledStyles = disabled || loading ? "pointer-events-none cursor-not-allowed opacity-60" : undefined;
+  const childElement =
+    asChild && isValidElement<ChildComponentProps>(children)
+      ? (children as ReactElement<ChildComponentProps>)
+      : null;
+  const childContent = childElement ? childElement.props.children : children;
+  const leadingIcon = !iconRight ? (loading ? <Loader2 className="h-4 w-4 animate-spin" /> : icon) : null;
+  const trailingIcon = iconRight ? (loading ? <Loader2 className="h-4 w-4 animate-spin" /> : icon) : null;
+  const inner = size === "icon" ? childContent : <span>{childContent}</span>;
+  const content = (
+    <>
+      {leadingIcon}
+      {inner}
+      {trailingIcon}
+    </>
+  );
+
+  if (childElement) {
+    const { onClick: childOnClick } = childElement.props;
+    const handleClick = (event: ReactMouseEvent<HTMLElement>) => {
+      if (disabled || loading) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      onClick?.(event as unknown as ReactMouseEvent<HTMLButtonElement>);
+      childOnClick?.(event);
+    };
+
+    return cloneElement(childElement, {
+      ...rest,
+      onClick: handleClick,
+      className: cn(base, variantClass, sizeClass, disabledStyles, childElement.props.className, className),
+      children: content,
+      ...(disabled || loading
+        ? { "aria-disabled": true, tabIndex: -1 }
+        : {}),
+    });
+  }
+
   return (
     <button
       disabled={disabled || loading}
-      className={cn(base, variants[variant], size && sizes[size], className)}
-      {...props}
+      onClick={onClick}
+      className={cn(base, variantClass, sizeClass, className)}
+      {...rest}
     >
-      {!iconRight && (loading ? <Loader2 className="w-4 h-4 animate-spin" /> : icon)}
-      {size === "icon" ? children : <span>{children}</span>}
-      {iconRight && (loading ? <Loader2 className="w-4 h-4 animate-spin" /> : icon)}
+      {content}
     </button>
   );
 }

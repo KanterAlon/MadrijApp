@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import Link from "next/link";
 import { FileSpreadsheet, RefreshCw } from "lucide-react";
 
@@ -12,7 +12,7 @@ type AdminSection = {
   label: string;
   description: string;
   icon: typeof FileSpreadsheet;
-  component: JSX.Element;
+  component: ReactNode;
 };
 
 const sections: AdminSection[] = [
@@ -88,4 +88,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
