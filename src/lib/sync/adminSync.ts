@@ -6,6 +6,7 @@ import {
   type SheetsData,
 } from "@/lib/google/sheetData";
 import { supabase } from "@/lib/supabase";
+import { isMissingRelationError } from "@/lib/supabase/errors";
 import type { AppRole } from "@/lib/supabase/access";
 import { syncGroupFromSheets, type SyncResult } from "@/lib/sync/sheetsSync";
 import { syncAppRolesFromSheets, type RolesSyncResult } from "@/lib/sync/rolesSync";
@@ -537,7 +538,10 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
   if (rolesRes.error) throw rolesRes.error;
   if (coordinatorLinksRes.error) throw coordinatorLinksRes.error;
   if (grupoLinksRes.error) throw grupoLinksRes.error;
-  if (janijExtrasRes.error) throw janijExtrasRes.error;
+  const extrasRelation = "janijim_grupos_extra";
+  if (janijExtrasRes.error && !isMissingRelationError(janijExtrasRes.error, extrasRelation)) {
+    throw janijExtrasRes.error;
+  }
 
   const proyectos = (proyectosRes.data ?? []) as ProyectoRow[];
   const grupos = (gruposRes.data ?? []) as GrupoRow[];
@@ -545,7 +549,12 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
   const roleRows = (rolesRes.data ?? []) as RoleRow[];
   const coordinatorLinks = coordinatorLinksRes.data ?? [];
   const proyectoGrupoLinks = grupoLinksRes.data ?? [];
-  const janijExtraRows = (janijExtrasRes.data ?? []) as { janij_id: string | null; grupo_id: string | null }[];
+  const extrasMissing = Boolean(
+    janijExtrasRes.error && isMissingRelationError(janijExtrasRes.error, extrasRelation),
+  );
+  const janijExtraRows = extrasMissing
+    ? []
+    : ((janijExtrasRes.data ?? []) as { janij_id: string | null; grupo_id: string | null }[]);
 
   const proyectoByKey = new Map<string, ProyectoRow>();
   const proyectoById = new Map<string, ProyectoRow>();

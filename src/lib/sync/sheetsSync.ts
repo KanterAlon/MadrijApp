@@ -8,7 +8,10 @@ import {
   normaliseGroupName,
 } from "@/lib/google/sheetData";
 import { supabase } from "@/lib/supabase";
+import { isMissingRelationError } from "@/lib/supabase/errors";
 import { ensureProyectoRecord, ensureProyectoGrupoLink } from "@/lib/sync/projectSync";
+
+const JANIIJ_EXTRAS_RELATION = "janijim_grupos_extra";
 
 function ensureNombre(value: string | null | undefined, fallback: string) {
   const trimmed = value?.trim();
@@ -258,10 +261,12 @@ async function syncJanijRecords(
       if (error) throw error;
 
       const { error: extrasError } = await supabase
-        .from("janijim_grupos_extra")
+        .from(JANIIJ_EXTRAS_RELATION)
         .delete()
         .in("janij_id", ids);
-      if (extrasError) throw extrasError;
+      if (extrasError && !isMissingRelationError(extrasError, JANIIJ_EXTRAS_RELATION)) {
+        throw extrasError;
+      }
     }
 
     return { inserted: 0, updated: 0, deactivated: ids.length };
@@ -406,13 +411,16 @@ async function syncJanijRecords(
   const existingExtrasByJanij = new Map<string, { id: string; grupo_id: string }[]>();
   if (janijIds.length > 0) {
     const { data: extrasRows, error: extrasError } = await supabase
-      .from("janijim_grupos_extra")
+      .from(JANIIJ_EXTRAS_RELATION)
       .select("id, janij_id, grupo_id")
       .in("janij_id", janijIds);
 
-    if (extrasError) throw extrasError;
+    const extrasMissing = Boolean(
+      extrasError && isMissingRelationError(extrasError, JANIIJ_EXTRAS_RELATION),
+    );
+    if (extrasError && !extrasMissing) throw extrasError;
 
-    for (const row of extrasRows ?? []) {
+    for (const row of (extrasMissing ? [] : extrasRows ?? [])) {
       const janijId = row.janij_id as string | null;
       const grupo = row.grupo_id as string | null;
       if (!janijId || !grupo) continue;
@@ -456,17 +464,21 @@ async function syncJanijRecords(
 
   if (extrasToInsert.length > 0) {
     const { error: insertExtrasError } = await supabase
-      .from("janijim_grupos_extra")
+      .from(JANIIJ_EXTRAS_RELATION)
       .insert(extrasToInsert);
-    if (insertExtrasError) throw insertExtrasError;
+    if (insertExtrasError && !isMissingRelationError(insertExtrasError, JANIIJ_EXTRAS_RELATION)) {
+      throw insertExtrasError;
+    }
   }
 
   if (extrasToDelete.length > 0) {
     const { error: deleteExtrasError } = await supabase
-      .from("janijim_grupos_extra")
+      .from(JANIIJ_EXTRAS_RELATION)
       .delete()
       .in("id", extrasToDelete);
-    if (deleteExtrasError) throw deleteExtrasError;
+    if (deleteExtrasError && !isMissingRelationError(deleteExtrasError, JANIIJ_EXTRAS_RELATION)) {
+      throw deleteExtrasError;
+    }
   }
 
   return {
