@@ -124,7 +124,11 @@ export async function getJanijim(proyectoId: string, userId: string) {
     }[];
   };
 
-  return (data ?? []).map((row) => {
+  const result: JanijRecord[] = [];
+  for (const row of data ?? []) {
+    if (!row || typeof row !== "object" || "error" in row) {
+      continue;
+    }
     const raw = row as RawJanijWithExtras;
     const gruposExtras = Array.isArray(raw.grupos_extra)
       ? raw.grupos_extra
@@ -140,17 +144,25 @@ export async function getJanijim(proyectoId: string, userId: string) {
       : [];
     const { grupos_extra: _omit, ...rest } = raw;
     void _omit;
-    return {
+    result.push({
       ...rest,
       gruposAdicionales: gruposExtras,
-    } satisfies JanijRecord;
-  });
+    });
+  }
+  return result;
 }
 
 export async function getGlobalJanijim(): Promise<JanijRecord[]> {
   const { data, error } = await baseJanijQuery(`${BASE_FIELDS}, proyecto_id`);
   if (error) throw error;
-  return data;
+  const result: JanijRecord[] = [];
+  for (const row of data ?? []) {
+    if (!row || typeof row !== "object" || "error" in row) {
+      continue;
+    }
+    result.push(row as JanijRecord);
+  }
+  return result;
 }
 
 export async function addJanijim(_proyectoId: string, _items: JanijData[]): Promise<JanijRecord[]> {
