@@ -6,23 +6,27 @@ import { supabase } from "@/lib/supabase";
 
 type AppRole = "madrij" | "coordinador" | "director" | "admin";
 
+type GrupoRecord = {
+  id: string | null;
+  nombre: string | null;
+  proyectos?: ProyectoRecord[] | null;
+};
+
 type GrupoMatchRow = {
   grupo_id: string | null;
   nombre: string | null;
   rol: string | null;
-  grupo?: {
-    id: string;
-    nombre: string | null;
-    proyectos?: { id: string; nombre: string | null }[] | null;
-  } | null;
+  grupo?: GrupoRecord | GrupoRecord[] | null;
+};
+
+type ProyectoRecord = {
+  id: string | null;
+  nombre: string | null;
 };
 
 type ProyectoMatchRow = {
   role_id: string | null;
-  proyecto?: {
-    id: string | null;
-    nombre: string | null;
-  } | null;
+  proyecto?: ProyectoRecord | ProyectoRecord[] | null;
 };
 
 type ClaimStatus =
@@ -51,11 +55,12 @@ type ClaimPersona = {
 
 function mapGrupoRows(rows: GrupoMatchRow[] | null | undefined) {
   return (rows ?? []).map((row) => {
-    const proyectos = Array.isArray(row.grupo?.proyectos) ? row.grupo!.proyectos! : [];
-    const proyecto = proyectos.find(Boolean) ?? null;
+    const grupoValue = Array.isArray(row.grupo) ? row.grupo[0] ?? null : row.grupo ?? null;
+    const proyectosData = grupoValue?.proyectos;
+    const proyecto = Array.isArray(proyectosData) ? proyectosData.find(Boolean) ?? null : null;
     return {
       grupoId: row.grupo_id,
-      grupoNombre: row.grupo?.nombre ?? null,
+      grupoNombre: grupoValue?.nombre ?? null,
       proyectoId: proyecto?.id ?? null,
       proyectoNombre: proyecto?.nombre ?? null,
       rol: row.rol ?? null,
@@ -67,12 +72,16 @@ function mapProyectoRows(rows: ProyectoMatchRow[] | null | undefined) {
   const seen = new Set<string>();
   const proyectos: { proyectoId: string | null; proyectoNombre: string | null }[] = [];
   for (const row of rows ?? []) {
-    const proyectoId = row.proyecto?.id ?? null;
-    const proyectoNombre = row.proyecto?.nombre ?? null;
-    const key = proyectoId ?? proyectoNombre ?? "";
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    proyectos.push({ proyectoId, proyectoNombre });
+    const proyectosList = Array.isArray(row.proyecto) ? row.proyecto : [row.proyecto];
+    for (const proyecto of proyectosList) {
+      if (!proyecto) continue;
+      const proyectoId = proyecto.id ?? null;
+      const proyectoNombre = proyecto.nombre ?? null;
+      const key = proyectoId ?? proyectoNombre ?? "";
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      proyectos.push({ proyectoId, proyectoNombre });
+    }
   }
   return proyectos;
 }

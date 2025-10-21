@@ -501,14 +501,14 @@ export default function JanijimPage() {
       toast.error("Solo el administrador puede sincronizar los datos desde la hoja institucional");
       return;
     }
-    if (!grupo?.id) {
+    if (!selectedGrupo?.id) {
       toast.error("No encontramos el grupo para sincronizar");
       return;
     }
     setSyncing(true);
     setSyncMessage(null);
     try {
-      const res = await fetch(`/api/grupos/${grupo.id}/sync`, { method: "POST" });
+      const res = await fetch(`/api/grupos/${selectedGrupo.id}/sync`, { method: "POST" });
       const payload = await res.json();
       if (!res.ok) {
         throw new Error(payload?.error || "Error sincronizando");
@@ -517,7 +517,7 @@ export default function JanijimPage() {
       const timestamp = new Date().toLocaleString();
       setSyncMessage(`Ultima sincronizacion (${timestamp}): ${summary}`);
       toast.success("Sincronizacion completada");
-      await loadJanijim();
+      await loadJanijim(selectedGrupo?.id ?? null);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Error sincronizando";

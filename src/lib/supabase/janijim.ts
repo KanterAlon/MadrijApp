@@ -16,6 +16,18 @@ export type JanijData = {
   extras?: Record<string, unknown> | null;
 };
 
+export type JanijRecord = {
+  id: string;
+  nombre: string;
+  dni: string | null;
+  numero_socio: string | null;
+  grupo: string | null;
+  grupo_id?: string | null;
+  tel_madre: string | null;
+  tel_padre: string | null;
+  extras?: Record<string, unknown> | null;
+};
+
 type RawMadrijGrupo = {
   madrij?: {
     id: string;
@@ -68,7 +80,7 @@ export async function getJanijim(proyectoId: string, userId: string) {
   return data;
 }
 
-export async function addJanijim(_proyectoId: string, _items: JanijData[]) {
+export async function addJanijim(_proyectoId: string, _items: JanijData[]): Promise<JanijRecord[]> {
   void _proyectoId;
   void _items;
   throw new Error("Los janijim se gestionan exclusivamente desde Google Sheets");
