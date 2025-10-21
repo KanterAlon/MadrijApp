@@ -318,8 +318,7 @@ export default function DashboardPage() {
       ) : (
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {groupCards.map(({ proyecto, grupo }) => {
-            const grupoEsGeneral = grupo.id.startsWith("general:");
-            const grupoLabel = grupoEsGeneral ? "Todos los janijim del proyecto" : `Grupo ${grupo.nombre}`;
+            const grupoLabel = `Grupo ${grupo.nombre}`;
             const sobreHref = `/proyecto/${proyecto.id}/grupos/${encodeURIComponent(grupo.id)}`;
             const janijimHref = `/proyecto/${proyecto.id}/janijim?grupo=${encodeURIComponent(grupo.id)}`;
             return (
@@ -409,8 +408,7 @@ export default function DashboardPage() {
                 {grupos.length > 0 ? (
                   <ul className="mt-3 space-y-2 text-sm text-blue-900/80">
                     {grupos.map((grupo) => {
-                      const grupoEsGeneral = grupo.id.startsWith("general:");
-                      const grupoLabel = grupoEsGeneral ? "Todos los janijim del proyecto" : grupo.nombre;
+                      const grupoLabel = `Grupo ${grupo.nombre}`;
                       const grupoHref = `/proyecto/${proyecto.id}/grupos/${encodeURIComponent(grupo.id)}`;
                       return (
                         <li

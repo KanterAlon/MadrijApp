@@ -61,6 +61,7 @@ type Janij = {
   grupo_id?: string | null;
   tel_madre: string | null;
   tel_padre: string | null;
+  gruposAdicionales: { id: string; nombre: string | null }[];
   estado: "presente" | "ausente";
 };
 
@@ -202,8 +203,13 @@ export default function JanijimPage() {
         const data = await getJanijim(proyectoId, user.id);
         setForbidden(false);
         setForbiddenMessage(null);
-        const isGeneralTarget = targetGrupoId ? targetGrupoId.startsWith("general:") : false;
-        const filtered = !targetGrupoId || isGeneralTarget ? data : data.filter((j) => j.grupo_id === targetGrupoId);
+        const filtered = !targetGrupoId
+          ? data
+          : data.filter(
+              (j) =>
+                j.grupo_id === targetGrupoId ||
+                (j.gruposAdicionales ?? []).some((extra) => extra.id === targetGrupoId),
+            );
         setJanijim(
           filtered.map((j) => ({
             id: j.id,
@@ -214,6 +220,7 @@ export default function JanijimPage() {
             grupo_id: (j.grupo_id as string | null) ?? null,
             tel_madre: j.tel_madre ?? null,
             tel_padre: j.tel_padre ?? null,
+            gruposAdicionales: j.gruposAdicionales ?? [],
             estado: "ausente" as const,
           })),
         );
@@ -246,19 +253,23 @@ export default function JanijimPage() {
         if (ignore) return;
         setForbidden(false);
         setForbiddenMessage(null);
-        setGrupos(data);
-        const fallbackId = data[0]?.id ?? null;
+        const ordered = [...data];
+        setGrupos(ordered);
+        const fallbackId = ordered[0]?.id ?? null;
         const preferredId =
-          requestedGrupoId && data.some((grupo) => grupo.id === requestedGrupoId) ? requestedGrupoId : null;
+          requestedGrupoId && ordered.some((grupo) => grupo.id === requestedGrupoId) ? requestedGrupoId : null;
         setSelectedGrupoId((prev) => {
           if (preferredId) {
             return preferredId;
           }
-          if (prev && data.some((grupo) => grupo.id === prev)) {
+          if (prev && ordered.some((grupo) => grupo.id === prev)) {
             return prev;
           }
           return fallbackId;
         });
+        if (!fallbackId) {
+          setLoading(false);
+        }
         setSyncMessage(null);
       })
       .catch((err) => {
@@ -268,15 +279,40 @@ export default function JanijimPage() {
           setForbiddenMessage(err.message);
           setGrupos([]);
           setSelectedGrupoId(null);
+          setLoading(false);
         } else {
           console.error("Error cargando grupos", err);
           showError("No se pudieron cargar los grupos");
+          setLoading(false);
         }
       });
     return () => {
       ignore = true;
     };
   }, [proyectoId, user, requestedGrupoId]);
+
+  useEffect(() => {
+    if (forbidden) return;
+    const currentParam = searchParams.get("grupo");
+    if (!selectedGrupoId) {
+      if (!currentParam) return;
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("grupo");
+      const query = params.toString();
+      router.replace(
+        `/proyecto/${proyectoId}/janijim${query ? `?${query}` : ""}`,
+        { scroll: false },
+      );
+      return;
+    }
+    if (currentParam === selectedGrupoId) {
+      return;
+    }
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("grupo", selectedGrupoId);
+    const query = params.toString();
+    router.replace(`/proyecto/${proyectoId}/janijim?${query}`, { scroll: false });
+  }, [selectedGrupoId, searchParams, router, proyectoId, forbidden]);
 
   useEffect(() => {
     if (sheetManaged) {
@@ -678,16 +714,6 @@ export default function JanijimPage() {
 
   const resultados = [...exactMatches, ...fuzzyMatches];
 
-  if (loading) {
-    return (
-      <div className="max-w-2xl mx-auto mt-12 space-y-2">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <Skeleton key={i} className="h-10 w-full" />
-        ))}
-      </div>
-    );
-  }
-
   if (forbidden) {
     return (
       <div className="max-w-2xl mx-auto mt-12 space-y-4">
@@ -716,113 +742,148 @@ export default function JanijimPage() {
     <div className="max-w-2xl mx-auto mt-12 space-y-4">
       <ActiveSesionCard proyectoId={proyectoId} />
 
-      {sheetManaged ? (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 space-y-2">
-          <p className="font-semibold text-blue-800">
-            Sincronizado con Google Sheets
+      <section className="rounded-lg border border-blue-200 bg-white p-4 shadow-sm">
+        <h2 className="text-lg font-semibold text-blue-900">Grupos habilitados</h2>
+        <p className="mt-1 text-sm text-blue-900/70">
+          Elegí qué grupo revisar. Los janijim que participan en otros grupos aparecen etiquetados.
+        </p>
+        {grupos.length === 0 ? (
+          <p className="mt-3 text-sm text-blue-900/70">
+            Todavía no hay grupos vinculados a este proyecto. Revisá la hoja institucional o pedile al administrador que sincronice la base.
           </p>
-          <p className="text-xs text-blue-700">
-            Los datos se actualizan cuando el administrador confirma la sincronización anual desde la interfaz de administración.
-          </p>
-          {syncMessage ? (
-            <p className="text-xs text-blue-700">{syncMessage}</p>
-          ) : (
-            <p className="text-xs text-blue-700">
-              Si detectás diferencias, solicitá al administrador que genere una nueva importación.
-            </p>
-          )}
-          {isAdmin ? (
-            <div className="flex gap-2 flex-col sm:flex-row sm:items-center sm:justify-end">
-              <Button
-                onClick={syncWithSheets}
-                loading={syncing}
-                icon={<RefreshCcw className="w-4 h-4" />}
-                disabled={forbidden}
-                title={forbidden ? "No tenés permisos para sincronizar este proyecto" : undefined}
-              >
-                Sincronizar ahora
-              </Button>
-            </div>
-          ) : (
-            <p className="text-xs text-blue-700">
-              Solo el administrador puede ejecutar la sincronización manual de este proyecto.
-            </p>
-          )}
-        </div>
-      ) : (
-        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
-          <p>
-            Este proyecto todavía no está vinculado a la planilla institucional. El administrador puede cargar janijim manualmente o configurar la sincronización desde la interfaz anual.
-          </p>
-        </div>
-      )}
+        ) : (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {grupos.map((grupo) => {
+              const isActive = grupo.id === selectedGrupoId;
+              const baseClasses =
+                "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition";
+              const activeClasses = "border-blue-600 bg-blue-600 text-white shadow";
+              const inactiveClasses =
+                "border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300";
+              return (
+                <button
+                  key={grupo.id}
+                  type="button"
+                  onClick={() => setSelectedGrupoId(grupo.id)}
+                  className={`${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}
+                >
+                  Grupo {grupo.nombre}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
-      {janijim.length === 0 ? (
-        <div className="text-center space-y-4 py-12 border rounded-lg">
-          <p className="text-gray-600">
-            {canEdit
-              ? "Insertá janijim para comenzar"
-              : "Todavía no hay janijim cargados. Se mostrarán una vez que el administrador sincronice la planilla institucional."}
-          </p>
-          {canEdit && (
-            <Button
-              className="mx-auto"
-              icon={<PlusCircle className="w-4 h-4" />}
-              onClick={() => setImportOpen(true)}
-            >
-              Insertar janijim
-            </Button>
-          )}
-        </div>
+      {!selectedGrupo ? (
+        grupos.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-blue-200 bg-blue-50 p-6 text-sm text-blue-900/70">
+            Todavía no hay grupos configurados para este proyecto.
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-blue-200 bg-blue-50 p-6 text-sm text-blue-900/70">
+            Seleccioná un grupo para ver los janijim correspondientes.
+          </div>
+        )
       ) : (
         <>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
-            <div className="flex flex-col flex-1 gap-2 sm:flex-row">
-              <div className="relative flex flex-1 items-center">
-                <Search className="absolute left-2 w-4 h-4 text-gray-400 pointer-events-none" />
-                <input
-                  type="text"
-                  value={search}
-                  onFocus={() => setShowResults(true)}
-                  onBlur={() => setTimeout(() => setShowResults(false), 100)}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setShowResults(true);
-                  }}
-                  placeholder="Buscá un janij por nombre"
-                  className="w-full border rounded-lg p-2 pl-8 focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                />
+          {sheetManaged ? (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 space-y-2">
+              <p className="font-semibold text-blue-800">
+                Sincronizado con Google Sheets
+              </p>
+              <p className="text-xs text-blue-700">
+                Los datos se actualizan cuando el administrador confirma la sincronización anual desde la interfaz de administración.
+              </p>
+              {syncMessage ? (
+                <p className="text-xs text-blue-700">{syncMessage}</p>
+              ) : (
+                <p className="text-xs text-blue-700">
+                  Si detectás diferencias, solicitá al administrador que genere una nueva importación.
+                </p>
+              )}
+              {isAdmin ? (
+                <div className="flex gap-2 flex-col sm:flex-row sm:items-center sm:justify-end">
+                  <Button
+                    onClick={syncWithSheets}
+                    loading={syncing}
+                    icon={<RefreshCcw className="w-4 h-4" />}
+                    disabled={forbidden}
+                    title={forbidden ? "No tenés permisos para sincronizar este proyecto" : undefined}
+                  >
+                    Sincronizar ahora
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-xs text-blue-700">
+                  Solo el administrador puede ejecutar la sincronización manual de este proyecto.
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+              <p>
+                Este proyecto todavía no está vinculado a la planilla institucional. El administrador puede cargar janijim manualmente o configurar la sincronización desde la interfaz anual.
+              </p>
+            </div>
+          )}
 
-              {showResults && search.trim() !== "" && (
-                <ul className="absolute z-10 left-0 top-full mt-1 w-full bg-white border rounded shadow max-h-60 overflow-auto">
-                  {/* 1. Coincidencias normales */}
-                  {exactMatches.map((r) => (
-                    <li
-                      key={r.id}
-                      tabIndex={0}
-                      onClick={() => seleccionar(r.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          seleccionar(r.id);
-                        }
-                      }}
-                      className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
-                      aria-label={`Seleccionar ${r.nombre}`}
-                    >
-                      <span>{r.nombre}</span>
-                    </li>
-                  ))}
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-xl font-semibold text-blue-900">
+                Janijim del grupo {selectedGrupo.nombre}
+              </h2>
+              <p className="mt-1 text-sm text-blue-900/70">
+                Los janijim que participan en grupos adicionales se muestran con etiquetas debajo de su nombre.
+              </p>
+            </div>
 
-                  {/* 2. Coincidencias aproximadas */}
-                  {fuzzyMatches.length > 0 && (
-                    <>
-                      {exactMatches.length > 0 && (
-                        <li className="px-2 text-xs text-gray-400">
-                          Coincidencias aproximadas
-                        </li>
-                      )}
-                      {fuzzyMatches.map((r) => (
+            {loading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
+              </div>
+            ) : janijim.length === 0 ? (
+              <div className="text-center space-y-4 py-12 border rounded-lg">
+                <p className="text-gray-600">
+                  {canEdit
+                    ? "Insertá janijim para comenzar"
+                    : "Todavía no hay janijim cargados. Se mostrarán una vez que el administrador sincronice la planilla institucional."}
+                </p>
+                {canEdit && (
+                  <Button
+                    className="mx-auto"
+                    icon={<PlusCircle className="w-4 h-4" />}
+                    onClick={() => setImportOpen(true)}
+                  >
+                    Insertar janijim
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                  <div className="flex flex-col flex-1 gap-2 sm:flex-row">
+                    <div className="relative flex flex-1 items-center">
+                      <Search className="absolute left-2 w-4 h-4 text-gray-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={search}
+                        onFocus={() => setShowResults(true)}
+                        onBlur={() => setTimeout(() => setShowResults(false), 100)}
+                        onChange={(e) => {
+                          setSearch(e.target.value);
+                          setShowResults(true);
+                        }}
+                        placeholder="Buscá un janij por nombre"
+                        className="w-full border rounded-lg p-2 pl-8 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      />
+
+                  {showResults && search.trim() !== "" && (
+                    <ul className="absolute z-10 left-0 top-full mt-1 w-full bg-white border rounded shadow max-h-60 overflow-auto">
+                      {/* 1. Coincidencias normales */}
+                      {exactMatches.map((r) => (
                         <li
                           key={r.id}
                           tabIndex={0}
@@ -839,150 +900,208 @@ export default function JanijimPage() {
                           <span>{r.nombre}</span>
                         </li>
                       ))}
-                    </>
+
+                      {/* 2. Coincidencias aproximadas */}
+                      {fuzzyMatches.length > 0 && (
+                        <>
+                          {exactMatches.length > 0 && (
+                            <li className="px-2 text-xs text-gray-400">
+                              Coincidencias aproximadas
+                            </li>
+                          )}
+                          {fuzzyMatches.map((r) => (
+                            <li
+                              key={r.id}
+                              tabIndex={0}
+                              onClick={() => seleccionar(r.id)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  seleccionar(r.id);
+                                }
+                              }}
+                              className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
+                              aria-label={`Seleccionar ${r.nombre}`}
+                            >
+                              <span>{r.nombre}</span>
+                            </li>
+                          ))}
+                        </>
+                      )}
+
+                      {/* 3. Sin resultados */}
+                      {resultados.length === 0 && (
+                        <li className="p-2 text-sm text-gray-500">
+                          No se encontraron resultados.
+                        </li>
+                      )}
+
+                      {/* 4. Opción para agregar un nuevo nombre */}
+                      {canEdit &&
+                        search.trim() !== "" &&
+                        !janijim.some(
+                          (j) => normalize(j.nombre) === normalize(search)
+                        ) &&
+                        !resultados.some(
+                          (r) => normalize(r.nombre) === normalize(search)
+                        ) && (
+                          <li
+                            tabIndex={0}
+                            onClick={() => agregar(search.trim())}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                agregar(search.trim());
+                              }
+                            }}
+                            className="p-2 cursor-pointer hover:bg-gray-100"
+                            aria-label={`Agregar ${search.trim()}`}
+                          >
+                            Agregar &quot;{search.trim()}&quot;
+                          </li>
+                        )}
+                    </ul>
                   )}
 
-                  {/* 3. Sin resultados */}
-                  {resultados.length === 0 && (
-                    <li className="p-2 text-sm text-gray-500">
-                      No se encontraron resultados.
-                    </li>
-                  )}
-
-                  {/* 4. Opción para agregar un nuevo nombre */}
-                  {canEdit &&
-                    search.trim() !== "" &&
-                    !janijim.some(
-                      (j) => normalize(j.nombre) === normalize(search)
-                    ) &&
-                    !resultados.some(
-                      (r) => normalize(r.nombre) === normalize(search)
-                    ) && (
-                      <li
-                        tabIndex={0}
-                        onClick={() => agregar(search.trim())}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            agregar(search.trim());
-                          }
-                        }}
-                        className="p-2 cursor-pointer hover:bg-gray-100"
-                        aria-label={`Agregar ${search.trim()}`}
+                    </div>
+                    {canEdit && (
+                      <Button
+                        className="w-full sm:w-auto shrink-0 sm:ml-2"
+                        icon={<Pencil className="w-4 h-4" />}
+                        onClick={() => setImportOpen(true)}
                       >
-                        Agregar &quot;{search.trim()}&quot;
-                      </li>
+                        Insertar
+                      </Button>
                     )}
-                </ul>
-              )}
+                  </div>
+                  <Button
+                    variant="success"
+                    className="w-full sm:w-auto shrink-0 sm:ml-2"
+                    icon={<Check className="w-4 h-4" />}
+                    onClick={() => setSesionOpen(true)}
+                    disabled={!canStartSesion || forbidden}
+                    title={!canStartSesion ? "No tenés permisos para iniciar la asistencia" : undefined}
+                  >
+                    Iniciar asistencia del día
+                  </Button>
+                </div>
 
-              </div>
-              {canEdit && (
-                <Button
-                  className="w-full sm:w-auto shrink-0 sm:ml-2"
-                  icon={<Pencil className="w-4 h-4" />}
-                  onClick={() => setImportOpen(true)}
+            <ul className="space-y-2">
+              {janijim.map((janij) => (
+                <li
+                  id={`janij-${janij.id}`}
+                  key={janij.id}
+                  className={`flex items-center justify-between bg-white shadow p-4 rounded-lg ${
+                    highlightId === janij.id
+                      ? "ring-2 ring-blue-500 animate-pulse"
+                      : ""
+                  }`}
                 >
-                  Insertar
-                </Button>
-              )}
-            </div>
-            <Button
-              variant="success"
-              className="w-full sm:w-auto shrink-0 sm:ml-2"
-              icon={<Check className="w-4 h-4" />}
-              onClick={() => setSesionOpen(true)}
-              disabled={!canStartSesion || forbidden}
-              title={!canStartSesion ? "No tenés permisos para iniciar la asistencia" : undefined}
-            >
-              Iniciar asistencia del día
-            </Button>
-          </div>
-
-      <ul className="space-y-2">
-        {janijim.map((janij) => (
-          <li
-            id={`janij-${janij.id}`}
-            key={janij.id}
-            className={`flex items-center justify-between bg-white shadow p-4 rounded-lg ${
-              highlightId === janij.id
-                ? "ring-2 ring-blue-500 animate-pulse"
-                : ""
-            }`}
-          >
-            {editingId === janij.id ? (
-              <input
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") confirmEdit();
-                  if (e.key === "Escape") cancelEdit();
-                }}
-                className="p-1 border rounded flex-1"
-                autoFocus
-                placeholder="Nombre y apellido"
-              />
-            ) : (
-              <span>{janij.nombre}</span>
+                  {editingId === janij.id ? (
+                    <input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") confirmEdit();
+                        if (e.key === "Escape") cancelEdit();
+                      }}
+                      className="p-1 border rounded flex-1"
+                      autoFocus
+                      placeholder="Nombre y apellido"
+                    />
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      <span className="font-medium text-blue-900">{janij.nombre}</span>
+                      <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1 ${
+                            janij.grupo_id === selectedGrupoId
+                              ? "bg-blue-600 text-white"
+                              : "bg-slate-100 text-slate-700"
+                          }`}
+                        >
+                          Principal: {janij.grupo || "Sin grupo"}
+                        </span>
+                        {janij.gruposAdicionales.map((extra) => {
+                          const activeExtra = extra.id === selectedGrupoId;
+                          return (
+                            <span
+                              key={`${janij.id}-${extra.id}`}
+                              className={`inline-flex items-center rounded-full px-3 py-1 ${
+                                activeExtra
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-indigo-100 text-indigo-800"
+                              }`}
+                            >
+                              También en: {extra.nombre ?? extra.id}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    {canEdit ? (
+                      editingId === janij.id ? (
+                        <>
+                          <button
+                            onClick={confirmEdit}
+                            aria-label="Guardar"
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            <Check size={16} />
+                          </button>
+                          <button
+                            onClick={cancelEdit}
+                            aria-label="Cancelar"
+                            className="text-gray-600 hover:text-gray-800"
+                          >
+                            <X size={16} />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => startEditing(janij.id, janij.nombre)}
+                            aria-label="Editar"
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          <button
+                            onClick={() => setDetailJanij(janij)}
+                            aria-label="Ver detalle"
+                            className="text-gray-600 hover:text-gray-800"
+                          >
+                            <Eye size={16} />
+                          </button>
+                          <button
+                            onClick={() => deleteJanij(janij.id)}
+                            aria-label="Eliminar"
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </>
+                      )
+                    ) : (
+                      <button
+                        onClick={() => setDetailJanij(janij)}
+                        aria-label="Ver detalle"
+                        className="text-gray-600 hover:text-gray-800"
+                      >
+                        <Eye size={16} />
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+              </>
             )}
-            <div className="flex items-center gap-2">
-              {canEdit ? (
-                editingId === janij.id ? (
-                  <>
-                    <button
-                      onClick={confirmEdit}
-                      aria-label="Guardar"
-                      className="text-green-600 hover:text-green-800"
-                    >
-                      <Check size={16} />
-                    </button>
-                    <button
-                      onClick={cancelEdit}
-                      aria-label="Cancelar"
-                      className="text-gray-600 hover:text-gray-800"
-                    >
-                      <X size={16} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => startEditing(janij.id, janij.nombre)}
-                      aria-label="Editar"
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      <Pencil size={16} />
-                    </button>
-                    <button
-                      onClick={() => setDetailJanij(janij)}
-                      aria-label="Ver detalle"
-                      className="text-gray-600 hover:text-gray-800"
-                    >
-                      <Eye size={16} />
-                    </button>
-                    <button
-                      onClick={() => deleteJanij(janij.id)}
-                      aria-label="Eliminar"
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </>
-                )
-              ) : (
-                <button
-                  onClick={() => setDetailJanij(janij)}
-                  aria-label="Ver detalle"
-                  className="text-gray-600 hover:text-gray-800"
-                >
-                  <Eye size={16} />
-                </button>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
-      </>)}
+          </div>
+        </>
+      )}
 
       <Sheet open={importOpen} onOpenChange={setImportOpen}>
         <SheetContent side="bottom" className="w-full">
@@ -1046,7 +1165,7 @@ export default function JanijimPage() {
               />
             </label>
             <label className="flex flex-col">
-              <span className="font-medium">Grupo</span>
+              <span className="font-medium">Grupo principal</span>
               <input
                 className="w-full border rounded-lg p-2"
                 value={editGrupo}
@@ -1054,6 +1173,21 @@ export default function JanijimPage() {
                 readOnly={sheetManaged}
               />
             </label>
+            {detailJanij?.gruposAdicionales?.length ? (
+              <div className="flex flex-col gap-2">
+                <span className="font-medium">Otros grupos</span>
+                <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                  {detailJanij.gruposAdicionales.map((extra) => (
+                    <span
+                      key={`${detailJanij.id}-${extra.id}`}
+                      className="inline-flex items-center rounded-full bg-indigo-100 px-3 py-1 text-indigo-800"
+                    >
+                      {extra.nombre ?? extra.id}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <label className="flex flex-col">
               <span className="font-medium">Tel. madre</span>
               <input

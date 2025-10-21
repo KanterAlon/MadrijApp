@@ -19,16 +19,6 @@ function Badge({ children }: { children: ReactNode }) {
 }
 
 type RolesResponse = { roles: string[] };
-type GeneralEstado = "alineado" | "activar" | "desactivar";
-
-function normaliseKey(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-}
-
 type PreviewResponse = { runId: string; preview: SyncPreview };
 
 type CommitResponse = { preview: SyncPreview; result: AdminSyncCommitResult };
@@ -83,53 +73,6 @@ export function AdminSyncPanel() {
     const withChanges = new Set(gruposConCambios.map((grupo) => grupo.grupoKey));
     return preview.grupos.detalle.filter((grupo) => !withChanges.has(grupo.grupoKey));
   }, [preview, gruposConCambios]);
-
-  const generalStats = useMemo(() => {
-    if (!preview) {
-      return { enHoja: 0, activar: [] as string[], desactivar: [] as string[], detalle: [] as SyncPreview["resumen"]["proyectosGenerales"]["detalle"], tieneCambios: false };
-    }
-    const stats = preview.resumen.proyectosGenerales;
-    return {
-      enHoja: stats.enHoja,
-      activar: stats.activar,
-      desactivar: stats.desactivar,
-      detalle: stats.detalle,
-      tieneCambios: stats.activar.length > 0 || stats.desactivar.length > 0,
-    };
-  }, [preview]);
-
-  const generalStatsMessage = useMemo(() => {
-    if (!preview) return "";
-    if (generalStats.tieneCambios) {
-      return "Vamos a ajustar los proyectos generales para que coincidan con la hoja. Revisalos antes de confirmar.";
-    }
-    if (generalStats.enHoja > 0) {
-      return "Los proyectos generales ya estan alineados: se aplican a todos los janijim a partir de una sola fila en la hoja.";
-    }
-    return "No encontramos proyectos marcados como generales en la hoja. Si alguno representa a toda la base, marca la casilla en la planilla.";
-  }, [generalStats, preview]);
-
-  const generalNameSet = useMemo(() => {
-    return new Set(
-      generalStats.detalle
-        .filter((item) => item.estado !== "desactivar")
-        .map((item) => normaliseKey(item.nombre)),
-    );
-  }, [generalStats.detalle]);
-
-  const generalDetailLookup = useMemo(() => {
-    const map = new Map<string, (typeof generalStats.detalle)[number]>();
-    generalStats.detalle.forEach((item) => {
-      map.set(normaliseKey(item.nombre), item);
-    });
-    return map;
-  }, [generalStats.detalle]);
-
-  const generalEstadoStyles: Record<GeneralEstado, { label: string; className: string }> = {
-    activar: { label: "Se activara", className: "bg-blue-100 text-blue-800" },
-    desactivar: { label: "Se desactivara", className: "bg-amber-100 text-amber-800" },
-    alineado: { label: "General activo", className: "bg-purple-100 text-purple-800" },
-  };
 
   const generarVistaPrevia = async () => {
     setLoadingPreview(true);
@@ -375,55 +318,6 @@ export function AdminSyncPanel() {
                 </ul>
               </div>
             )}
-            <div className="mt-4 rounded-lg bg-purple-50 p-4 text-sm text-purple-900">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-semibold">Proyectos generales</p>
-                <span className="text-xs font-semibold uppercase tracking-wide text-purple-800">
-                  En la hoja: {generalStats.enHoja}
-                </span>
-              </div>
-              {generalStatsMessage ? <p className="mt-1 text-xs text-purple-900/80">{generalStatsMessage}</p> : null}
-              {generalStats.detalle.length > 0 && (
-                <div className="mt-3 space-y-3">
-                  {generalStats.detalle.map((general) => {
-                    const style = generalEstadoStyles[general.estado];
-                    return (
-                      <div key={general.nombre} className="rounded-md border border-purple-200 bg-white/60 p-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="font-semibold text-purple-900">{general.nombre}</span>
-                          <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ${style.className}`}>
-                            {style.label}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs text-purple-900/80">
-                          Janijim en hoja: {general.janijimSheet} - Activos en base: {general.janijimActivos}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              {generalStats.activar.length > 0 && (
-                <div className="mt-3">
-                  <p className="font-semibold">Se configuraran como generales</p>
-                  <ul className="mt-1 list-disc space-y-1 pl-5">
-                    {generalStats.activar.map((nombre) => (
-                      <li key={`general-activar-${nombre}`}>{nombre}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {generalStats.desactivar.length > 0 && (
-                <div className="mt-3">
-                  <p className="font-semibold">Dejaran de ser generales</p>
-                  <ul className="mt-1 list-disc space-y-1 pl-5">
-                    {generalStats.desactivar.map((nombre) => (
-                      <li key={`general-desactivar-${nombre}`}>{nombre}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
             {preview.resumen.nuevosGrupos.length > 0 && (
               <div className="mt-4 rounded-lg bg-green-50 p-4 text-sm text-green-900">
                 <p className="font-semibold">Nuevos grupos en la hoja</p>
@@ -432,41 +326,12 @@ export function AdminSyncPanel() {
                     <li key={`${item.grupo}-${item.proyecto ?? "sin-proyecto"}`}>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium text-green-900">{item.grupo}</span>
-                        {(() => {
-                          const normalisedGrupo = normaliseKey(item.grupo);
-                          const normalisedProyecto = item.proyecto ? normaliseKey(item.proyecto) : null;
-                          const isGeneralGroup =
-                            item.esGeneral ||
-                            generalNameSet.has(normalisedGrupo) ||
-                            (normalisedProyecto ? generalNameSet.has(normalisedProyecto) : false);
-                          if (isGeneralGroup) {
-                            return (
-                              <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
-                                General
-                              </span>
-                            );
-                          }
-                          if (item.proyecto) {
-                            return <span className="text-xs font-semibold text-green-800">Proyecto {item.proyecto}</span>;
-                          }
-                          return <span className="text-xs font-semibold text-green-800">Sin proyecto asignado</span>;
-                        })()}
+                        {item.proyecto ? (
+                          <span className="text-xs font-semibold text-green-800">Proyecto {item.proyecto}</span>
+                        ) : (
+                          <span className="text-xs font-semibold text-green-800">Sin proyecto asignado</span>
+                        )}
                       </div>
-                      {(() => {
-                        const normalisedGrupo = normaliseKey(item.grupo);
-                        const normalisedProyecto = item.proyecto ? normaliseKey(item.proyecto) : null;
-                        const detail =
-                          (normalisedProyecto ? generalDetailLookup.get(normalisedProyecto) : undefined) ??
-                          generalDetailLookup.get(normalisedGrupo);
-                        if (!detail || detail.estado === "desactivar") {
-                          return null;
-                        }
-                        return (
-                          <p className="mt-1 text-xs text-green-900/80">
-                            Janijim en hoja: {detail.janijimSheet} - Activos en base: {detail.janijimActivos}
-                          </p>
-                        );
-                      })()}
                     </li>
                   ))}
                 </ul>
@@ -526,6 +391,11 @@ export function AdminSyncPanel() {
                                   {update.cambios.telPadre && (
                                     <li>
                                       Tel. padre: {update.cambios.telPadre.before ?? "(sin dato)"}{" -> "}{update.cambios.telPadre.after ?? "(sin dato)"}
+                                    </li>
+                                  )}
+                                  {update.cambios.numeroSocio && (
+                                    <li>
+                                      N° socio: {update.cambios.numeroSocio.before ?? "(sin dato)"}{" -> "}{update.cambios.numeroSocio.after ?? "(sin dato)"}
                                     </li>
                                   )}
                                   {update.reactivar && <li className="text-green-700">Se reactivara este janij</li>}

@@ -131,12 +131,9 @@ export default async function ProyectoHome({ params }: PageProps) {
         {grupos.length > 0 ? (
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {grupos.map((grupo) => {
-              const isGeneral = grupo.id.startsWith("general:");
-              const titulo = isGeneral ? grupo.nombre : `Grupo ${grupo.nombre}`;
+              const titulo = `Grupo ${grupo.nombre}`;
               const detalleHref = `/proyecto/${proyectoId}/grupos/${encodeURIComponent(grupo.id)}`;
-              const janijimHref = isGeneral
-                ? `/proyecto/${proyectoId}/janijim`
-                : `/proyecto/${proyectoId}/janijim?grupo=${encodeURIComponent(grupo.id)}`;
+              const janijimHref = `/proyecto/${proyectoId}/janijim?grupo=${encodeURIComponent(grupo.id)}`;
               return (
                 <div
                   key={grupo.id}
@@ -145,9 +142,7 @@ export default async function ProyectoHome({ params }: PageProps) {
                   <div>
                     <h3 className="text-sm font-semibold text-blue-900">{titulo}</h3>
                     <p className="mt-1 text-xs text-blue-900/70">
-                      {isGeneral
-                        ? "Resumen con todos los janijim cargados en el proyecto."
-                        : "Portada del grupo con sus madrijim y materiales asignados."}
+                      Portada del grupo con sus madrijim y materiales asignados.
                     </p>
                   </div>
                   <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">

@@ -8,7 +8,6 @@ import {
 import { supabase } from "@/lib/supabase";
 import type { AppRole } from "@/lib/supabase/access";
 import { syncGroupFromSheets, type SyncResult } from "@/lib/sync/sheetsSync";
-import { ensureProyectoRecord } from "@/lib/sync/projectSync";
 import { syncAppRolesFromSheets, type RolesSyncResult } from "@/lib/sync/rolesSync";
 
 const normaliseProjectName = normaliseGroupName;
@@ -26,14 +25,18 @@ export type JanijUpdatePreview = {
     nombre?: FieldChange<string>;
     telMadre?: FieldChange<string>;
     telPadre?: FieldChange<string>;
+    numeroSocio?: FieldChange<string>;
   };
   reactivar: boolean;
 };
 
 export type JanijInsertPreview = {
   nombre: string;
+  grupoPrincipal: string;
+  otrosGrupos: string[];
   telMadre: string | null;
   telPadre: string | null;
+  numeroSocio: string | null;
 };
 
 export type JanijDeactivatePreview = {
@@ -86,20 +89,13 @@ export type CoordinatorProjectPreview = {
   proyectosInexistentes: string[];
 };
 
-export type GeneralProjectPreview = {
-  nombre: string;
-  estado: "alineado" | "activar" | "desactivar";
-  janijimSheet: number;
-  janijimActivos: number;
-};
-
 export type SyncPreview = {
   generatedAt: string;
   resumen: {
     totalProyectosHoja: number;
     nuevosProyectos: string[];
     totalGruposHoja: number;
-    nuevosGrupos: { grupo: string; proyecto: string | null; esGeneral: boolean }[];
+    nuevosGrupos: { grupo: string; proyecto: string | null }[];
     gruposOrfanos: number;
     janijim: {
       totalSheet: number;
@@ -108,12 +104,6 @@ export type SyncPreview = {
       actualizar: number;
       desactivar: number;
       reactivar: number;
-    };
-    proyectosGenerales: {
-      enHoja: number;
-      activar: string[];
-      desactivar: string[];
-      detalle: GeneralProjectPreview[];
     };
     roles: {
       role: AppRole;
@@ -166,7 +156,7 @@ function ensureNombre(nombre: string | null | undefined, fallback: string) {
   return trimmed && trimmed.length > 0 ? trimmed : fallback;
 }
 
-type ProyectoRow = { id: string; nombre: string | null; grupo_id: string | null; applies_to_all: boolean | null };
+type ProyectoRow = { id: string; nombre: string | null; grupo_id: string | null };
 type GrupoRow = { id: string; nombre: string | null };
 type JanijRow = {
   id: string;
@@ -176,6 +166,8 @@ type JanijRow = {
   tel_madre: string | null;
   tel_padre: string | null;
   activo: boolean | null;
+  numero_socio: string | null;
+  grupo: string | null;
 };
 type RoleRow = {
   id: string;
@@ -257,8 +249,11 @@ function computeJanijDiff(existing: JanijRow[], entries: JanijSheetEntry[]): {
     if (!existingRow) {
       inserts.push({
         nombre: entry.nombre,
+        grupoPrincipal: entry.grupoPrincipalNombre,
+        otrosGrupos: entry.otrosGrupos.map((extra) => extra.nombre),
         telMadre: entry.telMadre ?? null,
         telPadre: entry.telPadre ?? null,
+        numeroSocio: entry.numeroSocio ?? null,
       });
       continue;
     }
@@ -277,6 +272,12 @@ function computeJanijDiff(existing: JanijRow[], entries: JanijSheetEntry[]): {
       cambios.telPadre = {
         before: existingRow.tel_padre ?? null,
         after: entry.telPadre ?? null,
+      };
+    }
+    if ((existingRow.numero_socio ?? null) !== (entry.numeroSocio ?? null)) {
+      cambios.numeroSocio = {
+        before: existingRow.numero_socio ?? null,
+        after: entry.numeroSocio ?? null,
       };
     }
     const reactivarRegistro = existingRow.activo === false || existingRow.activo === null;
@@ -447,10 +448,9 @@ function buildCoordinatorPreview(
 function buildSummary(
   detalle: GroupJanijPreview[],
   nuevosProyectos: string[],
-  nuevosGrupos: { grupo: string; proyecto: string | null; esGeneral: boolean }[],
+  nuevosGrupos: { grupo: string; proyecto: string | null }[],
   roleDiffs: RoleDiffPreview[],
   orphanCount: number,
-  generalStats: { enHoja: number; activar: string[]; desactivar: string[]; detalle: GeneralProjectPreview[] },
 ) {
   let totalSheet = 0;
   let totalActivos = 0;
@@ -482,7 +482,6 @@ function buildSummary(
       desactivar,
       reactivar,
     },
-    proyectosGenerales: generalStats,
     roles: roleDiffs.map((diff) => ({
       role: diff.role,
       hoja: diff.totalSheet,
@@ -498,9 +497,11 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
   const sheets = options?.data ?? (await loadSheetsData());
 
   const [proyectosRes, gruposRes, janijimRes, rolesRes, coordinatorLinksRes, grupoLinksRes] = await Promise.all([
-    supabase.from("proyectos").select("id, nombre, grupo_id, applies_to_all"),
+    supabase.from("proyectos").select("id, nombre, grupo_id"),
     supabase.from("grupos").select("id, nombre"),
-    supabase.from("janijim").select("id, nombre, grupo_id, proyecto_id, tel_madre, tel_padre, activo"),
+    supabase
+      .from("janijim")
+      .select("id, nombre, grupo_id, proyecto_id, tel_madre, tel_padre, numero_socio, grupo, activo"),
     supabase.from("app_roles").select("id, email, nombre, role, activo"),
     supabase.from("proyecto_coordinadores").select("role_id, proyecto_id"),
     supabase.from("proyecto_grupos").select("proyecto_id, grupo_id"),
@@ -546,8 +547,6 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
       proyectoKey: string | null;
     }
   >();
-  const sheetGeneralKeys = new Set<string>();
-  const generalDisplayByKey = new Map<string, string>();
 
   for (const proyecto of sheets.proyectos) {
     const projectName = proyecto.nombre.trim();
@@ -555,11 +554,6 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
       continue;
     }
     const projectKey = normaliseProjectName(projectName);
-    if (proyecto.appliesToAll) {
-      sheetGeneralKeys.add(projectKey);
-      generalDisplayByKey.set(projectKey, projectName);
-      continue;
-    }
     for (const grupoNombre of proyecto.grupos) {
       const trimmed = grupoNombre.trim();
       if (!trimmed) continue;
@@ -578,9 +572,7 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
         }
       }
     }
-
   }
-
 
   for (const entry of sheets.madrijes) {
     const key = entry.grupoKey;
@@ -594,31 +586,21 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
   }
 
   for (const entry of sheets.janijim) {
-    if (!sheetGroups.has(entry.grupoKey)) {
-      sheetGroups.set(entry.grupoKey, {
-        nombre: entry.grupoNombre,
+    const key = entry.grupoPrincipalKey;
+    if (!sheetGroups.has(key)) {
+      sheetGroups.set(key, {
+        nombre: entry.grupoPrincipalNombre,
         proyectoNombre: null,
         proyectoKey: null,
       });
     }
   }
 
-  const sheetJanijByGroup = groupBy(sheets.janijim, (entry) => entry.grupoKey);
+  const sheetJanijByGroup = groupBy(sheets.janijim, (entry) => entry.grupoPrincipalKey);
   const janijByGrupoId = groupBy(
     janijRows,
     (row) => row.grupo_id ?? "",
   );
-  let activeJanijTotal = 0;
-  const janijCountByProyectoId = new Map<string, number>();
-  for (const row of janijRows) {
-    if (row.activo === false) continue;
-    activeJanijTotal += 1;
-    const proyectoId = row.proyecto_id;
-    if (!proyectoId) continue;
-    janijCountByProyectoId.set(proyectoId, (janijCountByProyectoId.get(proyectoId) ?? 0) + 1);
-  }
-  const totalSheetJanijim = sheets.janijim.length;
-
   const proyectoByGrupoId = new Map<string, ProyectoRow[]>();
   for (const link of proyectoGrupoLinks ?? []) {
     if (!link.grupo_id) continue;
@@ -642,9 +624,7 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
 
   const detalle: GroupJanijPreview[] = [];
   const nuevosProyectos: string[] = [];
-  const nuevosGrupos: { grupo: string; proyecto: string | null; esGeneral: boolean }[] = [];
-  const generalActivar: string[] = [];
-  const generalDesactivar: string[] = [];
+  const nuevosGrupos: { grupo: string; proyecto: string | null }[] = [];
 
   const sortedSheetGroups = Array.from(sheetGroups.entries()).sort((a, b) => {
     const projectA = a[1].proyectoNombre ?? "";
@@ -684,68 +664,6 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
     });
   }
 
-  for (const key of sheetGeneralKeys) {
-    const displayName = generalDisplayByKey.get(key) ?? key;
-    const proyecto = proyectoByKey.get(key) ?? null;
-    if (!proyecto) {
-      nuevosProyectos.push(displayName);
-      continue;
-    }
-    if (!proyecto.applies_to_all) {
-      generalActivar.push(proyecto.nombre ?? displayName);
-    }
-  }
-
-  for (const proyecto of proyectos) {
-    if (!proyecto.nombre) continue;
-    if (proyecto.applies_to_all) {
-      const key = normaliseProjectName(proyecto.nombre);
-      if (!sheetGeneralKeys.has(key)) {
-        generalDesactivar.push(proyecto.nombre ?? key);
-      }
-    }
-  }
-
-  const generalDetailByKey = new Map<string, GeneralProjectPreview>();
-  for (const key of sheetGeneralKeys) {
-    const displayName = generalDisplayByKey.get(key) ?? key;
-    if (generalDetailByKey.has(key)) continue;
-    const proyecto = proyectoByKey.get(key) ?? null;
-    const estado: GeneralProjectPreview["estado"] =
-      !proyecto ? "activar" : proyecto.applies_to_all ? "alineado" : "activar";
-    const janijActivos =
-      estado === "desactivar"
-        ? (proyecto ? janijCountByProyectoId.get(proyecto.id) ?? 0 : 0)
-        : activeJanijTotal;
-    generalDetailByKey.set(key, {
-      nombre: displayName,
-      estado,
-      janijimSheet: totalSheetJanijim,
-      janijimActivos: janijActivos,
-    });
-  }
-
-  for (const proyecto of proyectos) {
-    if (!proyecto.nombre) continue;
-    if (!proyecto.applies_to_all) continue;
-    const key = normaliseProjectName(proyecto.nombre);
-    if (generalDetailByKey.has(key)) continue;
-    generalDetailByKey.set(key, {
-      nombre: proyecto.nombre,
-      estado: "desactivar",
-      janijimSheet: 0,
-      janijimActivos: janijCountByProyectoId.get(proyecto.id) ?? 0,
-    });
-  }
-
-  const generalDetails = Array.from(generalDetailByKey.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-  const generalStats = {
-    enHoja: sheetGeneralKeys.size,
-    activar: Array.from(new Set(generalActivar)),
-    desactivar: Array.from(new Set(generalDesactivar)),
-    detalle: generalDetails,
-  };
   const orphanGroups: OrphanGroupPreview[] = [];
   for (const grupo of grupos) {
     if (!grupo.nombre) continue;
@@ -805,7 +723,6 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
     nuevosGrupos,
     roleDiffs,
     orphanGroups.length,
-    generalStats,
   );
   resumen.totalProyectosHoja = sheets.proyectos.length;
 
@@ -891,17 +808,6 @@ async function applyPreviewWithSheets(
 ): Promise<AdminSyncCommitResult> {
   const processedGroups: AdminSyncCommitResult["grupos"] = [];
 
-  const processedGeneralProjects = new Set<string>();
-  for (const proyecto of sheetsData.proyectos) {
-    if (!proyecto.appliesToAll) continue;
-    const trimmed = proyecto.nombre.trim();
-    if (!trimmed) continue;
-    const key = normaliseProjectName(trimmed);
-    if (processedGeneralProjects.has(key)) continue;
-    processedGeneralProjects.add(key);
-    await ensureProyectoRecord(trimmed, { appliesToAll: true });
-  }
-
   for (const grupo of preview.grupos.detalle) {
     const result = await syncGroupFromSheets(grupo.grupoNombre, {
       expectedGrupoId: grupo.grupoId ?? undefined,
@@ -915,22 +821,6 @@ async function applyPreviewWithSheets(
     const proyectos = orphan.proyectos.map((p) => p.nombre).filter((nombre) => nombre.length > 0);
     const cleanup = await deactivateGroup(orphan.grupoId, orphan.grupoNombre, proyectos);
     cleanupResults.push(cleanup);
-  }
-
-  const generalToDisable = Array.from(
-    new Set(
-      preview.resumen.proyectosGenerales.desactivar
-        .map((nombre) => nombre?.trim())
-        .filter((nombre): nombre is string => Boolean(nombre && nombre.length > 0)),
-    ),
-  );
-
-  if (generalToDisable.length > 0) {
-    const { error: disableGeneralError } = await supabase
-      .from("proyectos")
-      .update({ applies_to_all: false })
-      .in("nombre", generalToDisable);
-    if (disableGeneralError) throw disableGeneralError;
   }
 
   const rolesResult = await syncAppRolesFromSheets(sheetsData);

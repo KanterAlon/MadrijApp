@@ -21,22 +21,16 @@ export type UserAccessContext = {
 
 type ProyectoScopeInfo = {
   grupoIds: string[];
-  appliesToAll: boolean;
 };
 
 async function fetchProyectoScopeInfo(proyectoId: string): Promise<ProyectoScopeInfo> {
   const { data: proyecto, error: proyectoError } = await supabase
     .from("proyectos")
-    .select("applies_to_all, grupo_id")
+    .select("grupo_id")
     .eq("id", proyectoId)
     .maybeSingle();
 
   if (proyectoError) throw proyectoError;
-
-  const appliesToAll = Boolean(proyecto?.applies_to_all);
-  if (appliesToAll) {
-    return { grupoIds: [], appliesToAll: true };
-  }
 
   const { data, error } = await supabase
     .from("proyecto_grupos")
@@ -50,15 +44,15 @@ async function fetchProyectoScopeInfo(proyectoId: string): Promise<ProyectoScope
     .filter((id): id is string => Boolean(id));
 
   if (ids.length > 0) {
-    return { grupoIds: ids, appliesToAll: false };
+    return { grupoIds: ids };
   }
 
   const legacyGrupoId = proyecto?.grupo_id as string | null;
   if (legacyGrupoId) {
-    return { grupoIds: [legacyGrupoId], appliesToAll: false };
+    return { grupoIds: [legacyGrupoId] };
   }
 
-  return { grupoIds: [], appliesToAll: false };
+  return { grupoIds: [] };
 }
 
 export async function getUserAccessContext(userId: string): Promise<UserAccessContext> {
@@ -172,7 +166,6 @@ export type ProyectoAccessScope = "admin" | "director" | "coordinador" | "madrij
 export type ProyectoAccess = {
   scope: ProyectoAccessScope;
   grupoIds: string[];
-  appliesToAll: boolean;
 };
 
 export async function ensureProyectoAccess(
@@ -198,7 +191,7 @@ export async function ensureProyectoAccess(
 
   const grupos = context.madrijProyectoGroups.get(proyectoId);
   if (grupos && grupos.size > 0) {
-    return { scope: "madrij", grupoIds: Array.from(grupos), appliesToAll: false };
+    return { scope: "madrij", grupoIds: Array.from(grupos) };
   }
 
   throw new AccessDeniedError("No tenÃ©s acceso a este proyecto");
@@ -217,7 +210,6 @@ export type ProyectoMetadataRow = {
   nombre: string;
   creador_id: string | null;
   grupo_id: string | null;
-  applies_to_all: boolean;
 };
 
 export async function listProyectoMetadata(ids: string[]): Promise<ProyectoMetadataRow[]> {
@@ -227,7 +219,7 @@ export async function listProyectoMetadata(ids: string[]): Promise<ProyectoMetad
 
   const { data, error } = await supabase
     .from("proyectos")
-    .select("id, nombre, creador_id, grupo_id, applies_to_all")
+    .select("id, nombre, creador_id, grupo_id")
     .in("id", ids);
 
   if (error) throw error;

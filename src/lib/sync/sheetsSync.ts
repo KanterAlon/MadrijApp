@@ -251,18 +251,20 @@ async function syncJanijRecords(
       .eq("grupo_id", grupoId)
       .eq("activo", true);
 
-    if (existing && existing.length > 0) {
-      const { error } = await supabase
-        .from("janijim")
-        .update({ activo: false })
-        .in(
-          "id",
-          existing.map((row) => row.id as string),
-        );
+    const ids = (existing ?? []).map((row) => row.id as string);
+
+    if (ids.length > 0) {
+      const { error } = await supabase.from("janijim").update({ activo: false }).in("id", ids);
       if (error) throw error;
+
+      const { error: extrasError } = await supabase
+        .from("janijim_grupos_extra")
+        .delete()
+        .in("janij_id", ids);
+      if (extrasError) throw extrasError;
     }
 
-    return { inserted: 0, updated: 0, deactivated: existing?.length ?? 0 };
+    return { inserted: 0, updated: 0, deactivated: ids.length };
   }
 
   const { data: existing, error } = await supabase
@@ -287,6 +289,7 @@ async function syncJanijRecords(
     tel_madre: string | null;
     tel_padre: string | null;
     activo: boolean;
+    numero_socio: string | null;
   }[] = [];
   const inserts: {
     proyecto_id: string;
@@ -296,32 +299,36 @@ async function syncJanijRecords(
     tel_madre: string | null;
     tel_padre: string | null;
     activo: boolean;
+    numero_socio: string | null;
   }[] = [];
 
   for (const entry of entries) {
     const key = normaliseGroupName(entry.nombre);
     const existingRow = existingMap.get(key);
     seen.add(key);
+    const grupoDisplay = entry.grupoPrincipalNombre?.trim() || grupoNombre;
     if (existingRow) {
       updates.push({
         id: existingRow.id as string,
         proyecto_id: proyectoId,
         grupo_id: grupoId,
         nombre: entry.nombre,
-        grupo: grupoNombre,
+        grupo: grupoDisplay,
         tel_madre: entry.telMadre,
         tel_padre: entry.telPadre,
         activo: true,
+        numero_socio: entry.numeroSocio ?? null,
       });
     } else {
       inserts.push({
         proyecto_id: proyectoId,
         grupo_id: grupoId,
         nombre: entry.nombre,
-        grupo: grupoNombre,
+        grupo: grupoDisplay,
         tel_madre: entry.telMadre,
         tel_padre: entry.telPadre,
         activo: true,
+        numero_socio: entry.numeroSocio ?? null,
       });
     }
   }
@@ -342,15 +349,125 @@ async function syncJanijRecords(
     .filter((row) => row.activo !== false)
     .filter((row) => !seen.has(normaliseGroupName(row.nombre as string)));
 
-  if (toDeactivate.length > 0) {
+  const deactivateIds = toDeactivate.map((row) => row.id as string);
+
+  if (deactivateIds.length > 0) {
     const { error: deactivateError } = await supabase
       .from("janijim")
       .update({ activo: false })
-      .in(
-        "id",
-        toDeactivate.map((row) => row.id as string),
-      );
+      .in("id", deactivateIds);
     if (deactivateError) throw deactivateError;
+
+    const { error: extrasCleanupError } = await supabase
+      .from("janijim_grupos_extra")
+      .delete()
+      .in("janij_id", deactivateIds);
+    if (extrasCleanupError) throw extrasCleanupError;
+  }
+
+  const desiredKeys = entries.map((entry) => normaliseGroupName(entry.nombre));
+  const desiredKeySet = new Set(desiredKeys);
+  const { data: refreshed, error: refreshedError } = await supabase
+    .from("janijim")
+    .select("id, nombre")
+    .eq("grupo_id", grupoId)
+    .in(
+      "nombre",
+      entries.map((entry) => entry.nombre),
+    );
+
+  if (refreshedError) throw refreshedError;
+
+  const idByKey = new Map<string, string>();
+  for (const row of refreshed ?? []) {
+    const nombre = row.nombre as string | null;
+    if (!nombre) continue;
+    const key = normaliseGroupName(nombre);
+    if (!desiredKeySet.has(key)) continue;
+    idByKey.set(key, row.id as string);
+  }
+
+  const janijIds = Array.from(idByKey.values());
+
+  const extraGroupNames = new Map<string, string>();
+  for (const entry of entries) {
+    for (const extra of entry.otrosGrupos) {
+      if (!extraGroupNames.has(extra.key)) {
+        extraGroupNames.set(extra.key, extra.nombre);
+      }
+    }
+  }
+
+  const extraGroupIdByKey = new Map<string, string>();
+  for (const [key, nombre] of extraGroupNames.entries()) {
+    const groupId = await ensureGrupoRecord(nombre);
+    extraGroupIdByKey.set(key, groupId);
+  }
+
+  const existingExtrasByJanij = new Map<string, { id: string; grupo_id: string }[]>();
+  if (janijIds.length > 0) {
+    const { data: extrasRows, error: extrasError } = await supabase
+      .from("janijim_grupos_extra")
+      .select("id, janij_id, grupo_id")
+      .in("janij_id", janijIds);
+
+    if (extrasError) throw extrasError;
+
+    for (const row of extrasRows ?? []) {
+      const janijId = row.janij_id as string | null;
+      const grupo = row.grupo_id as string | null;
+      if (!janijId || !grupo) continue;
+      let list = existingExtrasByJanij.get(janijId);
+      if (!list) {
+        list = [];
+        existingExtrasByJanij.set(janijId, list);
+      }
+      list.push({ id: row.id as string, grupo_id: grupo });
+    }
+  }
+
+  const extrasToInsert: { janij_id: string; grupo_id: string }[] = [];
+  const extrasToDelete: string[] = [];
+
+  for (const entry of entries) {
+    const key = normaliseGroupName(entry.nombre);
+    const janijId = idByKey.get(key);
+    if (!janijId) continue;
+
+    const desiredGroupIds = entry.otrosGrupos
+      .map((extra) => extraGroupIdByKey.get(extra.key))
+      .filter((value): value is string => Boolean(value));
+    const desiredSet = new Set(desiredGroupIds);
+
+    const existingExtras = existingExtrasByJanij.get(janijId) ?? [];
+    const existingSet = new Set(existingExtras.map((row) => row.grupo_id));
+
+    for (const grupoExtraId of desiredGroupIds) {
+      if (!existingSet.has(grupoExtraId)) {
+        extrasToInsert.push({ janij_id: janijId, grupo_id: grupoExtraId });
+      }
+    }
+
+    for (const row of existingExtras) {
+      if (!desiredSet.has(row.grupo_id)) {
+        extrasToDelete.push(row.id);
+      }
+    }
+  }
+
+  if (extrasToInsert.length > 0) {
+    const { error: insertExtrasError } = await supabase
+      .from("janijim_grupos_extra")
+      .insert(extrasToInsert);
+    if (insertExtrasError) throw insertExtrasError;
+  }
+
+  if (extrasToDelete.length > 0) {
+    const { error: deleteExtrasError } = await supabase
+      .from("janijim_grupos_extra")
+      .delete()
+      .in("id", extrasToDelete);
+    if (deleteExtrasError) throw deleteExtrasError;
   }
 
   return {
@@ -376,10 +493,10 @@ export async function syncGroupFromSheets(
   const data = options?.data ?? (await loadSheetsData());
   const key = normaliseGroupName(groupName);
   const madEntries = data.madrijes.filter((entry) => entry.grupoKey === key);
-  const janEntries = data.janijim.filter((entry) => entry.grupoKey === key);
+  const janEntries = data.janijim.filter((entry) => entry.grupoPrincipalKey === key);
 
   const displayNombre = ensureNombre(
-    madEntries[0]?.grupoNombre ?? janEntries[0]?.grupoNombre ?? groupName,
+    madEntries[0]?.grupoNombre ?? janEntries[0]?.grupoPrincipalNombre ?? groupName,
     groupName,
   );
 
@@ -393,7 +510,7 @@ export async function syncGroupFromSheets(
   }
 
   const assignedProjectName = projectAssignments.get(key) ?? displayNombre;
-  const proyecto = await ensureProyectoRecord(assignedProjectName, { appliesToAll: false });
+  const proyecto = await ensureProyectoRecord(assignedProjectName);
   await ensureProyectoGrupoLink(proyecto.id, grupoId);
 
   const madStats = await syncMadrijRecords(grupoId, madEntries);

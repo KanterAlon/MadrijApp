@@ -18,7 +18,6 @@ export type DashboardProyecto = {
   id: string;
   nombre: string;
   creador_id: string | null;
-  appliesToAll: boolean;
   roles: ProyectoAccessScope[];
   grupos: DashboardGrupo[];
 };
@@ -176,27 +175,16 @@ export async function getProyectosParaUsuario(userId: string): Promise<Dashboard
       }
     }
 
-    let grupos: DashboardGrupo[];
-    if (meta.applies_to_all) {
-      grupos = [
-        {
-          id: `general:${meta.id}`,
-          nombre: "Todos los janijim",
-        },
-      ];
-    } else {
-      grupos = sortProyectos(
-        visibleGroupIds
-          .map((id) => grupoInfo.get(id))
-          .filter((grupo): grupo is DashboardGrupo => Boolean(grupo)),
-      );
-    }
+    const grupos = sortProyectos(
+      visibleGroupIds
+        .map((id) => grupoInfo.get(id))
+        .filter((grupo): grupo is DashboardGrupo => Boolean(grupo)),
+    );
 
     proyectos.push({
       id: meta.id,
       nombre: meta.nombre,
       creador_id: meta.creador_id,
-      appliesToAll: Boolean(meta.applies_to_all),
       roles: sortRoles(roles),
       grupos,
     });
