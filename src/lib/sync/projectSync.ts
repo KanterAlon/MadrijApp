@@ -2,7 +2,7 @@ import { SYSTEM_CREATOR_ID } from "@/lib/google/config";
 import { normaliseGroupName } from "@/lib/google/sheetData";
 import { supabase } from "@/lib/supabase";
 
-export async function ensureProyectoRecord(nombre: string, options?: { appliesToAll?: boolean }) {
+export async function ensureProyectoRecord(nombre: string) {
   const trimmed = nombre.trim();
   if (!trimmed) {
     throw new Error("El proyecto debe tener un nombre valido");
@@ -12,26 +12,19 @@ export async function ensureProyectoRecord(nombre: string, options?: { appliesTo
 
   const { data: exactMatches, error: exactError } = await supabase
     .from("proyectos")
-    .select("id, nombre, applies_to_all")
+    .select("id, nombre")
     .eq("nombre", trimmed);
 
   if (exactError) throw exactError;
 
   if (exactMatches && exactMatches.length > 0) {
     const match = exactMatches[0];
-    if (options?.appliesToAll !== undefined && match.applies_to_all !== options.appliesToAll) {
-      const { error: flagError } = await supabase
-        .from("proyectos")
-        .update({ applies_to_all: options.appliesToAll })
-        .eq("id", match.id);
-      if (flagError) throw flagError;
-    }
     return { id: match.id as string, nombre: match.nombre as string };
   }
 
   const { data: allProjects, error: listError } = await supabase
     .from("proyectos")
-    .select("id, nombre, applies_to_all");
+    .select("id, nombre");
 
   if (listError) throw listError;
 
@@ -45,9 +38,6 @@ export async function ensureProyectoRecord(nombre: string, options?: { appliesTo
     const updates: Record<string, unknown> = {};
     if ((normalisedMatch.nombre as string) !== trimmed) {
       updates.nombre = trimmed;
-    }
-    if (options?.appliesToAll !== undefined && normalisedMatch.applies_to_all !== options.appliesToAll) {
-      updates.applies_to_all = options.appliesToAll;
     }
     if (Object.keys(updates).length > 0) {
       const { error: updateError } = await supabase
@@ -67,7 +57,7 @@ export async function ensureProyectoRecord(nombre: string, options?: { appliesTo
     .insert({
       nombre: trimmed,
       creador_id: SYSTEM_CREATOR_ID,
-      applies_to_all: options?.appliesToAll ?? false,
+      applies_to_all: false,
     })
     .select("id, nombre")
     .single();

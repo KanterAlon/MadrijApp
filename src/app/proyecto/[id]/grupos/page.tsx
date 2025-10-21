@@ -69,12 +69,10 @@ export default async function ProyectoGruposPage({ params }: PageProps) {
         <div className="grid gap-4 sm:grid-cols-2">
           {grupos.map((grupo) => {
             const detalleHref = `/proyecto/${proyectoId}/grupos/${encodeURIComponent(grupo.id)}`;
-            const janijimHref = grupo.isGeneral
-              ? `/proyecto/${proyectoId}/janijim`
-              : `/proyecto/${proyectoId}/janijim?grupo=${encodeURIComponent(grupo.id)}`;
+            const janijimHref = `/proyecto/${proyectoId}/janijim?grupo=${encodeURIComponent(grupo.id)}`;
             const janijLabel = grupo.totalJanijim === 1 ? "janij" : "janijim";
             const madrijLabel = grupo.totalMadrijim === 1 ? "madrij" : "madrijim";
-            const titulo = grupo.isGeneral ? grupo.nombre : `Grupo ${grupo.nombre}`;
+            const titulo = `Grupo ${grupo.nombre}`;
 
             return (
               <div
@@ -84,9 +82,7 @@ export default async function ProyectoGruposPage({ params }: PageProps) {
                 <div>
                   <h2 className="text-lg font-semibold text-blue-900">{titulo}</h2>
                   <p className="mt-2 text-sm text-blue-900/70">
-                    {grupo.isGeneral
-                      ? "Resumen de todos los janijim y madrijim asignados al proyecto."
-                      : "Portada del grupo con sus responsables, coordinadores y acceso a materiales."}
+                    Portada del grupo con sus responsables, coordinadores y acceso a materiales.
                   </p>
                   <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-blue-800">
                     <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1">

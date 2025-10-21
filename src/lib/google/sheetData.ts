@@ -32,12 +32,6 @@ function readCell(row: unknown[], index: number | undefined) {
   return String(value).trim();
 }
 
-function parseBooleanCell(value: string | null) {
-  if (!value) return false;
-  const normalised = normaliseKey(value);
-  return normalised === "true" || normalised === "1" || normalised === "si" || normalised === "sÃ­" || normalised === "yes" || normalised === "x";
-}
-
 function joinNombre(nombre: string | null, apellido: string | null) {
   const parts = [nombre, apellido].filter((part) => Boolean(part && part.trim()));
   if (parts.length === 0) return null;
@@ -93,19 +87,34 @@ export function buildMadrijEntries(rows: unknown[][]) {
 
 export type JanijSheetEntry = {
   nombre: string;
-  grupoNombre: string;
-  grupoKey: string;
+  grupoPrincipalNombre: string;
+  grupoPrincipalKey: string;
+  otrosGrupos: { nombre: string; key: string }[];
   telMadre: string | null;
   telPadre: string | null;
 };
 
-const JANIJ_HEADERS: Record<string, "nombre" | "apellido" | "grupo" | "telMadre" | "telPadre"> = {
+const JANIJ_HEADERS: Record<
+  string,
+  | "nombre"
+  | "apellido"
+  | "grupoPrincipal"
+  | "otroGrupo1"
+  | "otroGrupo2"
+  | "telMadre"
+  | "telPadre"
+> = {
   nombre: "nombre",
   apellido: "apellido",
   "nombre y apellido": "nombre",
   "nombre completo": "nombre",
-  grupo: "grupo",
-  kvutza: "grupo",
+  grupo: "grupoPrincipal",
+  kvutza: "grupoPrincipal",
+  "grupo principal": "grupoPrincipal",
+  "otro grupo": "otroGrupo1",
+  "otro grupo 1": "otroGrupo1",
+  "otro grupo 2": "otroGrupo2",
+  "participa en otro grupo": "otroGrupo1",
   "telefono madre": "telMadre",
   "telefono de la madre": "telMadre",
   "tel madre": "telMadre",
@@ -118,7 +127,13 @@ export function buildJanijEntries(rows: unknown[][]) {
   if (rows.length === 0) return [] as JanijSheetEntry[];
   const [header, ...dataRows] = rows;
   const mapping = {} as Record<
-    "nombre" | "apellido" | "grupo" | "telMadre" | "telPadre",
+    | "nombre"
+    | "apellido"
+    | "grupoPrincipal"
+    | "otroGrupo1"
+    | "otroGrupo2"
+    | "telMadre"
+    | "telPadre",
     number | undefined
   >;
   header.forEach((value, index) => {
@@ -132,12 +147,27 @@ export function buildJanijEntries(rows: unknown[][]) {
   for (const row of dataRows) {
     const nombre = joinNombre(readCell(row, mapping.nombre), readCell(row, mapping.apellido));
     if (!nombre) continue;
-    const grupoNombre = readCell(row, mapping.grupo)?.trim() ?? "";
-    if (!grupoNombre) continue;
+    const grupoPrincipalNombre = readCell(row, mapping.grupoPrincipal)?.trim() ?? "";
+    if (!grupoPrincipalNombre) continue;
+    const grupoPrincipalKey = normaliseKey(grupoPrincipalNombre);
+    const otrosGrupos: { nombre: string; key: string }[] = [];
+    const extrasSeen = new Set<string>();
+    const otro1 = readCell(row, mapping.otroGrupo1)?.trim();
+    const otro2 = readCell(row, mapping.otroGrupo2)?.trim();
+    [otro1, otro2]
+      .filter((value): value is string => Boolean(value && value.length > 0))
+      .forEach((value) => {
+        const normalised = normaliseKey(value);
+        if (normalised === grupoPrincipalKey) return;
+        if (extrasSeen.has(normalised)) return;
+        extrasSeen.add(normalised);
+        otrosGrupos.push({ nombre: value, key: normalised });
+      });
     entries.push({
       nombre,
-      grupoNombre,
-      grupoKey: normaliseKey(grupoNombre),
+      grupoPrincipalNombre,
+      grupoPrincipalKey,
+      otrosGrupos,
       telMadre: readCell(row, mapping.telMadre),
       telPadre: readCell(row, mapping.telPadre),
     });
@@ -147,16 +177,13 @@ export function buildJanijEntries(rows: unknown[][]) {
 
 export type ProyectoSheetEntry = {
   nombre: string;
-  appliesToAll: boolean;
   grupos: string[];
 };
 
-const PROYECTO_HEADERS: Record<string, "proyecto" | "general" | "grupo"> = {
+const PROYECTO_HEADERS: Record<string, "proyecto" | "grupo"> = {
   proyecto: "proyecto",
   nombre: "proyecto",
   "nombre del proyecto": "proyecto",
-  "es general": "general",
-  general: "general",
   grupo: "grupo",
 };
 
@@ -164,7 +191,7 @@ export function buildProyectoEntries(rows: unknown[][]) {
   if (rows.length === 0) return [] as ProyectoSheetEntry[];
   const [header, ...dataRows] = rows;
 
-  const mapping = {} as Record<"proyecto" | "general" | "grupo", number | undefined>;
+  const mapping = {} as Record<"proyecto" | "grupo", number | undefined>;
   header.forEach((value, index) => {
     const key = PROYECTO_HEADERS[normaliseHeader(String(value))];
     if (key && mapping[key] === undefined) {
@@ -176,7 +203,6 @@ export function buildProyectoEntries(rows: unknown[][]) {
     string,
     {
       nombre: string;
-      appliesToAll: boolean;
       grupos: Set<string>;
     }
   >();
@@ -189,7 +215,6 @@ export function buildProyectoEntries(rows: unknown[][]) {
     if (!entry) {
       entry = {
         nombre,
-        appliesToAll: false,
         grupos: new Set<string>(),
       };
       proyectos.set(key, entry);
@@ -197,24 +222,14 @@ export function buildProyectoEntries(rows: unknown[][]) {
       entry.nombre = nombre;
     }
 
-    const isGeneral = parseBooleanCell(readCell(row, mapping.general) ?? null);
-    if (isGeneral) {
-      entry.appliesToAll = true;
-      entry.grupos.clear();
-      continue;
-    }
-
-    if (!entry.appliesToAll) {
-      const grupoNombre = readCell(row, mapping.grupo);
-      if (grupoNombre) {
-        entry.grupos.add(grupoNombre);
-      }
+    const grupoNombre = readCell(row, mapping.grupo);
+    if (grupoNombre) {
+      entry.grupos.add(grupoNombre);
     }
   }
 
   return Array.from(proyectos.values()).map((entry) => ({
     nombre: entry.nombre,
-    appliesToAll: entry.appliesToAll,
     grupos: Array.from(entry.grupos),
   }));
 }
