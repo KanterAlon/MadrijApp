@@ -67,15 +67,22 @@ export type JanijSearchResult = {
 };
 
 export async function getJanijim(proyectoId: string, userId: string) {
-  const { grupoIds } = await ensureProyectoAccess(userId, proyectoId);
-  if (grupoIds.length === 0) return [];
+  const { grupoIds, appliesToAll } = await ensureProyectoAccess(userId, proyectoId);
 
-  const { data, error } = await supabase
+  const query = supabase
     .from("janijim")
     .select("id, nombre, dni, numero_socio, grupo, grupo_id, tel_madre, tel_padre, extras")
-    .in("grupo_id", grupoIds)
     .eq("activo", true)
     .order("nombre", { ascending: true });
+
+  if (appliesToAll) {
+    query.eq("proyecto_id", proyectoId);
+  } else {
+    if (grupoIds.length === 0) return [];
+    query.in("grupo_id", grupoIds);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
   return data;
 }
@@ -110,7 +117,7 @@ export async function searchJanijimGlobal(userId: string, query: string) {
 
   const context = await getUserAccessContext(userId);
   if (!context.isAdmin && !context.isDirector) {
-    throw new AccessDeniedError("No tenés permisos para buscar en toda la aplicación");
+    throw new AccessDeniedError("No tenÃ©s permisos para buscar en toda la aplicaciÃ³n");
   }
 
   const { data, error } = await supabase
@@ -170,3 +177,5 @@ export async function searchJanijimGlobal(userId: string, query: string) {
     };
   });
 }
+
+

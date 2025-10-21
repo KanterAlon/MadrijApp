@@ -199,7 +199,8 @@ export default function JanijimPage() {
         const data = await getJanijim(proyectoId, user.id);
         setForbidden(false);
         setForbiddenMessage(null);
-        const filtered = targetGrupoId ? data.filter((j) => j.grupo_id === targetGrupoId) : data;
+        const isGeneralTarget = targetGrupoId ? targetGrupoId.startsWith("general:") : false;
+        const filtered = !targetGrupoId || isGeneralTarget ? data : data.filter((j) => j.grupo_id === targetGrupoId);
         setJanijim(
           filtered.map((j) => ({
             id: j.id,
@@ -1267,3 +1268,4 @@ export default function JanijimPage() {
     </div>
   );
 }
+

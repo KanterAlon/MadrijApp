@@ -87,7 +87,7 @@ export function AdminSyncPanel() {
       const payload = (await res.json()) as PreviewResponse;
       setPreview(payload.preview);
       setRunId(payload.runId);
-      toast.success("Generamos la vista previa con los últimos datos de la hoja");
+      toast.success("Generamos la vista previa con los ÃƒÂºltimos datos de la hoja");
     } catch (err) {
       const message = err instanceof Error ? err.message : "No se pudo generar la vista previa";
       showError(message);
@@ -98,7 +98,7 @@ export function AdminSyncPanel() {
 
   const confirmarSincronizacion = async () => {
     if (!runId) {
-      showError("Primero generá la vista previa");
+      showError("Primero generÃƒÂ¡ la vista previa");
       return;
     }
     setCommitting(true);
@@ -106,14 +106,14 @@ export function AdminSyncPanel() {
       const res = await fetch(`/api/admin/sync/runs/${runId}/commit`, { method: "POST" });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(payload?.error ?? "No se pudo completar la sincronización");
+        throw new Error(payload?.error ?? "No se pudo completar la sincronizaciÃƒÂ³n");
       }
       const data = payload as CommitResponse;
       setPreview(data.preview);
       setCommitResult(data.result);
       toast.success("Actualizamos la base de datos con los datos de la hoja");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "No se pudo completar la sincronización";
+      const message = err instanceof Error ? err.message : "No se pudo completar la sincronizaciÃƒÂ³n";
       showError(message);
     } finally {
       setCommitting(false);
@@ -139,7 +139,7 @@ export function AdminSyncPanel() {
                 {diff.nuevos.slice(0, 6).map((entry) => (
                   <li key={`nuevo-${diff.role}-${entry.email}`}>{entry.email}</li>
                 ))}
-                {diff.nuevos.length > 6 && <li>… y {diff.nuevos.length - 6} más</li>}
+                {diff.nuevos.length > 6 && <li>Ã¢â‚¬Â¦ y {diff.nuevos.length - 6} mÃƒÂ¡s</li>}
               </ul>
             )}
           </div>
@@ -155,7 +155,7 @@ export function AdminSyncPanel() {
                 {diff.desactivar.slice(0, 6).map((entry) => (
                   <li key={`baja-${diff.role}-${entry.email}`}>{entry.email}</li>
                 ))}
-                {diff.desactivar.length > 6 && <li>… y {diff.desactivar.length - 6} más</li>}
+                {diff.desactivar.length > 6 && <li>Ã¢â‚¬Â¦ y {diff.desactivar.length - 6} mÃƒÂ¡s</li>}
               </ul>
             )}
           </div>
@@ -177,13 +177,13 @@ export function AdminSyncPanel() {
             </ul>
           </div>
           <div className="rounded-lg bg-green-50 p-3 text-sm text-green-900">
-            <p className="font-semibold">Se asignarán</p>
+            <p className="font-semibold">Se asignarÃƒÂ¡n</p>
             <ul className="mt-2 space-y-1 text-xs text-green-900/80">
               {entry.proyectosNuevos.length === 0 ? <li>Sin cambios</li> : entry.proyectosNuevos.map((nombre) => <li key={`nuevo-${entry.email}-${nombre}`}>{nombre}</li>)}
             </ul>
           </div>
           <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-            <p className="font-semibold">Se quitarán</p>
+            <p className="font-semibold">Se quitarÃƒÂ¡n</p>
             <ul className="mt-2 space-y-1 text-xs text-amber-900/80">
               {entry.proyectosRemovidos.length === 0 ? <li>Sin cambios</li> : entry.proyectosRemovidos.map((nombre) => <li key={`removido-${entry.email}-${nombre}`}>{nombre}</li>)}
             </ul>
@@ -214,13 +214,13 @@ export function AdminSyncPanel() {
       <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-emerald-900">Base actualizada</h2>
         <p className="mt-1 text-sm text-emerald-900/80">
-          Confirmamos la importación y guardamos los cambios en Supabase. A continuación tenés un resumen de lo aplicado.
+          Confirmamos la importaciÃƒÂ³n y guardamos los cambios en Supabase. A continuaciÃƒÂ³n tenÃƒÂ©s un resumen de lo aplicado.
         </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="rounded-lg bg-white p-4 shadow">
             <h3 className="text-sm font-semibold text-blue-900">Janijim</h3>
             <p className="mt-2 text-sm text-blue-900/70">
-              {formatCountLabel(totalInsertados, "alta")}, {formatCountLabel(totalActualizados, "actualización")}, {formatCountLabel(totalBajas, "baja")}.
+              {formatCountLabel(totalInsertados, "alta")}, {formatCountLabel(totalActualizados, "actualizaciÃƒÂ³n")}, {formatCountLabel(totalBajas, "baja")}.
             </p>
           </div>
           <div className="rounded-lg bg-white p-4 shadow">
@@ -261,7 +261,7 @@ export function AdminSyncPanel() {
       <div className="mx-auto max-w-3xl rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
         <h1 className="text-2xl font-bold text-amber-900">Acceso restringido</h1>
         <p className="mt-2 text-amber-900">
-          Esta sección es exclusiva para el administrador de la aplicación. Si necesitás actualizar los datos institucionales, solicitá acceso al equipo nacional.
+          Esta secciÃƒÂ³n es exclusiva para el administrador de la aplicaciÃƒÂ³n. Si necesitÃƒÂ¡s actualizar los datos institucionales, solicitÃƒÂ¡ acceso al equipo nacional.
         </p>
       </div>
     );
@@ -270,19 +270,19 @@ export function AdminSyncPanel() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-blue-900">Sincronización anual</h1>
+        <h1 className="text-3xl font-bold text-blue-900">SincronizaciÃƒÂ³n anual</h1>
         <p className="mt-2 text-sm text-blue-900/70">
-          Desde esta interfaz vas a importar la hoja institucional a Supabase. Primero generá la vista previa, revisá los cambios y, cuando estés seguro, confirmá la sincronización.
+          Desde esta interfaz vas a importar la hoja institucional a Supabase. Primero generÃƒÂ¡ la vista previa, revisÃƒÂ¡ los cambios y, cuando estÃƒÂ©s seguro, confirmÃƒÂ¡ la sincronizaciÃƒÂ³n.
         </p>
       </div>
 
       <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold text-blue-900">1. Generar vista previa</h2>
-          <p className="mt-1 text-sm text-blue-900/70">Tomamos la última versión de la hoja de cálculo y te mostramos los cambios detectados.</p>
+          <p className="mt-1 text-sm text-blue-900/70">Tomamos la ÃƒÂºltima versiÃƒÂ³n de la hoja de cÃƒÂ¡lculo y te mostramos los cambios detectados.</p>
         </div>
         <Button onClick={generarVistaPrevia} disabled={loadingPreview} variant="primary">
-          {loadingPreview ? "Procesando…" : "Generar vista previa"}
+          {loadingPreview ? "ProcesandoÃ¢â‚¬Â¦" : "Generar vista previa"}
         </Button>
       </div>
 
@@ -319,13 +319,42 @@ export function AdminSyncPanel() {
                 </ul>
               </div>
             )}
+            {(preview.resumen.proyectosGenerales.activar.length > 0 ||
+              preview.resumen.proyectosGenerales.desactivar.length > 0) && (
+              <div className="mt-4 rounded-lg bg-purple-50 p-4 text-sm text-purple-900">
+                <p className="font-semibold">Cambios en proyectos generales</p>
+                <p className="mt-1 text-xs text-purple-900/70">
+                  Proyectos generales en la hoja: {preview.resumen.proyectosGenerales.enHoja}
+                </p>
+                {preview.resumen.proyectosGenerales.activar.length > 0 && (
+                  <div className="mt-3">
+                    <p className="font-semibold">Se configuraran como generales</p>
+                    <ul className="mt-1 list-disc space-y-1 pl-5">
+                      {preview.resumen.proyectosGenerales.activar.map((nombre) => (
+                        <li key={`general-activar-${nombre}`}>{nombre}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {preview.resumen.proyectosGenerales.desactivar.length > 0 && (
+                  <div className="mt-3">
+                    <p className="font-semibold">Dejaran de ser generales</p>
+                    <ul className="mt-1 list-disc space-y-1 pl-5">
+                      {preview.resumen.proyectosGenerales.desactivar.map((nombre) => (
+                        <li key={`general-desactivar-${nombre}`}>{nombre}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
             {preview.resumen.nuevosGrupos.length > 0 && (
               <div className="mt-4 rounded-lg bg-green-50 p-4 text-sm text-green-900">
                 <p className="font-semibold">Nuevos grupos en la hoja</p>
                 <ul className="mt-2 list-disc space-y-1 pl-5">
                   {preview.resumen.nuevosGrupos.map((item) => (
                     <li key={`${item.grupo}-${item.proyecto ?? "sin-proyecto"}`}>
-                      {item.grupo} {item.proyecto ? `· Proyecto ${item.proyecto}` : "· Sin proyecto asignado"}
+                      {item.grupo} {item.proyecto ? `Ã‚Â· Proyecto ${item.proyecto}` : "Ã‚Â· Sin proyecto asignado"}
                     </li>
                   ))}
                 </ul>
@@ -335,9 +364,9 @@ export function AdminSyncPanel() {
 
           <section className="space-y-4">
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-blue-900">2. Revisá los janijim grupo por grupo</h2>
+              <h2 className="text-lg font-semibold text-blue-900">2. RevisÃƒÂ¡ los janijim grupo por grupo</h2>
               <p className="mt-1 text-sm text-blue-900/70">
-                Verificá los cambios detectados antes de confirmar. Agrupamos las altas, actualizaciones y bajas por cada grupo.
+                VerificÃƒÂ¡ los cambios detectados antes de confirmar. Agrupamos las altas, actualizaciones y bajas por cada grupo.
               </p>
               {gruposConCambios.length === 0 ? (
                 <p className="mt-4 text-sm text-blue-900/70">No encontramos cambios en los grupos cargados en la hoja.</p>
@@ -350,7 +379,7 @@ export function AdminSyncPanel() {
                         <div className="flex flex-wrap gap-2 text-xs text-blue-900/70">
                           {grupo.proyectoNombre ? <Badge>Proyecto {grupo.proyectoNombre}</Badge> : <Badge>Sin proyecto asignado</Badge>}
                           <Badge>{formatCountLabel(grupo.inserts.length, "alta")}</Badge>
-                          <Badge>{formatCountLabel(grupo.updates.length, "actualización")}</Badge>
+                          <Badge>{formatCountLabel(grupo.updates.length, "actualizaciÃƒÂ³n")}</Badge>
                           <Badge>{formatCountLabel(grupo.deactivations.length, "baja")}</Badge>
                         </div>
                       </div>
@@ -374,20 +403,20 @@ export function AdminSyncPanel() {
                                 <ul className="mt-1 list-disc space-y-1 pl-4">
                                   {update.cambios.nombre && (
                                     <li>
-                                      Nombre: {update.cambios.nombre.before ?? "(sin dato)"} → {update.cambios.nombre.after ?? "(sin dato)"}
+                                      Nombre: {update.cambios.nombre.before ?? "(sin dato)"} Ã¢â€ â€™ {update.cambios.nombre.after ?? "(sin dato)"}
                                     </li>
                                   )}
                                   {update.cambios.telMadre && (
                                     <li>
-                                      Tel. madre: {update.cambios.telMadre.before ?? "(sin dato)"} → {update.cambios.telMadre.after ?? "(sin dato)"}
+                                      Tel. madre: {update.cambios.telMadre.before ?? "(sin dato)"} Ã¢â€ â€™ {update.cambios.telMadre.after ?? "(sin dato)"}
                                     </li>
                                   )}
                                   {update.cambios.telPadre && (
                                     <li>
-                                      Tel. padre: {update.cambios.telPadre.before ?? "(sin dato)"} → {update.cambios.telPadre.after ?? "(sin dato)"}
+                                      Tel. padre: {update.cambios.telPadre.before ?? "(sin dato)"} Ã¢â€ â€™ {update.cambios.telPadre.after ?? "(sin dato)"}
                                     </li>
                                   )}
-                                  {update.reactivar && <li className="text-green-700">Se reactivará este janij</li>}
+                                  {update.reactivar && <li className="text-green-700">Se reactivarÃƒÂ¡ este janij</li>}
                                 </ul>
                               </li>
                             ))}
@@ -418,13 +447,13 @@ export function AdminSyncPanel() {
 
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-blue-900">3. Roles y equipos</h2>
-            <p className="mt-1 text-sm text-blue-900/70">Así quedarán los permisos institucionales después de la importación.</p>
+            <p className="mt-1 text-sm text-blue-900/70">AsÃƒÂ­ quedarÃƒÂ¡n los permisos institucionales despuÃƒÂ©s de la importaciÃƒÂ³n.</p>
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               {preview.roles.map((diff) => renderRoleDiff(diff))}
             </div>
             {preview.coordinadores.length > 0 && (
               <div className="mt-6 space-y-4">
-                <h3 className="text-base font-semibold text-blue-900">Asignación de coordinadores</h3>
+                <h3 className="text-base font-semibold text-blue-900">AsignaciÃƒÂ³n de coordinadores</h3>
                 {preview.coordinadores.map((entry) => renderCoordinator(entry))}
               </div>
             )}
@@ -434,14 +463,14 @@ export function AdminSyncPanel() {
             <section className="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-amber-900">Grupos que ya no aparecen en la hoja</h2>
               <p className="mt-1 text-sm text-amber-900/80">
-                Los madrijim y janijim asociados se desactivarán automáticamente para dejar limpia la base del ciclo anterior.
+                Los madrijim y janijim asociados se desactivarÃƒÂ¡n automÃƒÂ¡ticamente para dejar limpia la base del ciclo anterior.
               </p>
               <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-amber-900">
                 {preview.grupos.orfanos.map((grupo) => (
                   <li key={grupo.grupoId}>
                     {grupo.grupoNombre}
                     {grupo.proyectos.length > 0 && (
-                      <span className="ml-2 text-amber-900/70">· {grupo.proyectos.map((p) => p.nombre).join(", ")}</span>
+                      <span className="ml-2 text-amber-900/70">Ã‚Â· {grupo.proyectos.map((p) => p.nombre).join(", ")}</span>
                     )}
                   </li>
                 ))}
@@ -451,13 +480,13 @@ export function AdminSyncPanel() {
 
           <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-blue-900">4. Confirmar importación</h2>
+              <h2 className="text-lg font-semibold text-blue-900">4. Confirmar importaciÃƒÂ³n</h2>
               <p className="mt-1 text-sm text-blue-900/70">
-                Esta acción reemplaza la base nacional con los datos revisados. Podés repetir el proceso cuando recibas una hoja actualizada.
+                Esta acciÃƒÂ³n reemplaza la base nacional con los datos revisados. PodÃƒÂ©s repetir el proceso cuando recibas una hoja actualizada.
               </p>
             </div>
             <Button onClick={confirmarSincronizacion} disabled={committing} variant="secondary">
-              {committing ? "Sincronizando…" : "Confirmar y actualizar"}
+              {committing ? "SincronizandoÃ¢â‚¬Â¦" : "Confirmar y actualizar"}
             </Button>
           </div>
         </div>
@@ -467,3 +496,4 @@ export function AdminSyncPanel() {
     </div>
   );
 }
+

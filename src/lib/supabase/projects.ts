@@ -18,6 +18,7 @@ export type DashboardProyecto = {
   id: string;
   nombre: string;
   creador_id: string | null;
+  appliesToAll: boolean;
   roles: ProyectoAccessScope[];
   grupos: DashboardGrupo[];
 };
@@ -175,16 +176,27 @@ export async function getProyectosParaUsuario(userId: string): Promise<Dashboard
       }
     }
 
-    const grupos = sortProyectos(
-      visibleGroupIds
-        .map((id) => grupoInfo.get(id))
-        .filter((grupo): grupo is DashboardGrupo => Boolean(grupo)),
-    );
+    let grupos: DashboardGrupo[];
+    if (meta.applies_to_all) {
+      grupos = [
+        {
+          id: `general:${meta.id}`,
+          nombre: "Todos los janijim",
+        },
+      ];
+    } else {
+      grupos = sortProyectos(
+        visibleGroupIds
+          .map((id) => grupoInfo.get(id))
+          .filter((grupo): grupo is DashboardGrupo => Boolean(grupo)),
+      );
+    }
 
     proyectos.push({
       id: meta.id,
       nombre: meta.nombre,
       creador_id: meta.creador_id,
+      appliesToAll: Boolean(meta.applies_to_all),
       roles: sortRoles(roles),
       grupos,
     });
@@ -201,7 +213,7 @@ export async function getGrupoIdsForProyecto(userId: string, proyectoId: string)
 export async function renameProyecto(userId: string, id: string, nombre: string) {
   const access = await ensureProyectoAccess(userId, id);
   if (access.scope === "director" || access.scope === "madrij") {
-    throw new AccessDeniedError("No tenés permisos para renombrar este proyecto");
+    throw new AccessDeniedError("No tenÃ©s permisos para renombrar este proyecto");
   }
   const { error } = await supabase
     .from("proyectos")

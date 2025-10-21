@@ -32,6 +32,12 @@ function readCell(row: unknown[], index: number | undefined) {
   return String(value).trim();
 }
 
+function parseBooleanCell(value: string | null) {
+  if (!value) return false;
+  const normalised = normaliseKey(value);
+  return normalised === "true" || normalised === "1" || normalised === "si" || normalised === "sÃ­" || normalised === "yes" || normalised === "x";
+}
+
 function joinNombre(nombre: string | null, apellido: string | null) {
   const parts = [nombre, apellido].filter((part) => Boolean(part && part.trim()));
   if (parts.length === 0) return null;
@@ -141,43 +147,76 @@ export function buildJanijEntries(rows: unknown[][]) {
 
 export type ProyectoSheetEntry = {
   nombre: string;
+  appliesToAll: boolean;
   grupos: string[];
 };
 
-const PROYECTO_HEADERS: Record<string, "proyecto"> = {
+const PROYECTO_HEADERS: Record<string, "proyecto" | "general" | "grupo"> = {
   proyecto: "proyecto",
   nombre: "proyecto",
   "nombre del proyecto": "proyecto",
+  "es general": "general",
+  general: "general",
+  grupo: "grupo",
 };
 
 export function buildProyectoEntries(rows: unknown[][]) {
   if (rows.length === 0) return [] as ProyectoSheetEntry[];
   const [header, ...dataRows] = rows;
 
-  let proyectoIndex: number | undefined;
+  const mapping = {} as Record<"proyecto" | "general" | "grupo", number | undefined>;
   header.forEach((value, index) => {
     const key = PROYECTO_HEADERS[normaliseHeader(String(value))];
-    if (key === "proyecto" && proyectoIndex === undefined) {
-      proyectoIndex = index;
+    if (key && mapping[key] === undefined) {
+      mapping[key] = index;
     }
   });
-  if (proyectoIndex === undefined) {
-    proyectoIndex = 0;
-  }
-  const groupIndexes = header
-    .map((_, index) => index)
-    .filter((index) => index !== proyectoIndex);
 
-  const entries: ProyectoSheetEntry[] = [];
+  const proyectos = new Map<
+    string,
+    {
+      nombre: string;
+      appliesToAll: boolean;
+      grupos: Set<string>;
+    }
+  >();
+
   for (const row of dataRows) {
-    const nombre = readCell(row, proyectoIndex);
+    const nombre = readCell(row, mapping.proyecto);
     if (!nombre) continue;
-    const grupos = groupIndexes
-      .map((index) => readCell(row, index))
-      .filter((value): value is string => Boolean(value && value.trim()));
-    entries.push({ nombre, grupos });
+    const key = normaliseKey(nombre);
+    let entry = proyectos.get(key);
+    if (!entry) {
+      entry = {
+        nombre,
+        appliesToAll: false,
+        grupos: new Set<string>(),
+      };
+      proyectos.set(key, entry);
+    } else if (entry.nombre.trim().length === 0) {
+      entry.nombre = nombre;
+    }
+
+    const isGeneral = parseBooleanCell(readCell(row, mapping.general) ?? null);
+    if (isGeneral) {
+      entry.appliesToAll = true;
+      entry.grupos.clear();
+      continue;
+    }
+
+    if (!entry.appliesToAll) {
+      const grupoNombre = readCell(row, mapping.grupo);
+      if (grupoNombre) {
+        entry.grupos.add(grupoNombre);
+      }
+    }
   }
-  return entries;
+
+  return Array.from(proyectos.values()).map((entry) => ({
+    nombre: entry.nombre,
+    appliesToAll: entry.appliesToAll,
+    grupos: Array.from(entry.grupos),
+  }));
 }
 
 export type CoordinadorSheetEntry = {

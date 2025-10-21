@@ -19,7 +19,25 @@ export type UserAccessContext = {
   madrijProyectoGroups: Map<string, Set<string>>;
 };
 
-async function fetchProyectoGrupoIds(proyectoId: string) {
+type ProyectoScopeInfo = {
+  grupoIds: string[];
+  appliesToAll: boolean;
+};
+
+async function fetchProyectoScopeInfo(proyectoId: string): Promise<ProyectoScopeInfo> {
+  const { data: proyecto, error: proyectoError } = await supabase
+    .from("proyectos")
+    .select("applies_to_all, grupo_id")
+    .eq("id", proyectoId)
+    .maybeSingle();
+
+  if (proyectoError) throw proyectoError;
+
+  const appliesToAll = Boolean(proyecto?.applies_to_all);
+  if (appliesToAll) {
+    return { grupoIds: [], appliesToAll: true };
+  }
+
   const { data, error } = await supabase
     .from("proyecto_grupos")
     .select("grupo_id")
@@ -32,22 +50,15 @@ async function fetchProyectoGrupoIds(proyectoId: string) {
     .filter((id): id is string => Boolean(id));
 
   if (ids.length > 0) {
-    return ids;
+    return { grupoIds: ids, appliesToAll: false };
   }
 
-  const { data: legacy, error: legacyError } = await supabase
-    .from("proyectos")
-    .select("grupo_id")
-    .eq("id", proyectoId)
-    .maybeSingle();
-
-  if (legacyError) throw legacyError;
-
-  if (legacy?.grupo_id) {
-    return [legacy.grupo_id as string];
+  const legacyGrupoId = proyecto?.grupo_id as string | null;
+  if (legacyGrupoId) {
+    return { grupoIds: [legacyGrupoId], appliesToAll: false };
   }
 
-  return [] as string[];
+  return { grupoIds: [], appliesToAll: false };
 }
 
 export async function getUserAccessContext(userId: string): Promise<UserAccessContext> {
@@ -161,6 +172,7 @@ export type ProyectoAccessScope = "admin" | "director" | "coordinador" | "madrij
 export type ProyectoAccess = {
   scope: ProyectoAccessScope;
   grupoIds: string[];
+  appliesToAll: boolean;
 };
 
 export async function ensureProyectoAccess(
@@ -170,23 +182,26 @@ export async function ensureProyectoAccess(
   const context = await getUserAccessContext(userId);
 
   if (context.isAdmin) {
-    return { scope: "admin", grupoIds: await fetchProyectoGrupoIds(proyectoId) };
+    const scope = await fetchProyectoScopeInfo(proyectoId);
+    return { scope: "admin", ...scope };
   }
 
   if (context.isDirector) {
-    return { scope: "director", grupoIds: await fetchProyectoGrupoIds(proyectoId) };
+    const scope = await fetchProyectoScopeInfo(proyectoId);
+    return { scope: "director", ...scope };
   }
 
   if (context.coordinatorProjectIds.has(proyectoId)) {
-    return { scope: "coordinador", grupoIds: await fetchProyectoGrupoIds(proyectoId) };
+    const scope = await fetchProyectoScopeInfo(proyectoId);
+    return { scope: "coordinador", ...scope };
   }
 
   const grupos = context.madrijProyectoGroups.get(proyectoId);
   if (grupos && grupos.size > 0) {
-    return { scope: "madrij", grupoIds: Array.from(grupos) };
+    return { scope: "madrij", grupoIds: Array.from(grupos), appliesToAll: false };
   }
 
-  throw new AccessDeniedError("No tenés acceso a este proyecto");
+  throw new AccessDeniedError("No tenÃ©s acceso a este proyecto");
 }
 
 export async function listAllProyectoIds() {
@@ -202,6 +217,7 @@ export type ProyectoMetadataRow = {
   nombre: string;
   creador_id: string | null;
   grupo_id: string | null;
+  applies_to_all: boolean;
 };
 
 export async function listProyectoMetadata(ids: string[]): Promise<ProyectoMetadataRow[]> {
@@ -211,7 +227,7 @@ export async function listProyectoMetadata(ids: string[]): Promise<ProyectoMetad
 
   const { data, error } = await supabase
     .from("proyectos")
-    .select("id, nombre, creador_id, grupo_id")
+    .select("id, nombre, creador_id, grupo_id, applies_to_all")
     .in("id", ids);
 
   if (error) throw error;
@@ -235,7 +251,7 @@ export async function fetchProyectoGruposByIds(grupoIds: string[]) {
 export async function ensureAdminAccess(userId: string) {
   const context = await getUserAccessContext(userId);
   if (!context.isAdmin) {
-    throw new AccessDeniedError("Solo el administrador de la aplicación puede realizar esta acción");
+    throw new AccessDeniedError("Solo el administrador de la aplicaciÃ³n puede realizar esta acciÃ³n");
   }
   return context;
 }

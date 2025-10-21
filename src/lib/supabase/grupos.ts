@@ -10,7 +10,18 @@ export type Grupo = {
 };
 
 export async function getGruposByProyecto(proyectoId: string, userId: string) {
-  const { grupoIds } = await ensureProyectoAccess(userId, proyectoId);
+  const { grupoIds, appliesToAll } = await ensureProyectoAccess(userId, proyectoId);
+  if (appliesToAll) {
+    return [
+      {
+        id: `general:${proyectoId}`,
+        nombre: "Todos los janijim",
+        spreadsheet_id: null,
+        janij_sheet: null,
+        madrij_sheet: null,
+      },
+    ];
+  }
   if (grupoIds.length === 0) return [] as Grupo[];
 
   const { data, error } = await supabase

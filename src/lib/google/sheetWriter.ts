@@ -31,7 +31,7 @@ function buildMadrijRows(entries: MadrijSheetEntry[]) {
 }
 
 function buildJanijRows(entries: JanijSheetEntry[]) {
-  const header = ["Nombre completo", "Grupo", "Teléfono madre", "Teléfono padre"];
+  const header = ["Nombre completo", "Grupo", "TelÃ©fono madre", "TelÃ©fono padre"];
   const rows = entries.map((entry) => [
     sanitizeCell(entry.nombre),
     sanitizeCell(entry.grupoNombre),
@@ -42,17 +42,25 @@ function buildJanijRows(entries: JanijSheetEntry[]) {
 }
 
 function buildProyectoRows(entries: ProyectoSheetEntry[]) {
-  const maxGrupos = entries.reduce((acc, entry) => Math.max(acc, entry.grupos.length), 0);
-  const header = ["Proyecto", ...Array.from({ length: maxGrupos }, (_, index) => `Grupo ${index + 1}`)];
-  const rows = entries.map((entry) => {
-    const base = [sanitizeCell(entry.nombre)];
-    const grupos = entry.grupos.map((grupo) => sanitizeCell(grupo));
-    const padded = [...grupos];
-    while (padded.length < maxGrupos) {
-      padded.push("");
+  const header = ["Proyecto", "Es General", "Grupo"];
+  const rows: string[][] = [];
+
+  entries.forEach((entry) => {
+    if (entry.appliesToAll) {
+      rows.push([sanitizeCell(entry.nombre), "TRUE", ""]);
+      return;
     }
-    return [...base, ...padded];
+
+    if (entry.grupos.length === 0) {
+      rows.push([sanitizeCell(entry.nombre), "FALSE", ""]);
+      return;
+    }
+
+    entry.grupos.forEach((grupo) => {
+      rows.push([sanitizeCell(entry.nombre), "FALSE", sanitizeCell(grupo)]);
+    });
   });
+
   return [header, ...rows];
 }
 

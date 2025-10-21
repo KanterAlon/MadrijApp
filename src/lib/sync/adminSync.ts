@@ -8,6 +8,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import type { AppRole } from "@/lib/supabase/access";
 import { syncGroupFromSheets, type SyncResult } from "@/lib/sync/sheetsSync";
+import { ensureProyectoRecord } from "@/lib/sync/projectSync";
 import { syncAppRolesFromSheets, type RolesSyncResult } from "@/lib/sync/rolesSync";
 
 const normaliseProjectName = normaliseGroupName;
@@ -101,6 +102,11 @@ export type SyncPreview = {
       desactivar: number;
       reactivar: number;
     };
+    proyectosGenerales: {
+      enHoja: number;
+      activar: string[];
+      desactivar: string[];
+    };
     roles: {
       role: AppRole;
       hoja: number;
@@ -152,7 +158,7 @@ function ensureNombre(nombre: string | null | undefined, fallback: string) {
   return trimmed && trimmed.length > 0 ? trimmed : fallback;
 }
 
-type ProyectoRow = { id: string; nombre: string | null; grupo_id: string | null };
+type ProyectoRow = { id: string; nombre: string | null; grupo_id: string | null; applies_to_all: boolean | null };
 type GrupoRow = { id: string; nombre: string | null };
 type JanijRow = {
   id: string;
@@ -435,6 +441,7 @@ function buildSummary(
   nuevosGrupos: { grupo: string; proyecto: string | null }[],
   roleDiffs: RoleDiffPreview[],
   orphanCount: number,
+  generalStats: { enHoja: number; activar: string[]; desactivar: string[] },
 ) {
   let totalSheet = 0;
   let totalActivos = 0;
@@ -466,6 +473,7 @@ function buildSummary(
       desactivar,
       reactivar,
     },
+    proyectosGenerales: generalStats,
     roles: roleDiffs.map((diff) => ({
       role: diff.role,
       hoja: diff.totalSheet,
@@ -481,7 +489,7 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
   const sheets = options?.data ?? (await loadSheetsData());
 
   const [proyectosRes, gruposRes, janijimRes, rolesRes, coordinatorLinksRes, grupoLinksRes] = await Promise.all([
-    supabase.from("proyectos").select("id, nombre, grupo_id"),
+    supabase.from("proyectos").select("id, nombre, grupo_id, applies_to_all"),
     supabase.from("grupos").select("id, nombre"),
     supabase.from("janijim").select("id, nombre, grupo_id, tel_madre, tel_padre, activo"),
     supabase.from("app_roles").select("id, email, nombre, role, activo"),
@@ -529,9 +537,20 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
       proyectoKey: string | null;
     }
   >();
+  const sheetGeneralKeys = new Set<string>();
+  const generalDisplayByKey = new Map<string, string>();
 
   for (const proyecto of sheets.proyectos) {
     const projectName = proyecto.nombre.trim();
+    if (!projectName) {
+      continue;
+    }
+    const projectKey = normaliseProjectName(projectName);
+    if (proyecto.appliesToAll) {
+      sheetGeneralKeys.add(projectKey);
+      generalDisplayByKey.set(projectKey, projectName);
+      continue;
+    }
     for (const grupoNombre of proyecto.grupos) {
       const trimmed = grupoNombre.trim();
       if (!trimmed) continue;
@@ -540,17 +559,19 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
         sheetGroups.set(key, {
           nombre: trimmed,
           proyectoNombre: projectName || null,
-          proyectoKey: projectName ? normaliseProjectName(projectName) : null,
+          proyectoKey: projectName ? projectKey : null,
         });
       } else {
         const existing = sheetGroups.get(key)!;
         if (!existing.proyectoNombre && projectName) {
           existing.proyectoNombre = projectName;
-          existing.proyectoKey = normaliseProjectName(projectName);
+          existing.proyectoKey = projectKey;
         }
       }
     }
+
   }
+
 
   for (const entry of sheets.madrijes) {
     const key = entry.grupoKey;
@@ -603,6 +624,8 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
   const detalle: GroupJanijPreview[] = [];
   const nuevosProyectos: string[] = [];
   const nuevosGrupos: { grupo: string; proyecto: string | null }[] = [];
+  const generalActivar: string[] = [];
+  const generalDesactivar: string[] = [];
 
   const sortedSheetGroups = Array.from(sheetGroups.entries()).sort((a, b) => {
     const projectA = a[1].proyectoNombre ?? "";
@@ -640,6 +663,33 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
     });
   }
 
+  for (const key of sheetGeneralKeys) {
+    const displayName = generalDisplayByKey.get(key) ?? key;
+    const proyecto = proyectoByKey.get(key) ?? null;
+    if (!proyecto) {
+      nuevosProyectos.push(displayName);
+      continue;
+    }
+    if (!proyecto.applies_to_all) {
+      generalActivar.push(proyecto.nombre ?? displayName);
+    }
+  }
+
+  for (const proyecto of proyectos) {
+    if (!proyecto.nombre) continue;
+    if (proyecto.applies_to_all) {
+      const key = normaliseProjectName(proyecto.nombre);
+      if (!sheetGeneralKeys.has(key)) {
+        generalDesactivar.push(proyecto.nombre ?? key);
+      }
+    }
+  }
+
+  const generalStats = {
+    enHoja: sheetGeneralKeys.size,
+    activar: Array.from(new Set(generalActivar)),
+    desactivar: Array.from(new Set(generalDesactivar)),
+  };
   const orphanGroups: OrphanGroupPreview[] = [];
   for (const grupo of grupos) {
     if (!grupo.nombre) continue;
@@ -699,6 +749,7 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
     nuevosGrupos,
     roleDiffs,
     orphanGroups.length,
+    generalStats,
   );
   resumen.totalProyectosHoja = sheets.proyectos.length;
 
@@ -783,6 +834,18 @@ async function applyPreviewWithSheets(
   sheetsData: SheetsData,
 ): Promise<AdminSyncCommitResult> {
   const processedGroups: AdminSyncCommitResult["grupos"] = [];
+
+  const processedGeneralProjects = new Set<string>();
+  for (const proyecto of sheetsData.proyectos) {
+    if (!proyecto.appliesToAll) continue;
+    const trimmed = proyecto.nombre.trim();
+    if (!trimmed) continue;
+    const key = normaliseProjectName(trimmed);
+    if (processedGeneralProjects.has(key)) continue;
+    processedGeneralProjects.add(key);
+    await ensureProyectoRecord(trimmed, { appliesToAll: true });
+  }
+
   for (const grupo of preview.grupos.detalle) {
     const result = await syncGroupFromSheets(grupo.grupoNombre, {
       expectedGrupoId: grupo.grupoId ?? undefined,
@@ -798,7 +861,24 @@ async function applyPreviewWithSheets(
     cleanupResults.push(cleanup);
   }
 
+  const generalToDisable = Array.from(
+    new Set(
+      preview.resumen.proyectosGenerales.desactivar
+        .map((nombre) => nombre?.trim())
+        .filter((nombre): nombre is string => Boolean(nombre && nombre.length > 0)),
+    ),
+  );
+
+  if (generalToDisable.length > 0) {
+    const { error: disableGeneralError } = await supabase
+      .from("proyectos")
+      .update({ applies_to_all: false })
+      .in("nombre", generalToDisable);
+    if (disableGeneralError) throw disableGeneralError;
+  }
+
   const rolesResult = await syncAppRolesFromSheets(sheetsData);
+
 
   return {
     grupos: processedGroups,
@@ -844,7 +924,7 @@ export async function commitAdminSyncRun(runId: string, adminId: string) {
   if (error) throw error;
   if (!run) throw new Error("Vista previa no encontrada");
   if (run.admin_id !== adminId) {
-    throw new Error("Solo el administrador que generó la vista previa puede confirmarla");
+    throw new Error("Solo el administrador que generÃ³ la vista previa puede confirmarla");
   }
   if (run.status !== "review") {
     throw new Error("Esta vista previa ya fue procesada");
@@ -875,3 +955,4 @@ export async function applySheetsDataDirectly(data: SheetsData) {
   const result = await applyPreviewWithSheets(preview, data);
   return { preview, result };
 }
+

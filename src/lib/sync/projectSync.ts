@@ -2,7 +2,7 @@ import { SYSTEM_CREATOR_ID } from "@/lib/google/config";
 import { normaliseGroupName } from "@/lib/google/sheetData";
 import { supabase } from "@/lib/supabase";
 
-export async function ensureProyectoRecord(nombre: string) {
+export async function ensureProyectoRecord(nombre: string, options?: { appliesToAll?: boolean }) {
   const trimmed = nombre.trim();
   if (!trimmed) {
     throw new Error("El proyecto debe tener un nombre valido");
@@ -12,19 +12,26 @@ export async function ensureProyectoRecord(nombre: string) {
 
   const { data: exactMatches, error: exactError } = await supabase
     .from("proyectos")
-    .select("id, nombre")
+    .select("id, nombre, applies_to_all")
     .eq("nombre", trimmed);
 
   if (exactError) throw exactError;
 
   if (exactMatches && exactMatches.length > 0) {
     const match = exactMatches[0];
+    if (options?.appliesToAll !== undefined && match.applies_to_all !== options.appliesToAll) {
+      const { error: flagError } = await supabase
+        .from("proyectos")
+        .update({ applies_to_all: options.appliesToAll })
+        .eq("id", match.id);
+      if (flagError) throw flagError;
+    }
     return { id: match.id as string, nombre: match.nombre as string };
   }
 
   const { data: allProjects, error: listError } = await supabase
     .from("proyectos")
-    .select("id, nombre");
+    .select("id, nombre, applies_to_all");
 
   if (listError) throw listError;
 
@@ -35,17 +42,23 @@ export async function ensureProyectoRecord(nombre: string) {
   });
 
   if (normalisedMatch) {
+    const updates: Record<string, unknown> = {};
     if ((normalisedMatch.nombre as string) !== trimmed) {
+      updates.nombre = trimmed;
+    }
+    if (options?.appliesToAll !== undefined && normalisedMatch.applies_to_all !== options.appliesToAll) {
+      updates.applies_to_all = options.appliesToAll;
+    }
+    if (Object.keys(updates).length > 0) {
       const { error: updateError } = await supabase
         .from("proyectos")
-        .update({ nombre: trimmed })
+        .update(updates)
         .eq("id", normalisedMatch.id);
       if (updateError) throw updateError;
-      return { id: normalisedMatch.id as string, nombre: trimmed };
     }
     return {
       id: normalisedMatch.id as string,
-      nombre: normalisedMatch.nombre as string,
+      nombre: (updates.nombre as string | undefined) ?? (normalisedMatch.nombre as string),
     };
   }
 
@@ -54,6 +67,7 @@ export async function ensureProyectoRecord(nombre: string) {
     .insert({
       nombre: trimmed,
       creador_id: SYSTEM_CREATOR_ID,
+      applies_to_all: options?.appliesToAll ?? false,
     })
     .select("id, nombre")
     .single();

@@ -20,7 +20,7 @@ async function ensureGrupoRecord(nombre: string, expectedId?: string) {
   const madConfig = getMadrijSheetConfig();
   const trimmed = nombre.trim();
   if (!trimmed) {
-    throw new Error("El grupo debe tener un nombre válido");
+    throw new Error("El grupo debe tener un nombre vÃ¡lido");
   }
 
   if (expectedId) {
@@ -393,7 +393,7 @@ export async function syncGroupFromSheets(
   }
 
   const assignedProjectName = projectAssignments.get(key) ?? displayNombre;
-  const proyecto = await ensureProyectoRecord(assignedProjectName);
+  const proyecto = await ensureProyectoRecord(assignedProjectName, { appliesToAll: false });
   await ensureProyectoGrupoLink(proyecto.id, grupoId);
 
   const madStats = await syncMadrijRecords(grupoId, madEntries);
