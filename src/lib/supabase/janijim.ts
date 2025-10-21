@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { isMissingRelationError } from "@/lib/supabase/errors";
 import {
   AccessDeniedError,
   ensureProyectoAccess,
@@ -79,15 +80,20 @@ export async function getJanijim(proyectoId: string, userId: string) {
   const { grupoIds } = await ensureProyectoAccess(userId, proyectoId);
   if (grupoIds.length === 0) return [];
 
+  const relationName = "janijim_grupos_extra";
   const { data: extraLinks, error: extraError } = await supabase
-    .from("janijim_grupos_extra")
+    .from(relationName)
     .select("janij_id, grupo_id")
     .in("grupo_id", grupoIds);
 
-  if (extraError) throw extraError;
+  const extrasTableAvailable = !extraError || !isMissingRelationError(extraError, relationName);
+  if (extraError && !isMissingRelationError(extraError, relationName)) {
+    throw extraError;
+  }
 
   const extraJanijIds = new Set<string>();
-  for (const row of extraLinks ?? []) {
+  const safeExtraLinks = extrasTableAvailable ? extraLinks : [];
+  for (const row of safeExtraLinks ?? []) {
     const janijId = row?.janij_id as string | null;
     if (janijId) {
       extraJanijIds.add(janijId);
@@ -110,7 +116,9 @@ export async function getJanijim(proyectoId: string, userId: string) {
     return [];
   }
 
-  const selectFields = `${BASE_FIELDS}, grupos_extra:janijim_grupos_extra ( grupo_id, grupo:grupos ( id, nombre ) )`;
+  const selectFields = extrasTableAvailable
+    ? `${BASE_FIELDS}, grupos_extra:janijim_grupos_extra ( grupo_id, grupo:grupos ( id, nombre ) )`
+    : BASE_FIELDS;
   const builder = baseJanijQuery(selectFields);
   builder.or(filterClauses.join(","));
 
