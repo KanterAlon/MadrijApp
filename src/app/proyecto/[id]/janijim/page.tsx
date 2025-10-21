@@ -58,6 +58,7 @@ type Janij = {
   dni: string | null;
   numero_socio: string | null;
   grupo: string | null;
+  grupo_id?: string | null;
   tel_madre: string | null;
   tel_padre: string | null;
   estado: "presente" | "ausente";
@@ -210,7 +211,7 @@ export default function JanijimPage() {
             dni: j.dni ?? null,
             numero_socio: j.numero_socio ?? null,
             grupo: j.grupo ?? null,
-            grupo_id: j.grupo_id as string,
+            grupo_id: (j.grupo_id as string | null) ?? null,
             tel_madre: j.tel_madre ?? null,
             tel_padre: j.tel_padre ?? null,
             estado: "ausente" as const,

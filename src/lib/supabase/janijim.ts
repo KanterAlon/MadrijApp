@@ -4,6 +4,7 @@ import {
   ensureProyectoAccess,
   getUserAccessContext,
 } from "@/lib/supabase/access";
+import { listProjectGroupIds } from "@/lib/supabase/grupos";
 
 export type JanijData = {
   /** Nombre y apellido del janij */
@@ -64,26 +65,43 @@ export type JanijSearchResult = {
   extras?: Record<string, unknown> | null;
 };
 
+const BASE_FIELDS = "id, nombre, dni, numero_socio, grupo, grupo_id, tel_madre, tel_padre, extras";
+
+function baseJanijQuery(select: string, options?: { includeInactive?: boolean }) {
+  const query = supabase.from("janijim").select(select).order("nombre", { ascending: true });
+  if (!options?.includeInactive) {
+    query.eq("activo", true);
+  }
+  return query;
+}
+
 export async function getJanijim(proyectoId: string, userId: string) {
   const { grupoIds, appliesToAll } = await ensureProyectoAccess(userId, proyectoId);
 
-  const query = supabase
-    .from("janijim")
-    .select("id, nombre, dni, numero_socio, grupo, grupo_id, tel_madre, tel_padre, extras")
-    .eq("activo", true)
-    .order("nombre", { ascending: true });
-
   if (appliesToAll) {
-    // A general project represents the entire sheet, so expose every active janij.
-    const { data, error } = await query;
+    const groupIds = await listProjectGroupIds(proyectoId);
+    const builder = baseJanijQuery(BASE_FIELDS, { includeInactive: true });
+
+    if (groupIds.length > 0) {
+      // Include janijim without grupo_id so general projects list the full base.
+      const quotedIds = groupIds.map((id) => `"${id}"`).join(",");
+      builder.or(`grupo_id.is.null,grupo_id.in.(${quotedIds})`);
+    }
+
+    const { data, error } = await builder;
     if (error) throw error;
-    return data;
-  } else {
-    if (grupoIds.length === 0) return [];
-    query.in("grupo_id", grupoIds);
+    return data ?? [];
   }
 
-  const { data, error } = await query;
+  if (grupoIds.length === 0) return [];
+
+  const { data, error } = await baseJanijQuery(BASE_FIELDS).in("grupo_id", grupoIds);
+  if (error) throw error;
+  return data;
+}
+
+export async function getGlobalJanijim(): Promise<JanijRecord[]> {
+  const { data, error } = await baseJanijQuery(`${BASE_FIELDS}, proyecto_id`);
   if (error) throw error;
   return data;
 }

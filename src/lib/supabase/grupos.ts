@@ -92,7 +92,7 @@ export async function getGruposByProyecto(proyectoId: string, userId: string) {
     .filter((grupo): grupo is Grupo => Boolean(grupo));
 }
 
-async function listProjectGroupIds(proyectoId: string) {
+export async function listProjectGroupIds(proyectoId: string) {
   // For projects flagged as general we need the complete universe of groups,
   // because the admin sheet lists the project once with applies_to_all=true.
   const { data: proyectoRow, error: proyectoError } = await supabase
