@@ -153,7 +153,8 @@ export async function POST(request: Request) {
     }
     if (!userId) return null;
     try {
-      const user = await clerkClient.users.getUser(userId);
+      const client = await clerkClient();
+      const user = await client.users.getUser(userId);
       const email = user?.primaryEmailAddress?.emailAddress ?? null;
       if (!email) return null;
       const nombre = user?.fullName?.trim();
