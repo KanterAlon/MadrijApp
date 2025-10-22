@@ -8,7 +8,11 @@ import {
 import { supabase } from "@/lib/supabase";
 import { isMissingRelationError } from "@/lib/supabase/errors";
 import type { AppRole } from "@/lib/supabase/access";
-import { syncGroupFromSheets, type SyncResult } from "@/lib/sync/sheetsSync";
+import {
+  dedupeJanijEntries,
+  syncGroupFromSheets,
+  type SyncResult,
+} from "@/lib/sync/sheetsSync";
 import { syncAppRolesFromSheets, type RolesSyncResult } from "@/lib/sync/rolesSync";
 
 const normaliseProjectName = normaliseGroupName;
@@ -250,7 +254,8 @@ function computeJanijDiff(
   }
 
   const seen = new Set<string>();
-  for (const entry of entries) {
+  const uniqueEntries = dedupeJanijEntries(entries);
+  for (const entry of uniqueEntries) {
     const key = normaliseGroupName(entry.nombre);
     const existingRow = existingMap.get(key);
     if (!existingRow) {

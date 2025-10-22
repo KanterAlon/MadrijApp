@@ -18,6 +18,66 @@ function ensureNombre(value: string | null | undefined, fallback: string) {
   return trimmed && trimmed.length > 0 ? trimmed : fallback;
 }
 
+function pickDetailedValue(
+  current: string | null | undefined,
+  incoming: string | null | undefined,
+): string | null {
+  const currentValue = (current ?? "").trim();
+  const incomingValue = (incoming ?? "").trim();
+  if (incomingValue.length > currentValue.length) {
+    return incomingValue.length > 0 ? incomingValue : null;
+  }
+  if (currentValue.length > 0) {
+    return currentValue;
+  }
+  return incomingValue.length > 0 ? incomingValue : null;
+}
+
+function mergeJanijSheetEntry(base: JanijSheetEntry, extra: JanijSheetEntry): JanijSheetEntry {
+  const extras = new Map<string, { nombre: string; key: string }>();
+  for (const item of base.otrosGrupos) {
+    extras.set(item.key, item);
+  }
+  for (const item of extra.otrosGrupos) {
+    if (!extras.has(item.key)) {
+      extras.set(item.key, item);
+    }
+  }
+
+  const nombre = pickDetailedValue(base.nombre, extra.nombre) ?? base.nombre;
+  const grupoPrincipalNombre =
+    pickDetailedValue(base.grupoPrincipalNombre, extra.grupoPrincipalNombre) ??
+    base.grupoPrincipalNombre;
+
+  return {
+    nombre,
+    grupoPrincipalNombre,
+    grupoPrincipalKey: base.grupoPrincipalKey || extra.grupoPrincipalKey,
+    grupoKey: base.grupoKey ?? extra.grupoKey ?? base.grupoPrincipalKey ?? extra.grupoPrincipalKey,
+    otrosGrupos: Array.from(extras.values()),
+    telMadre: pickDetailedValue(base.telMadre, extra.telMadre),
+    telPadre: pickDetailedValue(base.telPadre, extra.telPadre),
+    numeroSocio: pickDetailedValue(base.numeroSocio, extra.numeroSocio),
+  };
+}
+
+export function dedupeJanijEntries(entries: JanijSheetEntry[]): JanijSheetEntry[] {
+  const byKey = new Map<string, JanijSheetEntry>();
+  for (const entry of entries) {
+    const key = normaliseGroupName(entry.nombre);
+    if (!key) {
+      continue;
+    }
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, { ...entry, otrosGrupos: [...entry.otrosGrupos] });
+    } else {
+      byKey.set(key, mergeJanijSheetEntry(existing, entry));
+    }
+  }
+  return Array.from(byKey.values());
+}
+
 async function ensureGrupoRecord(nombre: string, expectedId?: string) {
   const janijConfig = getJanijSheetConfig();
   const madConfig = getMadrijSheetConfig();
@@ -247,7 +307,9 @@ async function syncJanijRecords(
   grupoNombre: string,
   entries: JanijSheetEntry[],
 ) {
-  if (entries.length === 0) {
+  const uniqueEntries = dedupeJanijEntries(entries);
+
+  if (uniqueEntries.length === 0) {
     const { data: existing } = await supabase
       .from("janijim")
       .select("id")
@@ -285,34 +347,43 @@ async function syncJanijRecords(
   }
 
   const seen = new Set<string>();
-  const updates: {
-    id: string;
-    proyecto_id: string;
-    grupo_id: string;
-    nombre: string;
-    grupo: string;
-    tel_madre: string | null;
-    tel_padre: string | null;
-    numero_socio: string | null;
-    activo: boolean;
-  }[] = [];
-  const inserts: {
-    proyecto_id: string;
-    grupo_id: string;
-    nombre: string;
-    grupo: string;
-    tel_madre: string | null;
-    tel_padre: string | null;
-    numero_socio: string | null;
-    activo: boolean;
-  }[] = [];
+  const updateMap = new Map<
+    string,
+    {
+      id: string;
+      proyecto_id: string;
+      grupo_id: string;
+      nombre: string;
+      grupo: string;
+      tel_madre: string | null;
+      tel_padre: string | null;
+      numero_socio: string | null;
+      activo: boolean;
+    }
+  >();
+  const insertMap = new Map<
+    string,
+    {
+      proyecto_id: string;
+      grupo_id: string;
+      nombre: string;
+      grupo: string;
+      tel_madre: string | null;
+      tel_padre: string | null;
+      numero_socio: string | null;
+      activo: boolean;
+    }
+  >();
 
-  for (const entry of entries) {
+  for (const entry of uniqueEntries) {
     const key = normaliseGroupName(entry.nombre);
+    if (!key) {
+      continue;
+    }
     const existingRow = existingMap.get(key);
-    seen.add(key);
     if (existingRow) {
-      updates.push({
+      seen.add(key);
+      updateMap.set(existingRow.id as string, {
         id: existingRow.id as string,
         proyecto_id: proyectoId,
         grupo_id: grupoId,
@@ -324,7 +395,7 @@ async function syncJanijRecords(
         activo: true,
       });
     } else {
-      inserts.push({
+      insertMap.set(key, {
         proyecto_id: proyectoId,
         grupo_id: grupoId,
         nombre: entry.nombre,
@@ -336,6 +407,9 @@ async function syncJanijRecords(
       });
     }
   }
+
+  const updates = Array.from(updateMap.values());
+  const inserts = Array.from(insertMap.values());
 
   if (inserts.length > 0) {
     const { error: insertError } = await supabase.from("janijim").insert(inserts);
@@ -369,7 +443,9 @@ async function syncJanijRecords(
     if (extrasCleanupError) throw extrasCleanupError;
   }
 
-  const desiredKeys = entries.map((entry) => normaliseGroupName(entry.nombre));
+  const desiredKeys = uniqueEntries
+    .map((entry) => normaliseGroupName(entry.nombre))
+    .filter((value): value is string => value.length > 0);
   const desiredKeySet = new Set(desiredKeys);
   const { data: refreshed, error: refreshedError } = await supabase
     .from("janijim")
@@ -377,7 +453,7 @@ async function syncJanijRecords(
     .eq("grupo_id", grupoId)
     .in(
       "nombre",
-      entries.map((entry) => entry.nombre),
+      uniqueEntries.map((entry) => entry.nombre),
     );
 
   if (refreshedError) throw refreshedError;
@@ -436,8 +512,9 @@ async function syncJanijRecords(
   const extrasToInsert: { janij_id: string; grupo_id: string }[] = [];
   const extrasToDelete: string[] = [];
 
-  for (const entry of entries) {
+  for (const entry of uniqueEntries) {
     const key = normaliseGroupName(entry.nombre);
+    if (!key) continue;
     const janijId = idByKey.get(key);
     if (!janijId) continue;
 
@@ -449,7 +526,7 @@ async function syncJanijRecords(
     const existingExtras = existingExtrasByJanij.get(janijId) ?? [];
     const existingSet = new Set(existingExtras.map((row) => row.grupo_id));
 
-    for (const grupoExtraId of desiredGroupIds) {
+    for (const grupoExtraId of desiredSet) {
       if (!existingSet.has(grupoExtraId)) {
         extrasToInsert.push({ janij_id: janijId, grupo_id: grupoExtraId });
       }
