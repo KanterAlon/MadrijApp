@@ -119,30 +119,41 @@ export async function getJanijim(proyectoId: string, userId: string) {
     }
   }
 
-  const filterClauses: string[] = [];
-  if (grupoIds.length > 0) {
-    const quoted = grupoIds.map((id) => `"${id}"`).join(",");
-    filterClauses.push(`grupo_id.in.(${quoted})`);
-  }
-  if (extraJanijIds.size > 0) {
-    const quotedExtras = Array.from(extraJanijIds)
-      .map((id) => `"${id}"`)
-      .join(",");
-    filterClauses.push(`id.in.(${quotedExtras})`);
-  }
-
-  if (filterClauses.length === 0) {
-    return [];
-  }
-
   const selectFields = extrasTableAvailable
     ? `${BASE_FIELDS}, grupos_extra:janijim_grupos_extra ( grupo_id, grupo:grupos ( id, nombre ) )`
     : BASE_FIELDS;
-  const builder = baseJanijQuery(selectFields);
-  builder.or(filterClauses.join(","));
+  const { data: primaryData, error: primaryError } = await baseJanijQuery(selectFields).in(
+    "grupo_id",
+    grupoIds,
+  );
+  if (primaryError) throw primaryError;
 
-  const { data, error } = await builder;
-  if (error) throw error;
+  const combinedMap = new Map<string, JanijRecord>();
+  for (const row of (primaryData ?? []) as JanijRecord[]) {
+    if (!row || typeof row !== "object" || "error" in row) continue;
+    combinedMap.set(row.id, row);
+  }
+
+  const extrasToFetch = Array.from(extraJanijIds).filter((id) => !combinedMap.has(id));
+  if (extrasToFetch.length > 0) {
+    const CHUNK_SIZE = 100;
+    for (let offset = 0; offset < extrasToFetch.length; offset += CHUNK_SIZE) {
+      const chunk = extrasToFetch.slice(offset, offset + CHUNK_SIZE);
+      const { data: extrasData, error: extrasFetchError } = await baseJanijQuery(selectFields).in(
+        "id",
+        chunk,
+      );
+      if (extrasFetchError) throw extrasFetchError;
+      for (const row of (extrasData ?? []) as JanijRecord[]) {
+        if (!row || typeof row !== "object" || "error" in row) continue;
+        combinedMap.set(row.id, row);
+      }
+    }
+  }
+
+  const data = Array.from(combinedMap.values()).sort((a, b) =>
+    (a.nombre ?? "").localeCompare(b.nombre ?? ""),
+  );
 
   type RawJanijWithExtras = JanijRecord & {
     grupos_extra?: {

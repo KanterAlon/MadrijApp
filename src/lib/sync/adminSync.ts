@@ -11,6 +11,8 @@ import type { AppRole } from "@/lib/supabase/access";
 import {
   dedupeJanijEntries,
   syncGroupFromSheets,
+  syncJanijExtrasFromSheets,
+  type ExtrasSyncStats,
   type SyncResult,
 } from "@/lib/sync/sheetsSync";
 import { syncAppRolesFromSheets, type RolesSyncResult } from "@/lib/sync/rolesSync";
@@ -157,6 +159,7 @@ export type AdminSyncCommitResult = {
     janijimDesactivados: number;
     madrijimDesactivados: number;
   }[];
+  extras: ExtrasSyncStats;
   roles: RolesSyncResult;
 };
 
@@ -236,6 +239,7 @@ function computeJanijDiff(
   existing: JanijRow[],
   entries: JanijSheetEntry[],
   extrasByJanijId: Map<string, { nombre: string; key: string }[]>,
+  options?: { compareExtras?: boolean },
 ): {
   inserts: JanijInsertPreview[];
   updates: JanijUpdatePreview[];
@@ -294,21 +298,23 @@ function computeJanijDiff(
       };
     }
 
-    const existingExtras = extrasByJanijId.get(existingRow.id) ?? [];
-    const existingExtraKeys = new Set(existingExtras.map((extra) => extra.key));
-    const desiredExtras = entry.otrosGrupos;
-    const desiredExtraKeys = new Set(desiredExtras.map((extra) => extra.key));
-    const extrasAgregar = desiredExtras
-      .filter((extra) => !existingExtraKeys.has(extra.key))
-      .map((extra) => extra.nombre);
-    const extrasQuitar = existingExtras
-      .filter((extra) => !desiredExtraKeys.has(extra.key))
-      .map((extra) => extra.nombre);
-    if (extrasAgregar.length > 0 || extrasQuitar.length > 0) {
-      cambios.otrosGrupos = {
-        agregar: extrasAgregar,
-        quitar: extrasQuitar,
-      };
+    if (options?.compareExtras !== false) {
+      const existingExtras = extrasByJanijId.get(existingRow.id) ?? [];
+      const existingExtraKeys = new Set(existingExtras.map((extra) => extra.key));
+      const desiredExtras = entry.otrosGrupos;
+      const desiredExtraKeys = new Set(desiredExtras.map((extra) => extra.key));
+      const extrasAgregar = desiredExtras
+        .filter((extra) => !existingExtraKeys.has(extra.key))
+        .map((extra) => extra.nombre);
+      const extrasQuitar = existingExtras
+        .filter((extra) => !desiredExtraKeys.has(extra.key))
+        .map((extra) => extra.nombre);
+      if (extrasAgregar.length > 0 || extrasQuitar.length > 0) {
+        cambios.otrosGrupos = {
+          agregar: extrasAgregar,
+          quitar: extrasQuitar,
+        };
+      }
     }
     const reactivarRegistro = existingRow.activo === false || existingRow.activo === null;
     if (Object.keys(cambios).length > 0 || reactivarRegistro) {
@@ -676,11 +682,43 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
     }
   }
 
-  const sheetJanijByGroup = groupBy(sheets.janijim, (entry) => entry.grupoPrincipalKey);
+  const sheetJanijPrimaryByGroup = groupBy(sheets.janijim, (entry) => entry.grupoPrincipalKey);
+  const sheetJanijExtrasByGroup = new Map<string, JanijSheetEntry[]>();
+  for (const entry of sheets.janijim) {
+    for (const extra of entry.otrosGrupos) {
+      if (!extra.key) continue;
+      let list = sheetJanijExtrasByGroup.get(extra.key);
+      if (!list) {
+        list = [];
+        sheetJanijExtrasByGroup.set(extra.key, list);
+      }
+      list.push(entry);
+    }
+  }
   const janijByGrupoId = groupBy(
     janijRows,
     (row) => row.grupo_id ?? "",
   );
+  const janijRowById = new Map<string, JanijRow>();
+  for (const row of janijRows) {
+    janijRowById.set(row.id, row);
+  }
+  const extrasExistingByGroupKey = new Map<string, JanijRow[]>();
+  for (const [janijId, extras] of extrasByJanijId.entries()) {
+    const row = janijRowById.get(janijId);
+    if (!row) continue;
+    for (const extra of extras) {
+      const key = extra.key;
+      let list = extrasExistingByGroupKey.get(key);
+      if (!list) {
+        list = [];
+        extrasExistingByGroupKey.set(key, list);
+      }
+      if (!list.some((existing) => existing.id === row.id)) {
+        list.push(row);
+      }
+    }
+  }
   const proyectoByGrupoId = new Map<string, ProyectoRow[]>();
   for (const link of proyectoGrupoLinks ?? []) {
     if (!link.grupo_id) continue;
@@ -723,9 +761,44 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
     if (!grupo) {
       nuevosGrupos.push({ grupo: info.nombre, proyecto: info.proyectoNombre ?? null });
     }
-    const existingJanij = grupo ? janijByGrupoId.get(grupo.id) ?? [] : [];
-    const sheetEntries = sheetJanijByGroup.get(key) ?? [];
-    const diff = computeJanijDiff(existingJanij, sheetEntries, extrasByJanijId);
+    const primaryEntries = sheetJanijPrimaryByGroup.get(key) ?? [];
+    const extraEntries = sheetJanijExtrasByGroup.get(key) ?? [];
+    const existingPrimary = grupo ? janijByGrupoId.get(grupo.id) ?? [] : [];
+    const existingExtras = extrasExistingByGroupKey.get(key) ?? [];
+
+    const primaryDiff = computeJanijDiff(existingPrimary, primaryEntries, extrasByJanijId, {
+      compareExtras: false,
+    });
+    const extrasDiff = computeJanijDiff(existingExtras, extraEntries, extrasByJanijId, {
+      compareExtras: true,
+    });
+
+    const combinedInserts = [...primaryDiff.inserts, ...extrasDiff.inserts];
+    const combinedUpdates = [...primaryDiff.updates, ...extrasDiff.updates];
+    const combinedDeactivations = [...primaryDiff.deactivations, ...extrasDiff.deactivations];
+
+    const totalSheet = primaryEntries.length + extraEntries.length;
+    const activeIds = new Set<string>();
+    let totalActualActivos = 0;
+    for (const row of existingPrimary) {
+      if (row.activo !== false && row.id) {
+        const id = row.id;
+        if (!activeIds.has(id)) {
+          activeIds.add(id);
+          totalActualActivos += 1;
+        }
+      }
+    }
+    for (const row of existingExtras) {
+      if (row.activo !== false && row.id) {
+        const id = row.id;
+        if (!activeIds.has(id)) {
+          activeIds.add(id);
+          totalActualActivos += 1;
+        }
+      }
+    }
+
     detalle.push({
       grupoKey: key,
       grupoId: grupo?.id ?? null,
@@ -734,11 +807,11 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
       proyectoNombre: info.proyectoNombre ?? proyecto?.nombre ?? null,
       esGrupoNuevo: !grupo,
       esProyectoNuevo: info.proyectoKey ? !proyecto : false,
-      totalSheet: sheetEntries.length,
-      totalActualActivos: existingJanij.filter((row) => row.activo !== false).length,
-      inserts: diff.inserts,
-      updates: diff.updates,
-      deactivations: diff.deactivations,
+      totalSheet,
+      totalActualActivos,
+      inserts: combinedInserts,
+      updates: combinedUpdates,
+      deactivations: combinedDeactivations,
     });
   }
 
@@ -901,12 +974,13 @@ async function applyPreviewWithSheets(
     cleanupResults.push(cleanup);
   }
 
+  const extrasResult = await syncJanijExtrasFromSheets(sheetsData);
   const rolesResult = await syncAppRolesFromSheets(sheetsData);
-
 
   return {
     grupos: processedGroups,
     limpieza: cleanupResults,
+    extras: extrasResult,
     roles: rolesResult,
   };
 }

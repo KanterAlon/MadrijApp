@@ -10,7 +10,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { isMissingRelationError } from "@/lib/supabase/errors";
 import { ensureProyectoRecord, ensureProyectoGrupoLink } from "@/lib/sync/projectSync";
-import { withJanijExtras, type JanijExtraGroup } from "@/lib/sync/janijExtras";
+import { parseJanijExtras, withJanijExtras, type JanijExtraGroup } from "@/lib/sync/janijExtras";
 
 const JANIIJ_EXTRAS_RELATION = "janijim_grupos_extra";
 
@@ -322,14 +322,6 @@ async function syncJanijRecords(
     if (ids.length > 0) {
       const { error } = await supabase.from("janijim").update({ activo: false }).in("id", ids);
       if (error) throw error;
-
-      const { error: extrasError } = await supabase
-        .from(JANIIJ_EXTRAS_RELATION)
-        .delete()
-        .in("janij_id", ids);
-      if (extrasError && !isMissingRelationError(extrasError, JANIIJ_EXTRAS_RELATION)) {
-        throw extrasError;
-      }
     }
 
     return { inserted: 0, updated: 0, deactivated: ids.length };
@@ -358,7 +350,6 @@ async function syncJanijRecords(
     tel_padre: string | null;
     numero_socio: string | null;
     activo: boolean;
-    extras?: Record<string, unknown> | null;
   };
   type JanijInsertPayload = {
     proyecto_id: string;
@@ -369,11 +360,9 @@ async function syncJanijRecords(
     tel_padre: string | null;
     numero_socio: string | null;
     activo: boolean;
-    extras?: Record<string, unknown> | null;
   };
   const updateMap = new Map<string, JanijUpdatePayload>();
   const insertMap = new Map<string, JanijInsertPayload>();
-  let extrasMissing = false;
 
   for (const entry of uniqueEntries) {
     const key = normaliseGroupName(entry.nombre);
@@ -383,8 +372,6 @@ async function syncJanijRecords(
     const existingRow = existingMap.get(key);
     if (existingRow) {
       seen.add(key);
-      const existingExtrasJson =
-        (existingRow as { extras?: Record<string, unknown> | null })?.extras ?? null;
       const payload: JanijUpdatePayload = {
         id: existingRow.id as string,
         proyecto_id: proyectoId,
@@ -396,9 +383,6 @@ async function syncJanijRecords(
         numero_socio: entry.numeroSocio,
         activo: true,
       };
-      if (extrasMissing) {
-        payload.extras = withJanijExtras(existingExtrasJson, desiredExtrasMetadata);
-      }
       updateMap.set(existingRow.id as string, payload);
     } else {
       const payload: JanijInsertPayload = {
@@ -411,9 +395,6 @@ async function syncJanijRecords(
         numero_socio: entry.numeroSocio,
         activo: true,
       };
-      if (extrasMissing) {
-        payload.extras = withJanijExtras(null, desiredExtrasMetadata);
-      }
       insertMap.set(key, payload);
     }
   }
@@ -440,149 +421,11 @@ async function syncJanijRecords(
   const deactivateIds = toDeactivate.map((row) => row.id as string);
 
   if (deactivateIds.length > 0) {
-    const deactivatePayload: { activo: boolean; extras?: null } = { activo: false };
-    if (extrasMissing) {
-      deactivatePayload.extras = null;
-    }
     const { error: deactivateError } = await supabase
       .from("janijim")
-      .update(deactivatePayload)
+      .update({ activo: false })
       .in("id", deactivateIds);
     if (deactivateError) throw deactivateError;
-
-    const { error: extrasCleanupError } = await supabase
-      .from(JANIIJ_EXTRAS_RELATION)
-      .delete()
-      .in("janij_id", deactivateIds);
-    if (extrasCleanupError && !isMissingRelationError(extrasCleanupError, JANIIJ_EXTRAS_RELATION)) {
-      throw extrasCleanupError;
-    }
-  }
-
-  const desiredKeys = uniqueEntries
-    .map((entry) => normaliseGroupName(entry.nombre))
-    .filter((value): value is string => value.length > 0);
-  const desiredKeySet = new Set(desiredKeys);
-  const { data: refreshed, error: refreshedError } = await supabase
-    .from("janijim")
-    .select("id, nombre")
-    .eq("grupo_id", grupoId)
-    .in(
-      "nombre",
-      uniqueEntries.map((entry) => entry.nombre),
-    );
-
-  if (refreshedError) throw refreshedError;
-
-  const idByKey = new Map<string, string>();
-  for (const row of refreshed ?? []) {
-    const nombre = row.nombre as string | null;
-    if (!nombre) continue;
-    const key = normaliseGroupName(nombre);
-    if (!desiredKeySet.has(key)) continue;
-    idByKey.set(key, row.id as string);
-  }
-
-  const janijIds = Array.from(idByKey.values());
-
-  const extraGroupNames = new Map<string, string>();
-  for (const entry of entries) {
-    for (const extra of entry.otrosGrupos) {
-      if (!extraGroupNames.has(extra.key)) {
-        extraGroupNames.set(extra.key, extra.nombre);
-      }
-    }
-  }
-
-  const extraGroupIdByKey = new Map<string, string>();
-  for (const [key, nombre] of extraGroupNames.entries()) {
-    const groupId = await ensureGrupoRecord(nombre);
-    extraGroupIdByKey.set(key, groupId);
-  }
-
-  const existingExtrasByJanij = new Map<string, { id: string; grupo_id: string }[]>();
-  if (janijIds.length > 0) {
-    const { data: extrasRows, error: extrasError } = await supabase
-      .from(JANIIJ_EXTRAS_RELATION)
-      .select("id, janij_id, grupo_id")
-      .in("janij_id", janijIds);
-
-    extrasMissing = Boolean(
-      extrasError && isMissingRelationError(extrasError, JANIIJ_EXTRAS_RELATION),
-    );
-    if (extrasError && !extrasMissing) throw extrasError;
-
-    for (const row of (extrasMissing ? [] : extrasRows ?? [])) {
-      const janijId = row.janij_id as string | null;
-      const grupo = row.grupo_id as string | null;
-      if (!janijId || !grupo) continue;
-      let list = existingExtrasByJanij.get(janijId);
-      if (!list) {
-        list = [];
-        existingExtrasByJanij.set(janijId, list);
-      }
-      list.push({ id: row.id as string, grupo_id: grupo });
-    }
-  }
-
-  const extrasToInsert: { janij_id: string; grupo_id: string }[] = [];
-  const extrasToDelete: string[] = [];
-
-  for (const entry of uniqueEntries) {
-    const key = normaliseGroupName(entry.nombre);
-    if (!key) continue;
-    const janijId = idByKey.get(key);
-    if (!janijId) continue;
-
-    const extrasSeenForJanij = new Set<string>();
-    const desiredExtrasMetadata: JanijExtraGroup[] = [];
-    for (const extra of entry.otrosGrupos) {
-      const groupId = extraGroupIdByKey.get(extra.key);
-      if (!groupId || extrasSeenForJanij.has(groupId)) {
-        continue;
-      }
-      extrasSeenForJanij.add(groupId);
-      const nombre =
-        extraGroupNames.get(extra.key) ??
-        (typeof extra.nombre === "string" && extra.nombre.trim().length > 0 ? extra.nombre : null);
-      desiredExtrasMetadata.push({ id: groupId, nombre: nombre ?? null });
-    }
-    const desiredGroupIds = Array.from(extrasSeenForJanij);
-    const desiredSet = new Set(desiredGroupIds);
-
-    const existingExtras = existingExtrasByJanij.get(janijId) ?? [];
-    const existingSet = new Set(existingExtras.map((row) => row.grupo_id));
-
-    for (const grupoExtraId of desiredSet) {
-      if (!existingSet.has(grupoExtraId)) {
-        extrasToInsert.push({ janij_id: janijId, grupo_id: grupoExtraId });
-      }
-    }
-
-    for (const row of existingExtras) {
-      if (!desiredSet.has(row.grupo_id)) {
-        extrasToDelete.push(row.id);
-      }
-    }
-  }
-
-  if (!extrasMissing && extrasToInsert.length > 0) {
-    const { error: insertExtrasError } = await supabase
-      .from(JANIIJ_EXTRAS_RELATION)
-      .insert(extrasToInsert);
-    if (insertExtrasError && !isMissingRelationError(insertExtrasError, JANIIJ_EXTRAS_RELATION)) {
-      throw insertExtrasError;
-    }
-  }
-
-  if (!extrasMissing && extrasToDelete.length > 0) {
-    const { error: deleteExtrasError } = await supabase
-      .from(JANIIJ_EXTRAS_RELATION)
-      .delete()
-      .in("id", extrasToDelete);
-    if (deleteExtrasError && !isMissingRelationError(deleteExtrasError, JANIIJ_EXTRAS_RELATION)) {
-      throw deleteExtrasError;
-    }
   }
 
   return {
@@ -638,5 +481,238 @@ export async function syncGroupFromSheets(
     proyectoNombre: proyecto.nombre,
     madrijim: madStats,
     janijim: janStats,
+  };
+}
+
+export type ExtrasSyncStats = {
+  inserted: number;
+  deleted: number;
+  jsonUpdated: number;
+};
+
+export async function syncJanijExtrasFromSheets(data: SheetsData): Promise<ExtrasSyncStats> {
+  const desiredExtrasByJanKey = new Map<string, Set<string>>();
+  const grupoNombreByKey = new Map<string, string>();
+
+  for (const entry of data.janijim) {
+    const janKey = normaliseGroupName(entry.nombre);
+    if (!janKey) continue;
+    let desired = desiredExtrasByJanKey.get(janKey);
+    if (!desired) {
+      desired = new Set<string>();
+      desiredExtrasByJanKey.set(janKey, desired);
+    }
+    for (const extra of entry.otrosGrupos) {
+      if (!extra.key) continue;
+      desired.add(extra.key);
+      if (!grupoNombreByKey.has(extra.key)) {
+        grupoNombreByKey.set(extra.key, extra.nombre);
+      }
+    }
+  }
+
+  const { data: grupoRows, error: grupoError } = await supabase
+    .from("grupos")
+    .select("id, nombre");
+  if (grupoError) throw grupoError;
+
+  const groupIdByKey = new Map<string, string>();
+  for (const row of grupoRows ?? []) {
+    const nombre = row?.nombre as string | null;
+    const id = row?.id as string | null;
+    if (!nombre || !id) continue;
+    const key = normaliseGroupName(nombre);
+    if (!key) continue;
+    groupIdByKey.set(key, id);
+  }
+
+  for (const [key, nombre] of grupoNombreByKey.entries()) {
+    if (!groupIdByKey.has(key)) {
+      const ensuredId = await ensureGrupoRecord(nombre);
+      groupIdByKey.set(key, ensuredId);
+    }
+  }
+
+  const groupKeyById = new Map<string, string>();
+  for (const [key, id] of groupIdByKey.entries()) {
+    groupKeyById.set(id, key);
+  }
+
+  const { data: janijRows, error: janijError } = await supabase
+    .from("janijim")
+    .select("id, nombre, extras");
+  if (janijError) throw janijError;
+
+  const janIdByKey = new Map<string, string>();
+  const extrasJsonByJanId = new Map<string, Record<string, unknown> | null>();
+  for (const row of janijRows ?? []) {
+    const id = row?.id as string | null;
+    const nombre = row?.nombre as string | null;
+    if (!id || !nombre) continue;
+    const key = normaliseGroupName(nombre);
+    if (!key) continue;
+    if (!janIdByKey.has(key)) {
+      janIdByKey.set(key, id);
+    }
+    extrasJsonByJanId.set(id, (row?.extras as Record<string, unknown> | null) ?? null);
+  }
+
+  const { data: extrasRows, error: extrasError } = await supabase
+    .from(JANIIJ_EXTRAS_RELATION)
+    .select("id, janij_id, grupo_id");
+  let extrasMissing = false;
+  let safeExtrasRows = extrasRows ?? [];
+  if (extrasError) {
+    if (isMissingRelationError(extrasError, JANIIJ_EXTRAS_RELATION)) {
+      extrasMissing = true;
+      safeExtrasRows = [];
+    } else {
+      throw extrasError;
+    }
+  }
+
+  const existingExtraIdsByJanId = new Map<string, Set<string>>();
+  const extraRowIdsByJanId = new Map<string, { rowId: string; groupId: string }[]>();
+
+  if (!extrasMissing) {
+    for (const row of safeExtrasRows) {
+      const janijId = row?.janij_id as string | null;
+      const grupoId = row?.grupo_id as string | null;
+      const rowId = row?.id as string | null;
+      if (!janijId || !grupoId || !rowId) continue;
+      let set = existingExtraIdsByJanId.get(janijId);
+      if (!set) {
+        set = new Set<string>();
+        existingExtraIdsByJanId.set(janijId, set);
+      }
+      set.add(grupoId);
+      let list = extraRowIdsByJanId.get(janijId);
+      if (!list) {
+        list = [];
+        extraRowIdsByJanId.set(janijId, list);
+      }
+      list.push({ rowId, groupId: grupoId });
+    }
+  } else {
+    for (const row of janijRows ?? []) {
+      const janijId = row?.id as string | null;
+      if (!janijId) continue;
+      const parsed = parseJanijExtras(row?.extras ?? null);
+      if (parsed.length === 0) continue;
+      let set = existingExtraIdsByJanId.get(janijId);
+      if (!set) {
+        set = new Set<string>();
+        existingExtraIdsByJanId.set(janijId, set);
+      }
+      for (const extra of parsed) {
+        if (extra.id) {
+          set.add(extra.id);
+        }
+      }
+    }
+  }
+
+  const extrasToInsert: { janij_id: string; grupo_id: string }[] = [];
+  const extrasRowIdsToDelete: string[] = [];
+  const extrasJsonUpdateMap = new Map<string, Record<string, unknown> | null>();
+  const processedJanIds = new Set<string>();
+
+  const normaliseJson = (value: Record<string, unknown> | null) =>
+    value ? JSON.stringify(value) : null;
+
+  for (const [janKey, desiredKeySet] of desiredExtrasByJanKey.entries()) {
+    const janId = janIdByKey.get(janKey);
+    if (!janId) continue;
+    processedJanIds.add(janId);
+
+    const desiredGroupIds = Array.from(desiredKeySet)
+      .map((key) => groupIdByKey.get(key))
+      .filter((id): id is string => Boolean(id));
+    const desiredSet = new Set(desiredGroupIds);
+
+    const existingSet = existingExtraIdsByJanId.get(janId) ?? new Set<string>();
+
+    if (!extrasMissing) {
+      for (const grupoId of desiredSet) {
+        if (!existingSet.has(grupoId)) {
+          extrasToInsert.push({ janij_id: janId, grupo_id: grupoId });
+        }
+      }
+      const existingRows = extraRowIdsByJanId.get(janId) ?? [];
+      for (const row of existingRows) {
+        if (!desiredSet.has(row.groupId)) {
+          extrasRowIdsToDelete.push(row.rowId);
+        }
+      }
+    }
+
+    const currentJson = extrasJsonByJanId.get(janId) ?? null;
+
+    if (extrasMissing) {
+      const desiredExtrasMetadata: JanijExtraGroup[] = desiredGroupIds.map((grupoId) => {
+        const keyForId = groupKeyById.get(grupoId);
+        const nombre = keyForId ? grupoNombreByKey.get(keyForId) ?? null : null;
+        return { id: grupoId, nombre };
+      });
+      const nextJson = withJanijExtras(currentJson, desiredExtrasMetadata);
+      if (normaliseJson(currentJson) !== normaliseJson(nextJson)) {
+        extrasJsonUpdateMap.set(janId, nextJson);
+      }
+    } else if (currentJson) {
+      const nextJson = withJanijExtras(currentJson, []);
+      if (normaliseJson(currentJson) !== normaliseJson(nextJson)) {
+        extrasJsonUpdateMap.set(janId, nextJson);
+      }
+    }
+  }
+
+  if (!extrasMissing) {
+    for (const [janId, existingRows] of extraRowIdsByJanId.entries()) {
+      if (processedJanIds.has(janId)) continue;
+      for (const row of existingRows) {
+        extrasRowIdsToDelete.push(row.rowId);
+      }
+    }
+  } else {
+    for (const [janId] of existingExtraIdsByJanId.entries()) {
+      if (processedJanIds.has(janId)) continue;
+      const currentJson = extrasJsonByJanId.get(janId) ?? null;
+      if (!currentJson) continue;
+      const nextJson = withJanijExtras(currentJson, []);
+      if (normaliseJson(currentJson) !== normaliseJson(nextJson)) {
+        extrasJsonUpdateMap.set(janId, nextJson);
+      }
+    }
+  }
+
+  if (!extrasMissing && extrasToInsert.length > 0) {
+    const { error: insertError } = await supabase
+      .from(JANIIJ_EXTRAS_RELATION)
+      .insert(extrasToInsert);
+    if (insertError) throw insertError;
+  }
+
+  if (!extrasMissing && extrasRowIdsToDelete.length > 0) {
+    const { error: deleteError } = await supabase
+      .from(JANIIJ_EXTRAS_RELATION)
+      .delete()
+      .in("id", extrasRowIdsToDelete);
+    if (deleteError) throw deleteError;
+  }
+
+  const extrasJsonUpdates = Array.from(extrasJsonUpdateMap.entries());
+
+  for (const [id, extras] of extrasJsonUpdates) {
+    const { error: updateJsonError } = await supabase
+      .from("janijim")
+      .update({ extras })
+      .eq("id", id);
+    if (updateJsonError) throw updateJsonError;
+  }
+
+  return {
+    inserted: extrasToInsert.length,
+    deleted: extrasRowIdsToDelete.length,
+    jsonUpdated: extrasJsonUpdates.length,
   };
 }

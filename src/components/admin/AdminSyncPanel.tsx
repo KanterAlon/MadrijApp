@@ -208,6 +208,9 @@ export function AdminSyncPanel() {
     const totalBajas = result.grupos.reduce((acc, item) => acc + item.deactivated, 0);
     const totalMadAltas = result.grupos.reduce((acc, item) => acc + item.madrijInserted, 0);
     const totalMadBajas = result.grupos.reduce((acc, item) => acc + item.madrijDeactivated, 0);
+    const extrasAltas = result.extras.inserted;
+    const extrasBajas = result.extras.deleted;
+    const extrasJson = result.extras.jsonUpdated;
 
     return (
       <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
@@ -215,7 +218,7 @@ export function AdminSyncPanel() {
         <p className="mt-1 text-sm text-blue-900/70">
           Asi quedaran los permisos institucionales despues de la importacion.
         </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-lg bg-white p-4 shadow">
             <h3 className="text-sm font-semibold text-blue-900">Janijim</h3>
             <p className="mt-2 text-sm text-blue-900/70">
@@ -232,6 +235,17 @@ export function AdminSyncPanel() {
             <h3 className="text-sm font-semibold text-blue-900">Roles</h3>
             <p className="mt-2 text-sm text-blue-900/70">
               Coordinadores sincronizados: {result.roles.coordinadoresProyectos.upserted} enlaces nuevos, {result.roles.coordinadoresProyectos.removed} removidos.
+            </p>
+          </div>
+          <div className="rounded-lg bg-white p-4 shadow">
+            <h3 className="text-sm font-semibold text-blue-900">Otros grupos</h3>
+            <p className="mt-2 text-sm text-blue-900/70">
+              {formatCountLabel(extrasAltas, "vinculo agregado")} y {formatCountLabel(extrasBajas, "vinculo removido")} en proyectos secundarios.
+              {extrasJson > 0 && (
+                <span className="block">
+                  {formatCountLabel(extrasJson, "registro")} actualizado en el respaldo JSON.
+                </span>
+              )}
             </p>
           </div>
         </div>
