@@ -57,7 +57,6 @@ export async function ensureProyectoRecord(nombre: string) {
     .insert({
       nombre: trimmed,
       creador_id: SYSTEM_CREATOR_ID,
-      applies_to_all: false,
     })
     .select("id, nombre")
     .single();

@@ -10,6 +10,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { isMissingRelationError } from "@/lib/supabase/errors";
 import { ensureProyectoRecord, ensureProyectoGrupoLink } from "@/lib/sync/projectSync";
+import { withJanijExtras, type JanijExtraGroup } from "@/lib/sync/janijExtras";
 
 const JANIIJ_EXTRAS_RELATION = "janijim_grupos_extra";
 
@@ -336,7 +337,7 @@ async function syncJanijRecords(
 
   const { data: existing, error } = await supabase
     .from("janijim")
-    .select("id, nombre, activo")
+    .select("id, nombre, activo, extras")
     .eq("grupo_id", grupoId);
 
   if (error) throw error;
@@ -347,33 +348,32 @@ async function syncJanijRecords(
   }
 
   const seen = new Set<string>();
-  const updateMap = new Map<
-    string,
-    {
-      id: string;
-      proyecto_id: string;
-      grupo_id: string;
-      nombre: string;
-      grupo: string;
-      tel_madre: string | null;
-      tel_padre: string | null;
-      numero_socio: string | null;
-      activo: boolean;
-    }
-  >();
-  const insertMap = new Map<
-    string,
-    {
-      proyecto_id: string;
-      grupo_id: string;
-      nombre: string;
-      grupo: string;
-      tel_madre: string | null;
-      tel_padre: string | null;
-      numero_socio: string | null;
-      activo: boolean;
-    }
-  >();
+  type JanijUpdatePayload = {
+    id: string;
+    proyecto_id: string;
+    grupo_id: string;
+    nombre: string;
+    grupo: string;
+    tel_madre: string | null;
+    tel_padre: string | null;
+    numero_socio: string | null;
+    activo: boolean;
+    extras?: Record<string, unknown> | null;
+  };
+  type JanijInsertPayload = {
+    proyecto_id: string;
+    grupo_id: string;
+    nombre: string;
+    grupo: string;
+    tel_madre: string | null;
+    tel_padre: string | null;
+    numero_socio: string | null;
+    activo: boolean;
+    extras?: Record<string, unknown> | null;
+  };
+  const updateMap = new Map<string, JanijUpdatePayload>();
+  const insertMap = new Map<string, JanijInsertPayload>();
+  let extrasMissing = false;
 
   for (const entry of uniqueEntries) {
     const key = normaliseGroupName(entry.nombre);
@@ -383,7 +383,9 @@ async function syncJanijRecords(
     const existingRow = existingMap.get(key);
     if (existingRow) {
       seen.add(key);
-      updateMap.set(existingRow.id as string, {
+      const existingExtrasJson =
+        (existingRow as { extras?: Record<string, unknown> | null })?.extras ?? null;
+      const payload: JanijUpdatePayload = {
         id: existingRow.id as string,
         proyecto_id: proyectoId,
         grupo_id: grupoId,
@@ -393,9 +395,13 @@ async function syncJanijRecords(
         tel_padre: entry.telPadre,
         numero_socio: entry.numeroSocio,
         activo: true,
-      });
+      };
+      if (extrasMissing) {
+        payload.extras = withJanijExtras(existingExtrasJson, desiredExtrasMetadata);
+      }
+      updateMap.set(existingRow.id as string, payload);
     } else {
-      insertMap.set(key, {
+      const payload: JanijInsertPayload = {
         proyecto_id: proyectoId,
         grupo_id: grupoId,
         nombre: entry.nombre,
@@ -404,7 +410,11 @@ async function syncJanijRecords(
         tel_padre: entry.telPadre,
         numero_socio: entry.numeroSocio,
         activo: true,
-      });
+      };
+      if (extrasMissing) {
+        payload.extras = withJanijExtras(null, desiredExtrasMetadata);
+      }
+      insertMap.set(key, payload);
     }
   }
 
@@ -430,17 +440,23 @@ async function syncJanijRecords(
   const deactivateIds = toDeactivate.map((row) => row.id as string);
 
   if (deactivateIds.length > 0) {
+    const deactivatePayload: { activo: boolean; extras?: null } = { activo: false };
+    if (extrasMissing) {
+      deactivatePayload.extras = null;
+    }
     const { error: deactivateError } = await supabase
       .from("janijim")
-      .update({ activo: false })
+      .update(deactivatePayload)
       .in("id", deactivateIds);
     if (deactivateError) throw deactivateError;
 
     const { error: extrasCleanupError } = await supabase
-      .from("janijim_grupos_extra")
+      .from(JANIIJ_EXTRAS_RELATION)
       .delete()
       .in("janij_id", deactivateIds);
-    if (extrasCleanupError) throw extrasCleanupError;
+    if (extrasCleanupError && !isMissingRelationError(extrasCleanupError, JANIIJ_EXTRAS_RELATION)) {
+      throw extrasCleanupError;
+    }
   }
 
   const desiredKeys = uniqueEntries
@@ -491,7 +507,7 @@ async function syncJanijRecords(
       .select("id, janij_id, grupo_id")
       .in("janij_id", janijIds);
 
-    const extrasMissing = Boolean(
+    extrasMissing = Boolean(
       extrasError && isMissingRelationError(extrasError, JANIIJ_EXTRAS_RELATION),
     );
     if (extrasError && !extrasMissing) throw extrasError;
@@ -518,9 +534,20 @@ async function syncJanijRecords(
     const janijId = idByKey.get(key);
     if (!janijId) continue;
 
-    const desiredGroupIds = entry.otrosGrupos
-      .map((extra) => extraGroupIdByKey.get(extra.key))
-      .filter((value): value is string => Boolean(value));
+    const extrasSeenForJanij = new Set<string>();
+    const desiredExtrasMetadata: JanijExtraGroup[] = [];
+    for (const extra of entry.otrosGrupos) {
+      const groupId = extraGroupIdByKey.get(extra.key);
+      if (!groupId || extrasSeenForJanij.has(groupId)) {
+        continue;
+      }
+      extrasSeenForJanij.add(groupId);
+      const nombre =
+        extraGroupNames.get(extra.key) ??
+        (typeof extra.nombre === "string" && extra.nombre.trim().length > 0 ? extra.nombre : null);
+      desiredExtrasMetadata.push({ id: groupId, nombre: nombre ?? null });
+    }
+    const desiredGroupIds = Array.from(extrasSeenForJanij);
     const desiredSet = new Set(desiredGroupIds);
 
     const existingExtras = existingExtrasByJanij.get(janijId) ?? [];
@@ -539,7 +566,7 @@ async function syncJanijRecords(
     }
   }
 
-  if (extrasToInsert.length > 0) {
+  if (!extrasMissing && extrasToInsert.length > 0) {
     const { error: insertExtrasError } = await supabase
       .from(JANIIJ_EXTRAS_RELATION)
       .insert(extrasToInsert);
@@ -548,7 +575,7 @@ async function syncJanijRecords(
     }
   }
 
-  if (extrasToDelete.length > 0) {
+  if (!extrasMissing && extrasToDelete.length > 0) {
     const { error: deleteExtrasError } = await supabase
       .from(JANIIJ_EXTRAS_RELATION)
       .delete()

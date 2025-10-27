@@ -14,6 +14,7 @@ import {
   type SyncResult,
 } from "@/lib/sync/sheetsSync";
 import { syncAppRolesFromSheets, type RolesSyncResult } from "@/lib/sync/rolesSync";
+import { parseJanijExtras } from "@/lib/sync/janijExtras";
 
 const normaliseProjectName = normaliseGroupName;
 
@@ -175,6 +176,7 @@ type JanijRow = {
   tel_padre: string | null;
   numero_socio: string | null;
   activo: boolean | null;
+  extras?: Record<string, unknown> | null;
 };
 type RoleRow = {
   id: string;
@@ -530,7 +532,7 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
       supabase.from("grupos").select("id, nombre"),
       supabase
         .from("janijim")
-        .select("id, nombre, grupo_id, proyecto_id, tel_madre, tel_padre, numero_socio, activo"),
+        .select("id, nombre, grupo_id, proyecto_id, tel_madre, tel_padre, numero_socio, activo, extras"),
       supabase.from("app_roles").select("id, email, nombre, role, activo"),
       supabase.from("proyecto_coordinadores").select("role_id, proyecto_id"),
       supabase.from("proyecto_grupos").select("proyecto_id, grupo_id"),
@@ -590,6 +592,31 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
     const list = extrasByJanijId.get(janijId) ?? [];
     list.push({ nombre, key });
     extrasByJanijId.set(janijId, list);
+  }
+  if (extrasMissing) {
+    for (const janij of janijRows) {
+      const janijId = janij.id ?? null;
+      if (!janijId) continue;
+      const parsedExtras = parseJanijExtras(janij.extras ?? null);
+      if (parsedExtras.length === 0) continue;
+      const seenKeys = new Set<string>();
+      const extrasList: { nombre: string; key: string }[] = [];
+      for (const extra of parsedExtras) {
+        const grupo = extra.id ? grupoById.get(extra.id) : null;
+        const nombre =
+          grupo?.nombre ??
+          extra.nombre ??
+          (typeof extra.id === "string" && extra.id.trim().length > 0 ? extra.id : null);
+        if (!nombre) continue;
+        const key = normaliseGroupName(nombre);
+        if (seenKeys.has(key)) continue;
+        seenKeys.add(key);
+        extrasList.push({ nombre, key });
+      }
+      if (extrasList.length > 0) {
+        extrasByJanijId.set(janijId, extrasList);
+      }
+    }
   }
 
   const sheetGroups = new Map<

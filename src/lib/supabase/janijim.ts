@@ -5,6 +5,7 @@ import {
   ensureProyectoAccess,
   getUserAccessContext,
 } from "@/lib/supabase/access";
+import { parseJanijExtras } from "@/lib/sync/janijExtras";
 
 export type JanijData = {
   /** Nombre y apellido del janij */
@@ -99,6 +100,24 @@ export async function getJanijim(proyectoId: string, userId: string) {
       extraJanijIds.add(janijId);
     }
   }
+  if (!extrasTableAvailable && grupoIds.length > 0) {
+    const { data: extrasCandidates, error: extrasCandidatesError } = await baseJanijQuery(BASE_FIELDS)
+      .not("extras", "is", null);
+    if (extrasCandidatesError) {
+      throw extrasCandidatesError;
+    }
+    for (const row of extrasCandidates ?? []) {
+      if (!row || typeof row !== "object" || "error" in row) {
+        continue;
+      }
+      const raw = row as JanijRecord;
+      const extrasList = parseJanijExtras(raw.extras ?? null);
+      const matchesGrupo = extrasList.some((extra) => grupoIds.includes(extra.id));
+      if (matchesGrupo) {
+        extraJanijIds.add(raw.id);
+      }
+    }
+  }
 
   const filterClauses: string[] = [];
   if (grupoIds.length > 0) {
@@ -138,18 +157,25 @@ export async function getJanijim(proyectoId: string, userId: string) {
       continue;
     }
     const raw = row as RawJanijWithExtras;
-    const gruposExtras = Array.isArray(raw.grupos_extra)
-      ? raw.grupos_extra
-          .map((extra) => {
-            const id = (extra?.grupo_id as string | null) ?? (extra?.grupo?.id as string | null) ?? null;
-            const nombre = (extra?.grupo?.nombre as string | null) ?? null;
-            if (!id) {
-              return null;
-            }
-            return { id, nombre };
-          })
-          .filter((value): value is { id: string; nombre: string | null } => value !== null)
-      : [];
+    const mergedExtras = new Map<string, { id: string; nombre: string | null }>();
+    if (Array.isArray(raw.grupos_extra)) {
+      for (const extra of raw.grupos_extra) {
+        const id = (extra?.grupo_id as string | null) ?? (extra?.grupo?.id as string | null) ?? null;
+        if (!id) {
+          continue;
+        }
+        const nombre = (extra?.grupo?.nombre as string | null) ?? null;
+        mergedExtras.set(id, { id, nombre });
+      }
+    }
+    const jsonExtras = parseJanijExtras(raw.extras ?? null);
+    for (const extra of jsonExtras) {
+      if (!extra.id || mergedExtras.has(extra.id)) {
+        continue;
+      }
+      mergedExtras.set(extra.id, { id: extra.id, nombre: extra.nombre ?? null });
+    }
+    const gruposExtras = Array.from(mergedExtras.values());
     const { grupos_extra: _omit, ...rest } = raw;
     void _omit;
     result.push({
