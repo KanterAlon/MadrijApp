@@ -77,6 +77,20 @@ function baseJanijQuery(select: string, options?: { includeInactive?: boolean })
   return query;
 }
 
+function coerceJanijRows(rows: unknown): JanijRecord[] {
+  if (!Array.isArray(rows)) {
+    return [];
+  }
+  const valid: JanijRecord[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== "object" || "error" in row) {
+      continue;
+    }
+    valid.push(row as JanijRecord);
+  }
+  return valid;
+}
+
 export async function getJanijim(proyectoId: string, userId: string) {
   const { grupoIds } = await ensureProyectoAccess(userId, proyectoId);
   if (grupoIds.length === 0) return [];
@@ -129,8 +143,7 @@ export async function getJanijim(proyectoId: string, userId: string) {
   if (primaryError) throw primaryError;
 
   const combinedMap = new Map<string, JanijRecord>();
-  for (const row of (primaryData ?? []) as JanijRecord[]) {
-    if (!row || typeof row !== "object" || "error" in row) continue;
+  for (const row of coerceJanijRows(primaryData)) {
     combinedMap.set(row.id, row);
   }
 
@@ -144,8 +157,7 @@ export async function getJanijim(proyectoId: string, userId: string) {
         chunk,
       );
       if (extrasFetchError) throw extrasFetchError;
-      for (const row of (extrasData ?? []) as JanijRecord[]) {
-        if (!row || typeof row !== "object" || "error" in row) continue;
+      for (const row of coerceJanijRows(extrasData)) {
         combinedMap.set(row.id, row);
       }
     }
