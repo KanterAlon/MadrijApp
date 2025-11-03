@@ -149,6 +149,16 @@ export default function JanijimPage() {
   const canStartSesion = roles.some((rol) =>
     ["admin", "coordinador", "madrij"].includes(rol),
   );
+  const sheetInfoKey = useMemo(
+    () => `janijim-sheet-info-${proyectoId}`,
+    [proyectoId],
+  );
+  const manualInfoKey = useMemo(
+    () => `janijim-manual-info-${proyectoId}`,
+    [proyectoId],
+  );
+  const [showSheetInfo, setShowSheetInfo] = useState(true);
+  const [showManualInfo, setShowManualInfo] = useState(true);
 
   const ensureWritable = useCallback(() => {
     if (!canEdit) {
@@ -175,6 +185,26 @@ export default function JanijimPage() {
     handle();
     return () => window.removeEventListener("scroll", handle);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setShowSheetInfo(window.localStorage.getItem(sheetInfoKey) !== "1");
+    setShowManualInfo(window.localStorage.getItem(manualInfoKey) !== "1");
+  }, [sheetInfoKey, manualInfoKey]);
+
+  const dismissSheetInfo = useCallback(() => {
+    setShowSheetInfo(false);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(sheetInfoKey, "1");
+    }
+  }, [sheetInfoKey]);
+
+  const dismissManualInfo = useCallback(() => {
+    setShowManualInfo(false);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(manualInfoKey, "1");
+    }
+  }, [manualInfoKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -788,44 +818,64 @@ export default function JanijimPage() {
       ) : (
         <>
           {sheetManaged ? (
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 space-y-2">
-              <p className="font-semibold text-blue-800">
-                Sincronizado con Google Sheets
-              </p>
-              <p className="text-xs text-blue-700">
-                Los datos se actualizan cuando el administrador confirma la sincronización anual desde la interfaz de administración.
-              </p>
-              {syncMessage ? (
-                <p className="text-xs text-blue-700">{syncMessage}</p>
-              ) : (
+            showSheetInfo ? (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 space-y-2 relative">
+                <button
+                  type="button"
+                  onClick={dismissSheetInfo}
+                  className="absolute right-3 top-3 text-blue-400 hover:text-blue-600"
+                  aria-label="Cerrar aviso"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <p className="font-semibold text-blue-800">
+                  Sincronizado con Google Sheets
+                </p>
                 <p className="text-xs text-blue-700">
+                  Los datos se actualizan cuando el administrador confirma la sincronización anual desde la interfaz de administración.
+                </p>
+                {syncMessage ? (
+                  <p className="text-xs text-blue-700">{syncMessage}</p>
+                ) : (
+                  <p className="text-xs text-blue-700">
                   Si detectás diferencias, solicitá al administrador que genere una nueva importación.
-                </p>
-              )}
-              {isAdmin ? (
-                <div className="flex gap-2 flex-col sm:flex-row sm:items-center sm:justify-end">
-                  <Button
-                    onClick={syncWithSheets}
-                    loading={syncing}
-                    icon={<RefreshCcw className="w-4 h-4" />}
-                    disabled={forbidden}
-                    title={forbidden ? "No tenés permisos para sincronizar este proyecto" : undefined}
-                  >
-                    Sincronizar ahora
-                  </Button>
-                </div>
-              ) : (
-                <p className="text-xs text-blue-700">
+                  </p>
+                )}
+                {isAdmin ? (
+                  <div className="flex gap-2 flex-col sm:flex-row sm:items-center sm:justify-end">
+                    <Button
+                      onClick={syncWithSheets}
+                      loading={syncing}
+                      icon={<RefreshCcw className="w-4 h-4" />}
+                      disabled={forbidden}
+                      title={forbidden ? "No tenAcs permisos para sincronizar este proyecto" : undefined}
+                    >
+                      Sincronizar ahora
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-blue-700">
                   Solo el administrador puede ejecutar la sincronización manual de este proyecto.
-                </p>
-              )}
-            </div>
+                  </p>
+                )}
+              </div>
+            ) : null
           ) : (
-            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
-              <p>
-                Este proyecto todavía no está vinculado a la planilla institucional. El administrador puede cargar janijim manualmente o configurar la sincronización desde la interfaz anual.
-              </p>
-            </div>
+            showManualInfo ? (
+              <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800 relative">
+                <button
+                  type="button"
+                  onClick={dismissManualInfo}
+                  className="absolute right-3 top-3 text-yellow-500 hover:text-yellow-700"
+                  aria-label="Cerrar aviso"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <p>
+                  Este proyecto todavía no está vinculado a la planilla institucional. El administrador puede cargar janijim manualmente o configurar la sincronización desde la interfaz anual.
+                </p>
+              </div>
+            ) : null
           )}
 
           <div className="space-y-4">
