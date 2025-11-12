@@ -110,7 +110,6 @@ export default function JanijimPage() {
   const [madrijes, setMadrijes] = useState<{ clerk_id: string; nombre: string }[]>([]);
   const [sesionMadrij, setSesionMadrij] = useState<string>("");
   const [callDialogOpen, setCallDialogOpen] = useState(false);
-  const [callTarget, setCallTarget] = useState<Janij | null>(null);
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [selectedGrupoId, setSelectedGrupoId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -560,19 +559,21 @@ export default function JanijimPage() {
   const callFather = () =>
     callParent(editTelPadre, "No hay teléfono del padre cargado");
 
+  const hasMotherPhone = Boolean(editTelMadre.trim());
+  const hasFatherPhone = Boolean(editTelPadre.trim());
+  const hasAnyPhone = hasMotherPhone || hasFatherPhone;
+
   const openCallDialog = () => {
     if (!detailJanij) return;
-    setCallTarget(detailJanij);
-    setDetailJanij(null);
+    if (!hasAnyPhone) {
+      toast.error("No hay teléfonos cargados para este janij");
+      return;
+    }
     setCallDialogOpen(true);
   };
 
   const closeCallDialog = () => {
     setCallDialogOpen(false);
-    if (callTarget) {
-      setDetailJanij(callTarget);
-      setCallTarget(null);
-    }
   };
 
   const handleCallMother = () => {
@@ -1156,7 +1157,7 @@ export default function JanijimPage() {
       </Sheet>
 
       <JanijDetailModal
-        open={Boolean(detailJanij)}
+        open={Boolean(detailJanij) && !callDialogOpen}
         janij={detailJanij}
         onClose={() => setDetailJanij(null)}
         values={{
@@ -1176,6 +1177,7 @@ export default function JanijimPage() {
         showSave={canEdit}
         onSave={canEdit ? saveDetail : undefined}
         onCall={detailJanij ? openCallDialog : undefined}
+        callDisabled={!hasAnyPhone}
       />
 
       <Modal open={callDialogOpen} onOpenChange={closeCallDialog}>
@@ -1189,6 +1191,7 @@ export default function JanijimPage() {
               className="w-full"
               icon={<PhoneCall className="w-4 h-4" />}
               onClick={handleCallMother}
+              disabled={!hasMotherPhone}
             >
               Mamá
             </Button>
@@ -1196,6 +1199,7 @@ export default function JanijimPage() {
               className="w-full"
               icon={<PhoneCall className="w-4 h-4" />}
               onClick={handleCallFather}
+              disabled={!hasFatherPhone}
             >
               Papá
             </Button>
