@@ -46,8 +46,7 @@ export async function getMadrijimPorProyecto(userId: string, proyectoId: string)
         user.emailAddresses[0]?.emailAddress ||
         "";
       nombreMap.set(id, nombre);
-    } catch (err) {
-      console.error("Error fetching Clerk user", err);
+    } catch {
       nombreMap.set(id, "");
     }
   }

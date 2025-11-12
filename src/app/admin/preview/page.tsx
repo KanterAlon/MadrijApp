@@ -40,9 +40,8 @@ export default function AdminPreviewPage() {
         if (cancelled) return;
         setChecking(false);
       })
-      .catch((err) => {
+      .catch(() => {
         if (cancelled) return;
-        console.error("Intento de acceso a vista administrativa sin permisos", err);
         setChecking(false);
         router.replace("/dashboard");
       });
@@ -62,8 +61,7 @@ export default function AdminPreviewPage() {
         if (cancelled) return;
         setProjects(data);
       })
-      .catch((err) => {
-        console.error("Error cargando proyectos para previsualización administrativa", err);
+      .catch(() => {
         showError("No se pudieron cargar los proyectos para previsualización");
       })
       .finally(() => {

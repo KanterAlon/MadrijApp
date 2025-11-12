@@ -29,7 +29,6 @@ export default async function ProyectoHome({ params }: PageProps) {
     .single();
 
   if (!proyecto || errorProyecto) {
-    console.error("Error cargando el proyecto", errorProyecto);
     notFound();
   }
 
@@ -133,33 +132,27 @@ export default async function ProyectoHome({ params }: PageProps) {
             {grupos.map((grupo) => {
               const titulo = `Grupo ${grupo.nombre}`;
               const detalleHref = `/proyecto/${proyectoId}/grupos/${encodeURIComponent(grupo.id)}`;
-              const janijimHref = `/proyecto/${proyectoId}/janijim?grupo=${encodeURIComponent(grupo.id)}`;
+              const janijLabel = grupo.totalJanijim === 1 ? "janij" : "janijim";
+              const madrijLabel = grupo.totalMadrijim === 1 ? "madrij" : "madrijim";
               return (
-                <div
+                <Link
                   key={grupo.id}
-                  className="flex h-full flex-col justify-between rounded-lg border border-blue-100 bg-blue-50 p-3"
+                  href={detalleHref}
+                  className="flex h-full flex-col justify-between rounded-lg border border-blue-100 bg-white p-3 shadow-sm transition hover:border-blue-300 hover:shadow"
                 >
                   <div>
+                    <p className="text-xs font-semibold uppercase text-blue-500">Grupo</p>
                     <h3 className="text-sm font-semibold text-blue-900">{titulo}</h3>
-                    <p className="mt-1 text-xs text-blue-900/70">
-                      Portada del grupo con sus madrijim y materiales asignados.
-                    </p>
                   </div>
-                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <Link
-                      href={detalleHref}
-                      className="inline-flex items-center justify-center rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-700"
-                    >
-                      Sobre el grupo
-                    </Link>
-                    <Link
-                      href={janijimHref}
-                      className="inline-flex items-center justify-center rounded-md border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-700 transition hover:border-blue-300"
-                    >
-                      Ver janijim
-                    </Link>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-blue-800">
+                    <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1">
+                      {grupo.totalJanijim} {janijLabel}
+                    </span>
+                    <span className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1">
+                      {grupo.totalMadrijim} {madrijLabel}
+                    </span>
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
@@ -177,7 +170,7 @@ export default async function ProyectoHome({ params }: PageProps) {
             ))}
           </ul>
         ) : (
-          <p className="mt-3 text-sm text-blue-900/70">Todavia no hay madrijim asociados a los grupos habilitados.</p>
+          <p className="mt-3 text-sm text-blue-900/70">Todavia no hay madrijim cargados para este proyecto.</p>
         )}
       </section>
     </div>

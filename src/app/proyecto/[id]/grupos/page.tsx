@@ -69,45 +69,29 @@ export default async function ProyectoGruposPage({ params }: PageProps) {
         <div className="grid gap-4 sm:grid-cols-2">
           {grupos.map((grupo) => {
             const detalleHref = `/proyecto/${proyectoId}/grupos/${encodeURIComponent(grupo.id)}`;
-            const janijimHref = `/proyecto/${proyectoId}/janijim?grupo=${encodeURIComponent(grupo.id)}`;
             const janijLabel = grupo.totalJanijim === 1 ? "janij" : "janijim";
             const madrijLabel = grupo.totalMadrijim === 1 ? "madrij" : "madrijim";
             const titulo = `Grupo ${grupo.nombre}`;
 
             return (
-              <div
+              <Link
                 key={grupo.id}
-                className="flex h-full flex-col justify-between rounded-xl border border-gray-200 bg-gradient-to-br from-white to-blue-50 p-4 shadow-sm"
+                href={detalleHref}
+                className="flex h-full flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:border-blue-300 hover:bg-blue-50"
               >
                 <div>
+                  <p className="text-xs font-semibold uppercase text-blue-500">Grupo</p>
                   <h2 className="text-lg font-semibold text-blue-900">{titulo}</h2>
-                  <p className="mt-2 text-sm text-blue-900/70">
-                    Portada del grupo con sus responsables, coordinadores y acceso a materiales.
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-blue-800">
-                    <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1">
-                      {grupo.totalJanijim} {janijLabel}
-                    </span>
-                    <span className="inline-flex items-center rounded-full bg-indigo-100 px-3 py-1">
-                      {grupo.totalMadrijim} {madrijLabel}
-                    </span>
-                  </div>
                 </div>
-                <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <Link
-                    href={detalleHref}
-                    className="inline-flex items-center justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-                  >
-                    Sobre el grupo
-                  </Link>
-                  <Link
-                    href={janijimHref}
-                    className="inline-flex items-center justify-center rounded-md border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 transition hover:border-blue-300"
-                  >
-                    Ir a janijim
-                  </Link>
+                <div className="flex flex-wrap gap-2 text-xs font-semibold text-blue-800">
+                  <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1">
+                    {grupo.totalJanijim} {janijLabel}
+                  </span>
+                  <span className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1">
+                    {grupo.totalMadrijim} {madrijLabel}
+                  </span>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>

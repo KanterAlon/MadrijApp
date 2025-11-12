@@ -27,7 +27,6 @@ export async function GET() {
     if (err instanceof AccessDeniedError) {
       return NextResponse.json({ error: err.message }, { status: 403 });
     }
-    console.error("Error verificando permisos de administrador", err);
     return NextResponse.json({ error: "No se pudieron verificar los permisos" }, { status: 500 });
   }
 
@@ -59,8 +58,7 @@ export async function GET() {
         },
       },
     });
-  } catch (err) {
-    console.error("Error cargando datos de administración", err);
+  } catch {
     return NextResponse.json({ error: "No se pudieron cargar los datos" }, { status: 500 });
   }
 }
@@ -74,15 +72,13 @@ export async function PUT(request: Request) {
     if (err instanceof AccessDeniedError) {
       return NextResponse.json({ error: err.message }, { status: 403 });
     }
-    console.error("Error verificando permisos de administrador", err);
     return NextResponse.json({ error: "No se pudieron verificar los permisos" }, { status: 500 });
   }
 
   let payload: unknown;
   try {
     payload = await request.json();
-  } catch (err) {
-    console.error("Error parseando payload de administración", err);
+  } catch {
     return NextResponse.json({ error: "El cuerpo de la solicitud es inválido" }, { status: 400 });
   }
 
@@ -96,8 +92,7 @@ export async function PUT(request: Request) {
     await saveSheetsData(sheets);
     const result = await applySheetsDataDirectly(sheets);
     return NextResponse.json(result);
-  } catch (err) {
-    console.error("Error guardando datos administrativos", err);
+  } catch {
     return NextResponse.json({ error: "No se pudieron aplicar los cambios" }, { status: 500 });
   }
 }
@@ -111,15 +106,13 @@ export async function POST(request: Request) {
     if (err instanceof AccessDeniedError) {
       return NextResponse.json({ error: err.message }, { status: 403 });
     }
-    console.error("Error verificando permisos de administrador", err);
     return NextResponse.json({ error: "No se pudieron verificar los permisos" }, { status: 500 });
   }
 
   let payload: unknown;
   try {
     payload = await request.json();
-  } catch (err) {
-    console.error("Error parseando acción administrativa", err);
+  } catch {
     return NextResponse.json({ error: "El cuerpo de la solicitud es inválido" }, { status: 400 });
   }
 
@@ -138,7 +131,6 @@ export async function POST(request: Request) {
       .eq("clerk_id", userId)
       .maybeSingle();
     if (error) {
-      console.error("Error buscando el rol de administrador actual", error);
     }
     if (data) {
       const email = typeof data.email === "string" ? normaliseEmail(data.email) : null;
@@ -159,8 +151,7 @@ export async function POST(request: Request) {
       if (!email) return null;
       const nombre = user?.fullName?.trim();
       return { email: normaliseEmail(email), nombre: nombre && nombre.length > 0 ? nombre : null };
-    } catch (err) {
-      console.error("Error obteniendo el usuario de Clerk", err);
+    } catch {
       return null;
     }
   })();
@@ -174,7 +165,6 @@ export async function POST(request: Request) {
         .eq("clerk_id", userId)
         .eq("role", "admin");
       if (error) {
-        console.error("No se pudo restaurar el rol de administrador", error);
       }
       return;
     }
@@ -190,7 +180,6 @@ export async function POST(request: Request) {
       .from("app_roles")
       .upsert(payload, { onConflict: "email,role" });
     if (error) {
-      console.error("No se pudo asegurar el rol de administrador", error);
     }
   }
 
@@ -226,8 +215,7 @@ export async function POST(request: Request) {
 
     const result = await applySheetsDataDirectly(sheets);
     return NextResponse.json(result);
-  } catch (err) {
-    console.error("Error reseteando la base desde la hoja", err);
+  } catch {
     return NextResponse.json({ error: "No se pudo reinicializar la base" }, { status: 500 });
   } finally {
     await ensureAdminRestored();

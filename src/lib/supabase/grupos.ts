@@ -1,7 +1,5 @@
 import { supabase } from "@/lib/supabase";
 import { AccessDeniedError, ensureProyectoAccess } from "@/lib/supabase/access";
-import { isMissingRelationError } from "@/lib/supabase/errors";
-import { parseJanijExtras } from "@/lib/sync/janijExtras";
 
 export type Grupo = {
   id: string;
@@ -123,124 +121,22 @@ async function countActiveJanijByGroup(groupIds: string[]): Promise<Map<string, 
     return new Map();
   }
 
-  const groupSet = new Set(groupIds);
-  const membership = new Map<string, Set<string>>();
-  const ensureMember = (grupoId: string, janijId: string) => {
-    let set = membership.get(grupoId);
-    if (!set) {
-      set = new Set<string>();
-      membership.set(grupoId, set);
-    }
-    set.add(janijId);
-  };
+  const { data, error } = await supabase
+    .from('janijim')
+    .select('grupo_id')
+    .eq('activo', true)
+    .in('grupo_id', groupIds);
 
-  const activeJanijIds = new Set<string>();
-  const { data: janijRows, error: janijError } = await supabase
-    .from("janijim")
-    .select("id, grupo_id")
-    .eq("activo", true)
-    .in("grupo_id", groupIds);
+  if (error) throw error;
 
-  if (janijError) throw janijError;
-
-  for (const row of janijRows ?? []) {
+  const counts = new Map<string, number>();
+  for (const row of data ?? []) {
     const grupoId = row?.grupo_id as string | null;
-    const janijId = row?.id as string | null;
-    if (!grupoId || !janijId) {
-      continue;
-    }
-    if (!groupSet.has(grupoId)) {
-      continue;
-    }
-    activeJanijIds.add(janijId);
-    ensureMember(grupoId, janijId);
+    if (!grupoId) continue;
+    counts.set(grupoId, (counts.get(grupoId) ?? 0) + 1);
   }
 
-  const relationName = "janijim_grupos_extra";
-  const { data: extrasRows, error: extrasError } = await supabase
-    .from(relationName)
-    .select("grupo_id, janij_id")
-    .in("grupo_id", groupIds);
-
-  const extrasMissing =
-    extrasError && isMissingRelationError(extrasError, relationName);
-  if (extrasError && !extrasMissing) {
-    throw extrasError;
-  }
-
-  if (!extrasMissing) {
-    const pendingIds = new Set<string>();
-    for (const row of extrasRows ?? []) {
-      const janijId = row?.janij_id as string | null;
-      if (janijId && !activeJanijIds.has(janijId)) {
-        pendingIds.add(janijId);
-      }
-    }
-
-    let extraActiveIds = new Set<string>();
-    if (pendingIds.size > 0) {
-      const { data: extraActiveRows, error: extraActiveError } = await supabase
-        .from("janijim")
-        .select("id")
-        .eq("activo", true)
-        .in("id", Array.from(pendingIds));
-      if (extraActiveError) throw extraActiveError;
-      extraActiveIds = new Set(
-        (extraActiveRows ?? [])
-          .map((row) => row?.id as string | null)
-          .filter((id): id is string => Boolean(id)),
-      );
-      for (const id of extraActiveIds) {
-        activeJanijIds.add(id);
-      }
-    }
-
-    for (const row of extrasRows ?? []) {
-      const grupoId = row?.grupo_id as string | null;
-      const janijId = row?.janij_id as string | null;
-      if (!grupoId || !janijId) {
-        continue;
-      }
-      if (!groupSet.has(grupoId)) {
-        continue;
-      }
-      if (!activeJanijIds.has(janijId)) {
-        continue;
-      }
-      ensureMember(grupoId, janijId);
-    }
-  } else {
-    const { data: extrasCandidates, error: extrasCandidatesError } = await supabase
-      .from("janijim")
-      .select("id, extras")
-      .eq("activo", true)
-      .not("extras", "is", null);
-
-    if (extrasCandidatesError) throw extrasCandidatesError;
-
-    for (const row of extrasCandidates ?? []) {
-      const janijId = row?.id as string | null;
-      if (!janijId) {
-        continue;
-      }
-      const extrasList = parseJanijExtras(
-        (row?.extras as Record<string, unknown> | null) ?? null,
-      );
-      for (const extra of extrasList) {
-        const grupoId = extra.id;
-        if (!grupoId || !groupSet.has(grupoId)) {
-          continue;
-        }
-        ensureMember(grupoId, janijId);
-      }
-    }
-  }
-
-  const result = new Map<string, number>();
-  for (const grupoId of groupIds) {
-    result.set(grupoId, membership.get(grupoId)?.size ?? 0);
-  }
-  return result;
+  return counts;
 }
 
 async function fetchProyectoCoordinadores(proyectoId: string): Promise<GrupoCoordinadorInfo[]> {

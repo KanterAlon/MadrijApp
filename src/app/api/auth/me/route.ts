@@ -16,7 +16,6 @@ export async function GET() {
     .eq("activo", true);
 
   if (error) {
-    console.error("Error obteniendo roles", error);
     return NextResponse.json({ error: "No se pudieron obtener los roles" }, { status: 500 });
   }
 

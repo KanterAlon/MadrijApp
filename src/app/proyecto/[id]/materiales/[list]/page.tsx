@@ -354,9 +354,7 @@ export default function MaterialesPage() {
     setMaterialActual((prev) =>
       prev && prev.id === id ? { ...prev, estado } : prev
     );
-    updateMaterial(id, { estado } as Partial<MaterialRow>).catch(() =>
-      console.error("Error cambiando estado")
-    );
+    updateMaterial(id, { estado } as Partial<MaterialRow>).catch(() => undefined);
   };
 
   const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -395,9 +393,7 @@ export default function MaterialesPage() {
       otrosItems: "otros_items",
       estado: "estado",
     };
-    updateMaterial(id, { [map[campo]]: valor } as Partial<MaterialRow>).catch(() =>
-      console.error("Error actualizando material")
-    );
+    updateMaterial(id, { [map[campo]]: valor } as Partial<MaterialRow>).catch(() => undefined);
   };
 
 

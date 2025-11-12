@@ -22,7 +22,6 @@ export async function GET(req: Request) {
     if (err instanceof AccessDeniedError) {
       return NextResponse.json({ error: err.message }, { status: 403 });
     }
-    console.error("Error fetching madrijim", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
@@ -42,8 +41,7 @@ export async function POST(req: Request) {
   try {
     const matches = await matchNames(query, trimmedNames);
     return NextResponse.json({ matches });
-  } catch (err) {
-    console.error("Matching error", err);
+  } catch {
     return NextResponse.json({ matches: [] }, { status: 500 });
   }
 }

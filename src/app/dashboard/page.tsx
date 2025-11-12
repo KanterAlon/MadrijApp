@@ -184,8 +184,7 @@ export default function DashboardPage() {
     setProjectsLoading(true);
     getProyectosParaUsuario(user.id)
       .then((data) => setProjects(data))
-      .catch((err) => {
-        console.error("Error cargando proyectos", err);
+      .catch(() => {
         showError("No se pudieron cargar tus proyectos");
       })
       .finally(() => setProjectsLoading(false));

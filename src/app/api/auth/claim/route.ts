@@ -125,7 +125,6 @@ export async function GET(req: Request) {
     .maybeSingle();
 
   if (madrijError) {
-    console.error("Error fetching madrij", madrijError);
     return NextResponse.json({ status: "error", message: "No se pudo verificar el usuario" } satisfies ClaimStatus, {
       status: 500,
     });
@@ -134,15 +133,7 @@ export async function GET(req: Request) {
   const madrij = initialMadrij ?? null;
 
   const rolesRows = await getRolesByEmail(email);
-  const roles = new Set<AppRole>();
-
-  if (madrij) {
-    roles.add("madrij");
-  }
-  for (const row of rolesRows) {
-    const roleName = row.role as AppRole;
-    roles.add(roleName);
-  }
+  const roles = new Set<AppRole>(rolesRows.map((row) => row.role as AppRole));
 
   if (roles.size === 0) {
     return NextResponse.json({ status: "missing" } satisfies ClaimStatus);
@@ -192,7 +183,6 @@ export async function GET(req: Request) {
     .eq("activo", true);
 
   if (gruposError) {
-    console.error("Error fetching grupos", gruposError);
     return NextResponse.json({ status: "error", message: "No se pudieron obtener tus grupos" } satisfies ClaimStatus, {
       status: 500,
     });
@@ -218,7 +208,6 @@ export async function GET(req: Request) {
       .in("role_id", coordinatorRoleIds);
 
     if (proyectosError) {
-      console.error("Error obteniendo proyectos del coordinador", proyectosError);
       return NextResponse.json(
         { status: "error", message: "No se pudieron obtener tus proyectos" } satisfies ClaimStatus,
         { status: 500 },
@@ -265,13 +254,14 @@ export async function POST(req: Request) {
     .maybeSingle();
 
   if (madrijError) {
-    console.error("Error fetching madrij", madrijError);
     return NextResponse.json({ error: "No se pudo reclamar el usuario" }, { status: 500 });
   }
 
   const rolesRows = await getRolesByEmail(email);
+  const activeRoles = new Set<AppRole>(rolesRows.map((row) => row.role as AppRole));
+  const hasMadRole = activeRoles.has("madrij");
 
-  if (!madrij && rolesRows.length === 0) {
+  if (activeRoles.size === 0) {
     return NextResponse.json({ error: "No se encontró un rol asociado a este email" }, { status: 404 });
   }
 
@@ -284,12 +274,12 @@ export async function POST(req: Request) {
     email,
   );
 
-  if (madrij) {
+  if (hasMadRole) {
     const { error: updateError } = await supabase
       .from("madrijim")
       .upsert(
         {
-          id: madrij.id,
+          id: madrij?.id,
           email,
           nombre: finalNombre,
           clerk_id: userId,
@@ -298,7 +288,6 @@ export async function POST(req: Request) {
       );
 
     if (updateError) {
-      console.error("Error updating madrij", updateError);
       return NextResponse.json({ error: "No se pudo guardar el usuario" }, { status: 500 });
     }
 
@@ -308,12 +297,10 @@ export async function POST(req: Request) {
         madrij_id: userId,
         nombre: finalNombre,
         invitado: false,
-        activo: true,
       })
       .eq("email", email);
 
     if (grupoError) {
-      console.error("Error actualizando grupos", grupoError);
       return NextResponse.json({ error: "No se pudieron vincular los grupos" }, { status: 500 });
     }
   }
@@ -325,17 +312,12 @@ export async function POST(req: Request) {
       .eq("email", email);
 
     if (roleUpdateError) {
-      console.error("Error actualizando roles", roleUpdateError);
       return NextResponse.json({ error: "No se pudieron vincular tus roles" }, { status: 500 });
     }
   }
 
   const refreshedRoles = await getRolesByEmail(email);
-  const roleSet = new Set<AppRole>();
-  if (madrij) roleSet.add("madrij");
-  for (const row of refreshedRoles) {
-    roleSet.add(row.role as AppRole);
-  }
+  const roleSet = new Set<AppRole>(refreshedRoles.map((row) => row.role as AppRole));
 
   return NextResponse.json({
     status: "claimed",

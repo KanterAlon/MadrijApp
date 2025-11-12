@@ -87,37 +87,21 @@ export function buildMadrijEntries(rows: unknown[][]) {
 
 export type JanijSheetEntry = {
   nombre: string;
-  grupoPrincipalNombre: string;
-  grupoPrincipalKey: string;
-  grupoKey?: string;
-  otrosGrupos: { nombre: string; key: string }[];
+  grupoNombre: string;
+  grupoKey: string;
   telMadre: string | null;
   telPadre: string | null;
   numeroSocio: string | null;
 };
 
-const JANIJ_HEADERS: Record<
-  string,
-  | "nombre"
-  | "apellido"
-  | "grupoPrincipal"
-  | "otroGrupo1"
-  | "otroGrupo2"
-  | "telMadre"
-  | "telPadre"
-  | "numeroSocio"
-> = {
+const JANIJ_HEADERS: Record<string, "nombre" | "apellido" | "grupo" | "telMadre" | "telPadre" | "numeroSocio"> = {
   nombre: "nombre",
   apellido: "apellido",
   "nombre y apellido": "nombre",
   "nombre completo": "nombre",
-  grupo: "grupoPrincipal",
-  kvutza: "grupoPrincipal",
-  "grupo principal": "grupoPrincipal",
-  "otro grupo": "otroGrupo1",
-  "otro grupo 1": "otroGrupo1",
-  "otro grupo 2": "otroGrupo2",
-  "participa en otro grupo": "otroGrupo1",
+  grupo: "grupo",
+  kvutza: "grupo",
+  "grupo principal": "grupo",
   "telefono madre": "telMadre",
   "telefono de la madre": "telMadre",
   "tel madre": "telMadre",
@@ -136,19 +120,15 @@ const JANIJ_HEADERS: Record<
 export function buildJanijEntries(rows: unknown[][]) {
   if (rows.length === 0) return [] as JanijSheetEntry[];
   const [header, ...dataRows] = rows;
-  const mapping = {} as Record<
-    | "nombre"
-    | "apellido"
-    | "grupoPrincipal"
-    | "otroGrupo1"
-    | "otroGrupo2"
-    | "telMadre"
-    | "telPadre"
-    | "numeroSocio",
-    number | undefined
-  >;
+  const mapping = {} as Record<"nombre" | "apellido" | "grupo" | "telMadre" | "telPadre" | "numeroSocio", number | undefined>;
+  const extraGroupColumns: number[] = [];
   header.forEach((value, index) => {
-    const key = JANIJ_HEADERS[normaliseHeader(String(value))];
+    const normalized = normaliseHeader(String(value));
+    if (normalized.includes("otro grupo")) {
+      extraGroupColumns.push(index);
+      return;
+    }
+    const key = JANIJ_HEADERS[normalized];
     if (key && mapping[key] === undefined) {
       mapping[key] = index;
     }
@@ -158,32 +138,35 @@ export function buildJanijEntries(rows: unknown[][]) {
   for (const row of dataRows) {
     const nombre = joinNombre(readCell(row, mapping.nombre), readCell(row, mapping.apellido));
     if (!nombre) continue;
-    const grupoPrincipalNombre = readCell(row, mapping.grupoPrincipal)?.trim() ?? "";
-    if (!grupoPrincipalNombre) continue;
-    const grupoPrincipalKey = normaliseKey(grupoPrincipalNombre);
-    const otrosGrupos: { nombre: string; key: string }[] = [];
-    const extrasSeen = new Set<string>();
-    const otro1 = readCell(row, mapping.otroGrupo1)?.trim();
-    const otro2 = readCell(row, mapping.otroGrupo2)?.trim();
-    [otro1, otro2]
-      .filter((value): value is string => Boolean(value && value.length > 0))
-      .forEach((value) => {
-        const normalised = normaliseKey(value);
-        if (normalised === grupoPrincipalKey) return;
-        if (extrasSeen.has(normalised)) return;
-        extrasSeen.add(normalised);
-        otrosGrupos.push({ nombre: value, key: normalised });
+
+    const telMadre = readCell(row, mapping.telMadre);
+    const telPadre = readCell(row, mapping.telPadre);
+    const numeroSocio = readCell(row, mapping.numeroSocio);
+
+    const groupNames = new Set<string>();
+    const primaryGroup = readCell(row, mapping.grupo)?.trim();
+    if (primaryGroup) {
+      groupNames.add(primaryGroup);
+    }
+    for (const columnId of extraGroupColumns) {
+      const value = readCell(row, columnId)?.trim();
+      if (value) {
+        groupNames.add(value);
+      }
+    }
+
+    for (const grupoNombre of groupNames) {
+      const grupoKey = normaliseGroupName(grupoNombre);
+      if (!grupoKey) continue;
+      entries.push({
+        nombre,
+        grupoNombre,
+        grupoKey,
+        telMadre,
+        telPadre,
+        numeroSocio,
       });
-    entries.push({
-      nombre,
-      grupoPrincipalNombre,
-      grupoPrincipalKey,
-      grupoKey: grupoPrincipalKey,
-      otrosGrupos,
-      telMadre: readCell(row, mapping.telMadre),
-      telPadre: readCell(row, mapping.telPadre),
-      numeroSocio: readCell(row, mapping.numeroSocio),
-    });
+    }
   }
   return entries;
 }
@@ -253,7 +236,7 @@ export type CoordinadorSheetEntry = {
   proyectos: string[];
 };
 
-const COORD_HEADERS: Record<string, "nombre" | "apellido" | "email" | "proyectos"> = {
+const COORD_HEADERS: Record<string, "nombre" | "apellido" | "email"> = {
   nombre: "nombre",
   apellido: "apellido",
   "nombre y apellido": "nombre",
@@ -261,9 +244,6 @@ const COORD_HEADERS: Record<string, "nombre" | "apellido" | "email" | "proyectos
   email: "email",
   mail: "email",
   correo: "email",
-  proyecto: "proyectos",
-  proyectos: "proyectos",
-  "lista de proyectos": "proyectos",
 };
 
 function parseProjectList(value: string | null) {
@@ -277,9 +257,15 @@ function parseProjectList(value: string | null) {
 export function buildCoordinadorEntries(rows: unknown[][]) {
   if (rows.length === 0) return [] as CoordinadorSheetEntry[];
   const [header, ...dataRows] = rows;
-  const mapping = {} as Record<"nombre" | "apellido" | "email" | "proyectos", number | undefined>;
+  const mapping = {} as Record<"nombre" | "apellido" | "email", number | undefined>;
+  const projectColumns: number[] = [];
   header.forEach((value, index) => {
-    const key = COORD_HEADERS[normaliseHeader(String(value))];
+    const normalized = normaliseHeader(String(value));
+    if (normalized.includes("proyecto")) {
+      projectColumns.push(index);
+      return;
+    }
+    const key = COORD_HEADERS[normalized];
     if (key && mapping[key] === undefined) {
       mapping[key] = index;
     }
@@ -291,7 +277,10 @@ export function buildCoordinadorEntries(rows: unknown[][]) {
     if (!emailRaw) continue;
     const email = emailRaw.toLowerCase();
     const nombre = joinNombre(readCell(row, mapping.nombre), readCell(row, mapping.apellido)) ?? email;
-    const proyectos = parseProjectList(readCell(row, mapping.proyectos));
+    const proyectos: string[] = [];
+    for (const columnId of projectColumns) {
+      proyectos.push(...parseProjectList(readCell(row, columnId)));
+    }
     entries.push({ email, nombre, proyectos });
   }
   return entries;

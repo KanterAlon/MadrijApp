@@ -45,8 +45,6 @@ export default async function SobreGrupoPage({ params }: PageProps) {
   const grupos = await getGruposQuickStats(proyectoId, userId);
   const otrosGrupos = grupos.filter((grupo) => grupo.id !== grupoId);
 
-  const janijimHref = `/proyecto/${proyectoId}/janijim?grupo=${encodeURIComponent(detalle.id)}`;
-
   const resumenTexto =
     "Conoce quienes son los madrijim responsables, que coordinadores acompañan el proceso y cuantos janijim estan vinculados segun la hoja institucional.";
 
@@ -60,20 +58,6 @@ export default async function SobreGrupoPage({ params }: PageProps) {
           <h1 className="text-3xl font-bold text-blue-900">Sobre el grupo</h1>
           <h2 className="text-xl font-semibold text-blue-800">Grupo {detalle.nombre}</h2>
           <p className="mt-2 text-sm text-blue-900/70">{resumenTexto}</p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Link
-            href={`/proyecto/${proyectoId}/grupos`}
-            className="inline-flex items-center justify-center rounded-md border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 transition hover:border-blue-300"
-          >
-            Ver otros grupos
-          </Link>
-          <Link
-            href={janijimHref}
-            className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-          >
-            Ir a janijim
-          </Link>
         </div>
       </div>
 

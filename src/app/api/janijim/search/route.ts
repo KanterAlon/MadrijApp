@@ -24,7 +24,6 @@ export async function GET(req: Request) {
     if (error instanceof AccessDeniedError) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }
-    console.error("Error searching janijim", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

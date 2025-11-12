@@ -37,7 +37,6 @@ export async function POST(
       if (err instanceof AccessDeniedError) {
         return NextResponse.json({ error: err.message }, { status: 403 });
       }
-      console.error("Error verificando permisos de administrador", err);
       return NextResponse.json({ error: "No se pudo verificar el rol del usuario" }, { status: 500 });
     }
 
@@ -46,8 +45,7 @@ export async function POST(
       return NextResponse.json({ error: "El grupo no tiene un nombre configurado" }, { status: 400 });
     }
 
-    const sheetsData = await loadSheetsData().catch((sheetsError) => {
-      console.error("Error leyendo la hoja de calculo", sheetsError);
+    const sheetsData = await loadSheetsData().catch(() => {
       return null;
     });
 
@@ -69,8 +67,7 @@ export async function POST(
       janijim: result.janijim,
       madrijim: result.madrijim,
     });
-  } catch (error) {
-    console.error("Sync error", error);
+  } catch {
     return NextResponse.json({ error: "Error sincronizando" }, { status: 500 });
   }
 }

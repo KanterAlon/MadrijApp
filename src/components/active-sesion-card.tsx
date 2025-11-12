@@ -104,7 +104,6 @@ export default function ActiveSesionCard({
           }
           return;
         }
-        console.error("Error cargando sesión activa", err);
       }
     };
 

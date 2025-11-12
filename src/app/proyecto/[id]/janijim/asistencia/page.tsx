@@ -7,7 +7,7 @@ import { useUser } from "@clerk/nextjs";
 import useHighlightScroll from "@/hooks/useHighlightScroll";
 import fuzzysort from "fuzzysort";
 import Loader from "@/components/ui/loader";
-import { getJanijim, type JanijData } from "@/lib/supabase/janijim";
+import { getJanijim, type JanijRecord } from "@/lib/supabase/janijim";
 import {
   getAsistencias,
   marcarAsistencia,
@@ -15,7 +15,7 @@ import {
   getSesion,
 } from "@/lib/supabase/asistencias";
 import { supabase } from "@/lib/supabase";
-import { Search, FileUp, Check, ArrowLeft, ArrowUp } from "lucide-react";
+import { Search, FileUp, Check, ArrowLeft, ArrowUp, Eye, PhoneCall } from "lucide-react";
 import Button from "@/components/ui/button";
 import { toast } from "react-hot-toast";
 import { showError } from "@/lib/alerts";
@@ -28,6 +28,7 @@ import {
   ModalTitle,
 } from "@/components/ui/modal";
 import { AccessDeniedError } from "@/lib/supabase/access";
+import JanijDetailModal from "@/components/janij-detail-modal";
 
 type AsistenciaRow = {
   janij_id: string;
@@ -35,9 +36,12 @@ type AsistenciaRow = {
   madrij_id: string;
 };
 
-type SesionRow = {
-  finalizado: boolean;
+type SesionState = {
+  id: string;
+  proyecto_id: string;
+  nombre: string;
   madrij_id: string;
+  finalizado: boolean;
 };
 
 export default function AsistenciaPage() {
@@ -47,13 +51,10 @@ export default function AsistenciaPage() {
   const { user } = useUser();
   const router = useRouter();
 
-  const [janijim, setJanijim] = useState<(JanijData & { id: string })[]>([]);
+  const [janijim, setJanijim] = useState<JanijRecord[]>([]);
   const [estado, setEstado] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
-  const [sesion, setSesion] = useState<{
-    nombre: string;
-    madrij_id: string;
-  } | null>(null);
+  const [sesion, setSesion] = useState<SesionState | null>(null);
   const [finalizado, setFinalizado] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [search, setSearch] = useState("");
@@ -68,13 +69,22 @@ export default function AsistenciaPage() {
     { key: "tel_padre", label: "Tel. padre" },
   ];
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
-  const { scrollTo } = useHighlightScroll({ prefix: "janij-" });
+  const { highlightId, scrollTo } = useHighlightScroll({ prefix: "janij-" });
+  const [detailJanij, setDetailJanij] = useState<JanijRecord | null>(null);
+  const [callDialogOpen, setCallDialogOpen] = useState(false);
+  const [callTarget, setCallTarget] = useState<JanijRecord | null>(null);
   const esCreador = user?.id === sesion?.madrij_id;
 
   const presentesCount = useMemo(
     () => janijim.filter((j) => estado[j.id]).length,
     [janijim, estado]
   );
+  const sortedJanijim = useMemo(() => {
+    const byName = [...janijim].sort((a, b) => (a.nombre ?? "").localeCompare(b.nombre ?? ""));
+    const presentes = byName.filter((j) => estado[j.id]);
+    const ausentes = byName.filter((j) => !estado[j.id]);
+    return [...presentes, ...ausentes];
+  }, [janijim, estado]);
 
   const [forbidden, setForbidden] = useState(false);
   const [forbiddenMessage, setForbiddenMessage] = useState<string | null>(null);
@@ -95,37 +105,61 @@ export default function AsistenciaPage() {
 
   useEffect(() => {
     if (!sesionId || !user) return;
+    let cancelled = false;
     setLoading(true);
     setForbidden(false);
     setForbiddenMessage(null);
-    Promise.all([
-      getSesion(user.id, sesionId),
-      getJanijim(proyectoId, user.id),
-      getAsistencias(user.id, sesionId),
-    ])
-      .then(([s, j, a]) => {
-        setSesion(s);
+
+    (async () => {
+      try {
+        const sessionData = await getSesion(user.id, sesionId);
+        if (cancelled) return;
+        setSesion({
+          id: sessionData.id,
+          proyecto_id: sessionData.proyecto_id,
+          nombre: sessionData.nombre,
+          madrij_id: sessionData.madrij_id,
+          finalizado: sessionData.finalizado,
+        });
+        setFinalizado(sessionData.finalizado);
+
+        const proyectoRef = sessionData.proyecto_id as string;
+        const [j, a] = await Promise.all([
+          getJanijim(proyectoRef, user.id),
+          getAsistencias(user.id, sesionId),
+        ]);
+        if (cancelled) return;
         setJanijim(j);
         const m: Record<string, boolean> = {};
         a.forEach((r) => {
           m[r.janij_id] = r.presente;
         });
         setEstado(m);
-      })
-      .catch((err) => {
+      } catch (err) {
         if (err instanceof AccessDeniedError) {
-          setForbidden(true);
-          setForbiddenMessage(err.message);
-          setJanijim([]);
-          setEstado({});
-          setSesion(null);
+          if (!cancelled) {
+            setForbidden(true);
+            setForbiddenMessage(err.message);
+            setJanijim([]);
+            setEstado({});
+            setSesion(null);
+          }
         } else {
-          console.error("Error cargando asistencia", err);
-          showError("No se pudo cargar la asistencia");
+          if (!cancelled) {
+            showError("No se pudo cargar la asistencia");
+          }
         }
-      })
-      .finally(() => setLoading(false));
-  }, [sesionId, proyectoId, user]);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sesionId, user]);
 
   const exactMatches = useMemo(() => {
     if (!search.trim()) return [];
@@ -153,7 +187,7 @@ export default function AsistenciaPage() {
 
   const resultados = [...exactMatches, ...fuzzyMatches];
 
-const seleccionar = (id: string) => {
+  const seleccionar = (id: string) => {
     setShowResults(false);
     setSearch("");
     scrollTo(id);
@@ -190,7 +224,7 @@ const seleccionar = (id: string) => {
           filter: `id=eq.${sesionId}`,
         },
         (payload) => {
-          const data = payload.new as SesionRow;
+          const data = payload.new as SesionState;
           if (data.finalizado) {
             setUpdating(true);
             setFinalizado(true);
@@ -232,7 +266,6 @@ const seleccionar = (id: string) => {
     return () => clearInterval(id);
   }, [sesionId, user, forbidden]);
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const toggle = async (janijId: string) => {
       if (!user || !sesionId || forbidden) return;
       const nuevo = !estado[janijId];
@@ -247,7 +280,6 @@ const seleccionar = (id: string) => {
           setForbiddenMessage(e.message);
           toast.error(e.message);
         } else {
-          console.error(e);
           showError("No se pudo actualizar la asistencia");
         }
       }
@@ -271,6 +303,27 @@ const seleccionar = (id: string) => {
 
   const irArriba = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const closeDetail = () => setDetailJanij(null);
+  const openCallDialog = (janij: JanijRecord) => {
+    setCallTarget(janij);
+    setCallDialogOpen(true);
+  };
+  const closeCallDialog = () => {
+    setCallDialogOpen(false);
+    setCallTarget(null);
+  };
+  const handleCallMother = () => {
+    if (callTarget?.tel_madre) {
+      window.location.href = `tel:${callTarget.tel_madre}`;
+    }
+    closeCallDialog();
+  };
+  const handleCallFather = () => {
+    if (callTarget?.tel_padre) {
+      window.location.href = `tel:${callTarget.tel_padre}`;
+    }
+    closeCallDialog();
   };
 
     if (loading) {
@@ -391,6 +444,35 @@ const seleccionar = (id: string) => {
                 </ModalFooter>
               </ModalContent>
             </Modal>
+      <Modal open={callDialogOpen} onOpenChange={closeCallDialog}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle>Llamar</ModalTitle>
+            <ModalDescription>ElegA- a quiAcn llamar</ModalDescription>
+          </ModalHeader>
+          <div className="p-4 space-y-4">
+            <Button
+              className="w-full"
+              icon={<PhoneCall className="w-4 h-4" />}
+              onClick={handleCallMother}
+              disabled={!callTarget?.tel_madre}
+            >
+              MamA?
+            </Button>
+            <Button
+              className="w-full"
+              icon={<PhoneCall className="w-4 h-4" />}
+              onClick={handleCallFather}
+              disabled={!callTarget?.tel_padre}
+            >
+              PapA?
+            </Button>
+            <Button className="w-full" variant="secondary" onClick={closeCallDialog}>
+              Cancelar
+            </Button>
+          </div>
+        </ModalContent>
+      </Modal>
           </>
         )}
         <Button
@@ -406,111 +488,174 @@ const seleccionar = (id: string) => {
   }
 
   return (
-    <div className="relative">
-      {updating && (
-        <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10">
-          <Loader className="h-6 w-6" />
-        </div>
-      )}
-      <div className="max-w-2xl mx-auto mt-12 space-y-4">
-        <h2 className="text-xl font-semibold">{sesion?.nombre}</h2>
-        <div className="relative flex items-center">
-          <Search className="absolute left-2 w-4 h-4 text-gray-400 pointer-events-none" />
-          <input
-            type="text"
-            value={search}
-            onFocus={() => setShowResults(true)}
-            onBlur={() => setTimeout(() => setShowResults(false), 100)}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setShowResults(true);
-            }}
-            placeholder="Buscá un janij por nombre"
-            className="w-full border rounded-lg p-2 pl-8"
-          />
-          {showResults && search.trim() !== "" && (
-            <ul className="absolute z-10 left-0 top-full mt-1 w-full bg-white border rounded shadow max-h-60 overflow-auto">
-              {/* 1. Coincidencias normales */}
-              {exactMatches.map((r) => (
-                <li
-                  key={r.id}
-                  onClick={() => seleccionar(r.id)}
-                  className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
-                >
-                  <span>{r.nombre}</span>
-                </li>
-              ))}
-
-              {/* 2. Coincidencias aproximadas */}
-              {fuzzyMatches.length > 0 && (
-                <>
-                  {exactMatches.length > 0 && (
-                    <li className="px-2 text-xs text-gray-400">
-                      Coincidencias aproximadas
-                    </li>
-                  )}
-                  {fuzzyMatches.map((r) => (
-                    <li
-                      key={r.id}
-                      onClick={() => seleccionar(r.id)}
-                      className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
-                    >
-                      <span>{r.nombre}</span>
-                    </li>
-                  ))}
-                </>
-              )}
-
-              {/* 3. Sin resultados */}
-              {resultados.length === 0 && (
-                <li className="p-2 text-sm text-gray-500">
-                  No se encontraron resultados.
-                </li>
-              )}
-
-              {/* 4. Opción para agregar un nuevo nombre */}
-              {search.trim() !== "" &&
-                !janijim.some(
-                  (j) => normalize(j.nombre) === normalize(search)
-                ) &&
-                !resultados.some(
-                  (r) => normalize(r.nombre) === normalize(search)
-                ) && (
-                  <li className="p-2 text-sm text-gray-500">
-                    {`"${search.trim()}" no figura en la planilla. Edita la hoja y sincroniza de nuevo.`}
-                  </li>
-                )}
-            </ul>
-          )}
-        </div>
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow text-center py-2">
-          Presentes: {presentesCount} / {janijim.length}
-        </div>
-        {(esCreador || showTopButton) && (
-          <div className="fixed bottom-20 right-4 md:bottom-24 md:right-8 z-10 flex flex-col items-end space-y-2">
-            {esCreador && (
-              <Button
-                className="rounded-full shadow-lg px-6 py-3"
-                variant="danger"
-                icon={<Check className="w-4 h-4" />}
-                onClick={finalizar}
-              >
-                Finalizar asistencia
-              </Button>
-            )}
-            {showTopButton && (
-              <Button
-                className="rounded-full shadow-lg px-6 py-3"
-                variant="secondary"
-                icon={<ArrowUp className="w-4 h-4" />}
-                onClick={irArriba}
-              >
-                Ir arriba
-              </Button>
-            )}
+    <>
+      <div className="relative">
+        {updating && (
+          <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10">
+            <Loader className="h-6 w-6" />
           </div>
         )}
+        <div className="max-w-2xl mx-auto mt-12 space-y-4">
+          <h2 className="text-xl font-semibold">{sesion?.nombre}</h2>
+          <div className="relative flex items-center">
+            <Search className="absolute left-2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onFocus={() => setShowResults(true)}
+              onBlur={() => setTimeout(() => setShowResults(false), 100)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setShowResults(true);
+              }}
+              placeholder="Buscá un janij por nombre"
+              className="w-full border rounded-lg p-2 pl-8"
+            />
+            {showResults && search.trim() !== "" && (
+              <ul className="absolute z-10 left-0 top-full mt-1 w-full bg-white border rounded shadow max-h-60 overflow-auto">
+                {/* 1. Coincidencias normales */}
+                {exactMatches.map((r) => (
+                  <li
+                    key={r.id}
+                    onClick={() => seleccionar(r.id)}
+                    className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
+                  >
+                    <span>{r.nombre}</span>
+                  </li>
+                ))}
+
+                {/* 2. Coincidencias aproximadas */}
+                {fuzzyMatches.length > 0 && (
+                  <>
+                    {exactMatches.length > 0 && (
+                      <li className="px-2 text-xs text-gray-400">
+                        Coincidencias aproximadas
+                      </li>
+                    )}
+                    {fuzzyMatches.map((r) => (
+                      <li
+                        key={r.id}
+                        onClick={() => seleccionar(r.id)}
+                        className="flex justify-between p-2 cursor-pointer hover:bg-gray-100"
+                      >
+                        <span>{r.nombre}</span>
+                      </li>
+                    ))}
+                  </>
+                )}
+
+                {/* 3. Sin resultados */}
+                {resultados.length === 0 && (
+                  <li className="p-2 text-sm text-gray-500">
+                    No se encontraron resultados.
+                  </li>
+                )}
+
+                {/* 4. Opción para agregar un nuevo nombre */}
+                {search.trim() !== "" &&
+                  !janijim.some(
+                    (j) => normalize(j.nombre) === normalize(search)
+                  ) &&
+                  !resultados.some(
+                    (r) => normalize(r.nombre) === normalize(search)
+                  ) && (
+                    <li className="p-2 text-sm text-gray-500">
+                      {`"${search.trim()}" no figura en la planilla. Edita la hoja y sincroniza de nuevo.`}
+                    </li>
+                  )}
+              </ul>
+            )}
+          </div>
+          <div className="space-y-3 pb-32">
+            {sortedJanijim.length === 0 ? (
+              <div className="text-center text-sm text-gray-500 border rounded-lg py-6 bg-white">
+                Todavía no hay janijim disponibles para este proyecto.
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {sortedJanijim.map((janij) => {
+                  const presente = Boolean(estado[janij.id]);
+                  return (
+                    <li
+                      id={`janij-${janij.id}`}
+                      key={janij.id}
+                      className={`flex flex-col gap-3 rounded-lg bg-white p-4 shadow sm:flex-row sm:items-center sm:justify-between ${
+                        highlightId === janij.id ? "ring-2 ring-blue-500" : ""
+                      }`}
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-slate-900">{janij.nombre}</p>
+                          <button
+                            type="button"
+                            onClick={() => setDetailJanij(janij)}
+                            className="rounded-full p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                            aria-label={`Ver información de ${janij.nombre}`}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <p className="text-sm text-slate-500">
+                          {janij.grupo ? `Grupo ${janij.grupo}` : "Sin grupo asignado"}
+                        </p>
+                      </div>
+                      <Button
+                        variant={presente ? "success" : "secondary"}
+                        onClick={() => toggle(janij.id)}
+                        aria-pressed={presente}
+                        className="w-full sm:w-auto"
+                      >
+                        {presente ? "Presente" : "Ausente"}
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow text-center py-2">
+            Presentes: {presentesCount} / {janijim.length}
+          </div>
+          {(esCreador || showTopButton) && (
+            <div className="fixed bottom-20 right-4 md:bottom-24 md:right-8 z-10 flex flex-col items-end space-y-2">
+              {esCreador && (
+                <Button
+                  className="rounded-full shadow-lg px-6 py-3"
+                  variant="danger"
+                  icon={<Check className="w-4 h-4" />}
+                  onClick={finalizar}
+                >
+                  Finalizar asistencia
+                </Button>
+              )}
+              {showTopButton && (
+                <Button
+                  className="rounded-full shadow-lg px-6 py-3"
+                  variant="secondary"
+                  icon={<ArrowUp className="w-4 h-4" />}
+                  onClick={irArriba}
+                >
+                  Ir arriba
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+      <JanijDetailModal
+        open={Boolean(detailJanij)}
+        janij={detailJanij}
+        onClose={closeDetail}
+        readOnly
+        onCall={
+          detailJanij ? () => openCallDialog(detailJanij) : undefined
+        }
+        callDisabled={
+          !detailJanij ||
+          (!detailJanij.tel_madre && !detailJanij.tel_padre)
+        }
+      />
+    </>
   );
 }
+

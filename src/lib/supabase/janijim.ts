@@ -1,11 +1,9 @@
 import { supabase } from "@/lib/supabase";
-import { isMissingRelationError } from "@/lib/supabase/errors";
 import {
   AccessDeniedError,
   ensureProyectoAccess,
   getUserAccessContext,
 } from "@/lib/supabase/access";
-import { parseJanijExtras } from "@/lib/sync/janijExtras";
 
 export type JanijData = {
   /** Nombre y apellido del janij */
@@ -28,7 +26,6 @@ export type JanijRecord = {
   tel_madre: string | null;
   tel_padre: string | null;
   extras?: Record<string, unknown> | null;
-  gruposAdicionales?: { id: string; nombre: string | null }[];
 };
 
 type RawMadrijGrupo = {
@@ -95,118 +92,9 @@ export async function getJanijim(proyectoId: string, userId: string) {
   const { grupoIds } = await ensureProyectoAccess(userId, proyectoId);
   if (grupoIds.length === 0) return [];
 
-  const relationName = "janijim_grupos_extra";
-  const { data: extraLinks, error: extraError } = await supabase
-    .from(relationName)
-    .select("janij_id, grupo_id")
-    .in("grupo_id", grupoIds);
-
-  const extrasTableAvailable = !extraError || !isMissingRelationError(extraError, relationName);
-  if (extraError && !isMissingRelationError(extraError, relationName)) {
-    throw extraError;
-  }
-
-  const extraJanijIds = new Set<string>();
-  const safeExtraLinks = extrasTableAvailable ? extraLinks : [];
-  for (const row of safeExtraLinks ?? []) {
-    const janijId = row?.janij_id as string | null;
-    if (janijId) {
-      extraJanijIds.add(janijId);
-    }
-  }
-  if (!extrasTableAvailable && grupoIds.length > 0) {
-    const { data: extrasCandidates, error: extrasCandidatesError } = await baseJanijQuery(BASE_FIELDS)
-      .not("extras", "is", null);
-    if (extrasCandidatesError) {
-      throw extrasCandidatesError;
-    }
-    for (const row of extrasCandidates ?? []) {
-      if (!row || typeof row !== "object" || "error" in row) {
-        continue;
-      }
-      const raw = row as JanijRecord;
-      const extrasList = parseJanijExtras(raw.extras ?? null);
-      const matchesGrupo = extrasList.some((extra) => grupoIds.includes(extra.id));
-      if (matchesGrupo) {
-        extraJanijIds.add(raw.id);
-      }
-    }
-  }
-
-  const selectFields = extrasTableAvailable
-    ? `${BASE_FIELDS}, grupos_extra:janijim_grupos_extra ( grupo_id, grupo:grupos ( id, nombre ) )`
-    : BASE_FIELDS;
-  const { data: primaryData, error: primaryError } = await baseJanijQuery(selectFields).in(
-    "grupo_id",
-    grupoIds,
-  );
-  if (primaryError) throw primaryError;
-
-  const combinedMap = new Map<string, JanijRecord>();
-  for (const row of coerceJanijRows(primaryData)) {
-    combinedMap.set(row.id, row);
-  }
-
-  const extrasToFetch = Array.from(extraJanijIds).filter((id) => !combinedMap.has(id));
-  if (extrasToFetch.length > 0) {
-    const CHUNK_SIZE = 100;
-    for (let offset = 0; offset < extrasToFetch.length; offset += CHUNK_SIZE) {
-      const chunk = extrasToFetch.slice(offset, offset + CHUNK_SIZE);
-      const { data: extrasData, error: extrasFetchError } = await baseJanijQuery(selectFields).in(
-        "id",
-        chunk,
-      );
-      if (extrasFetchError) throw extrasFetchError;
-      for (const row of coerceJanijRows(extrasData)) {
-        combinedMap.set(row.id, row);
-      }
-    }
-  }
-
-  const data = Array.from(combinedMap.values()).sort((a, b) =>
-    (a.nombre ?? "").localeCompare(b.nombre ?? ""),
-  );
-
-  type RawJanijWithExtras = JanijRecord & {
-    grupos_extra?: {
-      grupo_id?: string | null;
-      grupo?: { id?: string | null; nombre?: string | null } | null;
-    }[];
-  };
-
-  const result: JanijRecord[] = [];
-  for (const row of data ?? []) {
-    if (!row || typeof row !== "object" || "error" in row) {
-      continue;
-    }
-    const raw = row as RawJanijWithExtras;
-    const mergedExtras = new Map<string, { id: string; nombre: string | null }>();
-    if (Array.isArray(raw.grupos_extra)) {
-      for (const extra of raw.grupos_extra) {
-        const id = (extra?.grupo_id as string | null) ?? (extra?.grupo?.id as string | null) ?? null;
-        if (!id) {
-          continue;
-        }
-        const nombre = (extra?.grupo?.nombre as string | null) ?? null;
-        mergedExtras.set(id, { id, nombre });
-      }
-    }
-    const jsonExtras = parseJanijExtras(raw.extras ?? null);
-    for (const extra of jsonExtras) {
-      if (!extra.id || mergedExtras.has(extra.id)) {
-        continue;
-      }
-      mergedExtras.set(extra.id, { id: extra.id, nombre: extra.nombre ?? null });
-    }
-    const gruposExtras = Array.from(mergedExtras.values());
-    const { grupos_extra: _omit, ...rest } = raw;
-    void _omit;
-    result.push({
-      ...rest,
-      gruposAdicionales: gruposExtras,
-    });
-  }
-  return result;
+  const { data, error } = await baseJanijQuery(BASE_FIELDS).in('grupo_id', grupoIds);
+  if (error) throw error;
+  return coerceJanijRows(data);
 }
 
 export async function getGlobalJanijim(): Promise<JanijRecord[]> {

@@ -9,7 +9,7 @@ import Button from "@/components/ui/button";
 import Loader from "@/components/ui/loader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { showError, confirmDialog } from "@/lib/alerts";
-import type { SheetsData } from "@/lib/google/sheetData";
+import type { JanijSheetEntry, SheetsData } from "@/lib/google/sheetData";
 
 const inputStyles =
   "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200";
@@ -96,36 +96,24 @@ function sanitiseSheetsData(source: SheetsData): SheetsData {
   const sanitisedJanijim = source.janijim
     .map((entry) => {
       const nombre = entry.nombre.trim();
-      const grupoPrincipalNombre = entry.grupoPrincipalNombre.trim();
-      const grupoPrincipalKey = normaliseGroupKey(grupoPrincipalNombre);
+      const grupoNombre = entry.grupoNombre.trim();
+      if (!nombre || !grupoNombre) {
+        return null;
+      }
       const telMadre = entry.telMadre?.trim() ?? null;
       const telPadre = entry.telPadre?.trim() ?? null;
       const numeroSocio = entry.numeroSocio?.trim() ?? null;
-      const extrasSeen = new Set<string>();
-      const otrosGrupos = (entry.otrosGrupos ?? [])
-        .map((extra) => {
-          const nombreExtra = extra.nombre.trim();
-          if (nombreExtra.length === 0) return null;
-          const key = normaliseGroupKey(nombreExtra);
-          if (key === grupoPrincipalKey) return null;
-          if (extrasSeen.has(key)) return null;
-          extrasSeen.add(key);
-          return { nombre: nombreExtra, key };
-        })
-        .filter((value): value is { nombre: string; key: string } => value !== null)
-        .slice(0, 2);
       return {
         ...entry,
         nombre,
-        grupoPrincipalNombre,
-        grupoPrincipalKey,
-        grupoKey: grupoPrincipalKey,
+        grupoNombre,
+        grupoKey: normaliseGroupKey(grupoNombre),
         telMadre: telMadre === "" ? null : telMadre,
         telPadre: telPadre === "" ? null : telPadre,
         numeroSocio: numeroSocio === "" ? null : numeroSocio,
-        otrosGrupos,
       };
     })
+    .filter((entry): entry is JanijSheetEntry => Boolean(entry && entry.grupoKey && entry.nombre))
     .filter((entry) => {
       const key = `${normalisePersonName(entry.nombre)}|${entry.grupoKey}`;
       if (seenJanijKeys.has(key)) return false;
@@ -275,8 +263,7 @@ export function AdminManagePanel() {
         return (await res.json()) as RolesResponse;
       })
       .then((payload) => setRoles(payload.roles))
-      .catch((err) => {
-        console.error("Error cargando roles", err);
+      .catch(() => {
         setRoles([]);
         showError("No se pudieron obtener los roles del usuario");
       })
@@ -366,60 +353,22 @@ export function AdminManagePanel() {
 
   const updateJanijField = (
     index: number,
-    field: "nombre" | "grupoPrincipalNombre" | "telMadre" | "telPadre" | "numeroSocio",
+    field: "nombre" | "grupoNombre" | "telMadre" | "telPadre" | "numeroSocio",
     value: string,
   ) => {
     setSheets((prev) => {
       if (!prev) return prev;
       const janijim = [...prev.janijim];
       const current = { ...janijim[index] };
-      if (field === "grupoPrincipalNombre") {
-        current.grupoPrincipalNombre = value;
-        const normalised = normaliseGroupKey(value);
-        current.grupoPrincipalKey = normalised;
-        current.grupoKey = normalised;
+      if (field === "grupoNombre") {
+        current.grupoNombre = value;
+        current.grupoKey = normaliseGroupKey(value);
       } else if (field === "telMadre" || field === "telPadre" || field === "numeroSocio") {
         const trimmed = value.trim();
         current[field] = trimmed.length > 0 ? trimmed : null;
       } else {
         current[field] = value;
       }
-      janijim[index] = current;
-      return { ...prev, janijim };
-    });
-  };
-
-  const updateJanijExtraGroup = (index: number, extraIndex: 0 | 1, value: string) => {
-    setSheets((prev) => {
-      if (!prev) return prev;
-      const janijim = [...prev.janijim];
-      const current = { ...janijim[index] };
-      const extras = [...(current.otrosGrupos ?? [])];
-      const trimmed = value.trim();
-      if (trimmed.length === 0) {
-        if (extras[extraIndex]) {
-          extras.splice(extraIndex, 1);
-        }
-      } else {
-        const key = normaliseGroupKey(trimmed);
-        const updated = { nombre: trimmed, key };
-        if (extras[extraIndex]) {
-          extras[extraIndex] = updated;
-        } else {
-          extras.push(updated);
-        }
-      }
-      const deduped: { nombre: string; key: string }[] = [];
-      const seenKeys = new Set<string>();
-      for (const extra of extras) {
-        if (!extra) continue;
-        if (extra.key === current.grupoPrincipalKey) continue;
-        if (seenKeys.has(extra.key)) continue;
-        seenKeys.add(extra.key);
-        deduped.push(extra);
-        if (deduped.length === 2) break;
-      }
-      current.otrosGrupos = deduped;
       janijim[index] = current;
       return { ...prev, janijim };
     });
@@ -434,13 +383,11 @@ export function AdminManagePanel() {
           ...prev.janijim,
           {
             nombre: "",
-            grupoPrincipalNombre: "",
-            grupoPrincipalKey: "",
+            grupoNombre: "",
             grupoKey: "",
             telMadre: null,
             telPadre: null,
             numeroSocio: null,
-            otrosGrupos: [],
           },
         ],
       };
@@ -808,9 +755,7 @@ export function AdminManagePanel() {
                       <thead className="sticky top-0 bg-slate-50">
                         <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
                           <th className="px-4 py-3">Nombre</th>
-                          <th className="px-4 py-3">Grupo principal</th>
-                          <th className="px-4 py-3">Otro grupo 1</th>
-                          <th className="px-4 py-3">Otro grupo 2</th>
+                          <th className="px-4 py-3">Grupo</th>
                           <th className="px-4 py-3">Tel. madre</th>
                           <th className="px-4 py-3">Tel. padre</th>
                           <th className="px-4 py-3">Nº socio/a</th>
@@ -831,27 +776,9 @@ export function AdminManagePanel() {
                             <td className="px-4 py-3">
                               <input
                                 className={inputStyles}
-                                value={janij.grupoPrincipalNombre}
-                                onChange={(event) =>
-                                  updateJanijField(index, "grupoPrincipalNombre", event.target.value)
-                                }
+                                value={janij.grupoNombre}
+                                onChange={(event) => updateJanijField(index, "grupoNombre", event.target.value)}
                                 placeholder="Nombre del grupo"
-                              />
-                            </td>
-                            <td className="px-4 py-3">
-                              <input
-                                className={inputStyles}
-                                value={janij.otrosGrupos?.[0]?.nombre ?? ""}
-                                onChange={(event) => updateJanijExtraGroup(index, 0, event.target.value)}
-                                placeholder="Otro grupo 1"
-                              />
-                            </td>
-                            <td className="px-4 py-3">
-                              <input
-                                className={inputStyles}
-                                value={janij.otrosGrupos?.[1]?.nombre ?? ""}
-                                onChange={(event) => updateJanijExtraGroup(index, 1, event.target.value)}
-                                placeholder="Otro grupo 2"
                               />
                             </td>
                             <td className="px-4 py-3">
@@ -1087,3 +1014,5 @@ export function AdminManagePanel() {
     </div>
   );
 }
+
+

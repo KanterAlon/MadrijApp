@@ -21,7 +21,6 @@ export async function POST(
     if (err instanceof AccessDeniedError) {
       return NextResponse.json({ error: err.message }, { status: 403 });
     }
-    console.error("Error verificando permisos de administrador", err);
     return NextResponse.json({ error: "No se pudo verificar el rol del usuario" }, { status: 500 });
   }
 
@@ -29,7 +28,6 @@ export async function POST(
     const { preview, result } = await commitAdminSyncRun(runId, userId);
     return NextResponse.json({ preview, result });
   } catch (err) {
-    console.error("Error confirmando sincronización", err);
     const message = err instanceof Error ? err.message : "No se pudo completar la sincronización";
     const status = err instanceof Error && err.message.includes("procesada") ? 409 : 500;
     return NextResponse.json({ error: message }, { status });

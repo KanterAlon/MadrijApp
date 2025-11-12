@@ -32,8 +32,7 @@ export default function HomePage() {
         if (!cancelled) {
           router.push(destination);
         }
-      } catch (error) {
-        console.error("Error determinando el destino post login", error);
+      } catch {
         if (!cancelled) {
           router.push("/dashboard");
         }

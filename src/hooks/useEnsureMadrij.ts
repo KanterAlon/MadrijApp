@@ -20,7 +20,6 @@ export default function useEnsureMadrij() {
         .eq("clerk_id", user.id);
 
       if (error) {
-        console.error("Error actualizando madrij:", error);
       }
     };
 

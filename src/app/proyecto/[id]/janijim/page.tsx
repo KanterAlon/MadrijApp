@@ -18,7 +18,6 @@ import {
   Modal,
   ModalContent,
   ModalDescription,
-  ModalFooter,
   ModalHeader,
   ModalTitle,
 } from "@/components/ui/modal";
@@ -38,6 +37,7 @@ import {
 import Button from "@/components/ui/button";
 import Skeleton from "@/components/ui/skeleton";
 import ActiveSesionCard from "@/components/active-sesion-card";
+import JanijDetailModal, { type JanijDetailField } from "@/components/janij-detail-modal";
 import {
   getJanijim,
   addJanijim,
@@ -61,7 +61,6 @@ type Janij = {
   grupo_id?: string | null;
   tel_madre: string | null;
   tel_padre: string | null;
-  gruposAdicionales?: { id: string; nombre: string | null }[];
   estado: "presente" | "ausente";
 };
 
@@ -233,13 +232,7 @@ export default function JanijimPage() {
         const data = await getJanijim(proyectoId, user.id);
         setForbidden(false);
         setForbiddenMessage(null);
-        const filtered = !targetGrupoId
-          ? data
-          : data.filter(
-              (j) =>
-                j.grupo_id === targetGrupoId ||
-                (j.gruposAdicionales ?? []).some((extra) => extra.id === targetGrupoId),
-            );
+        const filtered = !targetGrupoId ? data : data.filter((j) => j.grupo_id === targetGrupoId);
         setJanijim(
           filtered.map((j) => ({
             id: j.id,
@@ -250,7 +243,6 @@ export default function JanijimPage() {
             grupo_id: (j.grupo_id as string | null) ?? null,
             tel_madre: j.tel_madre ?? null,
             tel_padre: j.tel_padre ?? null,
-            gruposAdicionales: j.gruposAdicionales ?? [],
             estado: "ausente" as const,
           })),
         );
@@ -260,7 +252,6 @@ export default function JanijimPage() {
           setForbiddenMessage(err.message);
           setJanijim([]);
         } else {
-          console.error("Error cargando janijim", err);
           showError("No se pudieron cargar los janijim");
         }
       } finally {
@@ -311,7 +302,6 @@ export default function JanijimPage() {
           setSelectedGrupoId(null);
           setLoading(false);
         } else {
-          console.error("Error cargando grupos", err);
           showError("No se pudieron cargar los grupos");
           setLoading(false);
         }
@@ -366,7 +356,6 @@ export default function JanijimPage() {
           setForbiddenMessage(err.message);
           setMadrijes([]);
         } else {
-          console.error("Error cargando madrijim", err);
           showError("No se pudieron cargar los madrijim");
         }
       });
@@ -437,6 +426,29 @@ export default function JanijimPage() {
       setEditTelPadre(detailJanij.tel_padre ?? "");
     }
   }, [detailJanij]);
+
+  const handleDetailFieldChange = useCallback(
+    (field: JanijDetailField, value: string) => {
+      switch (field) {
+        case "dni":
+          setEditDni(value);
+          break;
+        case "numero_socio":
+          setEditSocio(value);
+          break;
+        case "grupo":
+          setEditGrupo(value);
+          break;
+        case "tel_madre":
+          setEditTelMadre(value);
+          break;
+        case "tel_padre":
+          setEditTelPadre(value);
+          break;
+      }
+    },
+    [],
+  );
 
   const agregar = async (nombre: string) => {
     if (!ensureWritable()) return;
@@ -772,38 +784,28 @@ export default function JanijimPage() {
     <div className="max-w-2xl mx-auto mt-12 space-y-4">
       <ActiveSesionCard proyectoId={proyectoId} />
 
-      <section className="rounded-lg border border-blue-200 bg-white p-4 shadow-sm">
-        <h2 className="text-lg font-semibold text-blue-900">Grupos habilitados</h2>
-        <p className="mt-1 text-sm text-blue-900/70">
-          Elegí qué grupo revisar. Los janijim que participan en otros grupos aparecen etiquetados.
-        </p>
-        {grupos.length === 0 ? (
-          <p className="mt-3 text-sm text-blue-900/70">
-            Todavía no hay grupos vinculados a este proyecto. Revisá la hoja institucional o pedile al administrador que sincronice la base.
-          </p>
-        ) : (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {grupos.map((grupo) => {
-              const isActive = grupo.id === selectedGrupoId;
-              const baseClasses =
-                "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition";
-              const activeClasses = "border-blue-600 bg-blue-600 text-white shadow";
-              const inactiveClasses =
-                "border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300";
-              return (
-                <button
-                  key={grupo.id}
-                  type="button"
-                  onClick={() => setSelectedGrupoId(grupo.id)}
-                  className={`${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}
-                >
-                  Grupo {grupo.nombre}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </section>
+      {grupos.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {grupos.map((grupo) => {
+            const isActive = grupo.id === selectedGrupoId;
+            const baseClasses =
+              "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition";
+            const activeClasses = "border-blue-600 bg-blue-600 text-white shadow";
+            const inactiveClasses =
+              "border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300";
+            return (
+              <button
+                key={grupo.id}
+                type="button"
+                onClick={() => setSelectedGrupoId(grupo.id)}
+                className={`${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}
+              >
+                {grupo.nombre}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {!selectedGrupo ? (
         grupos.length === 0 ? (
@@ -879,14 +881,6 @@ export default function JanijimPage() {
           )}
 
           <div className="space-y-4">
-            <div>
-              <h2 className="text-xl font-semibold text-blue-900">
-                Janijim del grupo {selectedGrupo.nombre}
-              </h2>
-              <p className="mt-1 text-sm text-blue-900/70">
-                Los janijim que participan en grupos adicionales se muestran con etiquetas debajo de su nombre.
-              </p>
-            </div>
 
             {loading ? (
               <div className="space-y-2">
@@ -1062,31 +1056,8 @@ export default function JanijimPage() {
                   ) : (
                     <div className="flex flex-col gap-1">
                       <span className="font-medium text-blue-900">{janij.nombre}</span>
-                      <div className="flex flex-wrap gap-2 text-xs font-semibold">
-                        <span
-                          className={`inline-flex items-center rounded-full px-3 py-1 ${
-                            janij.grupo_id === selectedGrupoId
-                              ? "bg-blue-600 text-white"
-                              : "bg-slate-100 text-slate-700"
-                          }`}
-                        >
-                          Principal: {janij.grupo || "Sin grupo"}
-                        </span>
-                        {(janij.gruposAdicionales ?? []).map((extra) => {
-                          const activeExtra = extra.id === selectedGrupoId;
-                          return (
-                            <span
-                              key={`${janij.id}-${extra.id}`}
-                              className={`inline-flex items-center rounded-full px-3 py-1 ${
-                                activeExtra
-                                  ? "bg-blue-600 text-white"
-                                  : "bg-indigo-100 text-indigo-800"
-                              }`}
-                            >
-                              También en: {extra.nombre ?? extra.id}
-                            </span>
-                          );
-                        })}
+                      <div className="text-xs font-semibold text-slate-500">
+                        {janij.grupo || "Sin grupo"}
                       </div>
                     </div>
                   )}
@@ -1184,102 +1155,28 @@ export default function JanijimPage() {
         </SheetContent>
       </Sheet>
 
-      <Modal open={!!detailJanij} onOpenChange={() => setDetailJanij(null)}>
-        <ModalContent>
-          <ModalHeader>
-            <ModalTitle>{detailJanij?.nombre}</ModalTitle>
-            <ModalDescription>Información del janij</ModalDescription>
-          </ModalHeader>
-          <div className="space-y-4 text-sm">
-            {sheetManaged && (
-              <p className="text-xs text-blue-600">
-                Este registro es de solo lectura porque se sincroniza desde Google Sheets.
-              </p>
-            )}
-            <label className="flex flex-col">
-              <span className="font-medium">DNI</span>
-              <input
-                className="w-full border rounded-lg p-2"
-                value={editDni}
-                onChange={(e) => setEditDni(e.target.value)}
-                readOnly={sheetManaged}
-              />
-            </label>
-            <label className="flex flex-col">
-              <span className="font-medium">Número socio</span>
-              <input
-                className="w-full border rounded-lg p-2"
-                value={editSocio}
-                onChange={(e) => setEditSocio(e.target.value)}
-                readOnly={sheetManaged}
-              />
-            </label>
-            <label className="flex flex-col">
-              <span className="font-medium">Grupo principal</span>
-              <input
-                className="w-full border rounded-lg p-2"
-                value={editGrupo}
-                onChange={(e) => setEditGrupo(e.target.value)}
-                readOnly={sheetManaged}
-              />
-            </label>
-            {detailJanij?.gruposAdicionales?.length ? (
-              <div className="flex flex-col gap-2">
-                <span className="font-medium">Otros grupos</span>
-                <div className="flex flex-wrap gap-2 text-xs font-semibold">
-                  {detailJanij.gruposAdicionales.map((extra) => (
-                    <span
-                      key={`${detailJanij.id}-${extra.id}`}
-                      className="inline-flex items-center rounded-full bg-indigo-100 px-3 py-1 text-indigo-800"
-                    >
-                      {extra.nombre ?? extra.id}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-            <label className="flex flex-col">
-              <span className="font-medium">Tel. madre</span>
-              <input
-                className="w-full border rounded-lg p-2"
-                value={editTelMadre}
-                onChange={(e) => setEditTelMadre(e.target.value)}
-                readOnly={sheetManaged}
-              />
-            </label>
-            <label className="flex flex-col">
-              <span className="font-medium">Tel. padre</span>
-              <input
-                className="w-full border rounded-lg p-2"
-                value={editTelPadre}
-                onChange={(e) => setEditTelPadre(e.target.value)}
-                readOnly={sheetManaged}
-              />
-            </label>
-          </div>
-          <ModalFooter className="flex-wrap sm:flex-nowrap">
-            {canEdit && (
-              <Button
-                variant="success"
-                icon={<Check className="w-4 h-4" />}
-                onClick={saveDetail}
-              >
-                Guardar
-              </Button>
-            )}
-            <Button variant="secondary" onClick={() => setDetailJanij(null)}>
-              Cerrar
-            </Button>
-            <Button
-              variant="danger"
-              icon={<PhoneCall className="w-4 h-4" />}
-              onClick={openCallDialog}
-            >
-              Llamar
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <JanijDetailModal
+        open={Boolean(detailJanij)}
+        janij={detailJanij}
+        onClose={() => setDetailJanij(null)}
+        values={{
+          dni: editDni,
+          numero_socio: editSocio,
+          grupo: editGrupo,
+          tel_madre: editTelMadre,
+          tel_padre: editTelPadre,
+        }}
+        onFieldChange={handleDetailFieldChange}
+        readOnly={!canEdit}
+        sheetNotice={
+          sheetManaged
+            ? "Este registro es de solo lectura porque se sincroniza desde Google Sheets."
+            : undefined
+        }
+        showSave={canEdit}
+        onSave={canEdit ? saveDetail : undefined}
+        onCall={detailJanij ? openCallDialog : undefined}
+      />
 
       <Modal open={callDialogOpen} onOpenChange={closeCallDialog}>
         <ModalContent>
@@ -1466,4 +1363,7 @@ export default function JanijimPage() {
     </div>
   );
 }
+
+
+
 

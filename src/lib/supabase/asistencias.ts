@@ -12,6 +12,42 @@ type SesionRow = {
   finalizado_at: string | null;
 };
 
+type JanijGroupMap = Map<string, string | null>;
+
+function normalizeIds(ids: string[]): string[] {
+  return Array.from(new Set(ids.filter((id): id is string => Boolean(id))));
+}
+
+async function fetchJanijGroups(ids: string[]): Promise<JanijGroupMap> {
+  const uniqueIds = normalizeIds(ids);
+  const map: JanijGroupMap = new Map();
+  if (uniqueIds.length === 0) {
+    return map;
+  }
+
+  const { data, error } = await supabase
+    .from("janijim")
+    .select("id, grupo_id")
+    .in("id", uniqueIds);
+  if (error) throw error;
+
+  for (const row of data ?? []) {
+    const janijId = row?.id as string | null;
+    if (!janijId) continue;
+    map.set(janijId, (row?.grupo_id as string | null) ?? null);
+  }
+
+  return map;
+}
+
+function isJanijAllowed(janijId: string, groups: JanijGroupMap, allowed: Set<string>) {
+  if (allowed.size === 0) {
+    return false;
+  }
+  const grupoId = groups.get(janijId);
+  return Boolean(grupoId && allowed.has(grupoId));
+}
+
 async function fetchSesionWithAccess(userId: string, sesionId: string) {
   const { data, error } = await supabase
     .from("asistencia_sesiones")
@@ -105,19 +141,12 @@ export async function getAsistencias(userId: string, sesionId: string) {
     if (janijIds.length === 0) {
       return [];
     }
-    const { data: janijRows, error: janijError } = await supabase
-      .from("janijim")
-      .select("id, grupo_id")
-      .in("id", janijIds);
-    if (janijError) throw janijError;
     const allowed = new Set(access.grupoIds);
-    const allowedJanijIds = new Set(
-      (janijRows ?? [])
-        .map((row) => ({ id: row.id as string | null, grupo: row.grupo_id as string | null }))
-        .filter((row): row is { id: string; grupo: string } => Boolean(row.id && row.grupo && allowed.has(row.grupo)))
-        .map((row) => row.id),
-    );
-    rows = rows.filter((row) => row.janij_id && allowedJanijIds.has(row.janij_id as string));
+    const groups = await fetchJanijGroups(janijIds);
+    rows = rows.filter((row) => {
+      const janijId = row.janij_id as string | null;
+      return janijId ? isJanijAllowed(janijId, groups, allowed) : false;
+    });
   }
 
   return rows;
@@ -137,17 +166,12 @@ export async function marcarAsistencia(
 
   if (access.scope === "madrij") {
     if (access.grupoIds.length === 0) {
-      throw new AccessDeniedError("No tenés grupos asignados en este proyecto");
+      throw new AccessDeniedError("No tenes grupos asignados en este proyecto");
     }
-    const { data: janij, error: janijError } = await supabase
-      .from("janijim")
-      .select("grupo_id")
-      .eq("id", janijId)
-      .maybeSingle();
-    if (janijError) throw janijError;
-    const grupoId = janij?.grupo_id as string | null;
-    if (!grupoId || !access.grupoIds.includes(grupoId)) {
-      throw new AccessDeniedError("Solo podés actualizar asistencia para tus propios grupos");
+    const allowed = new Set(access.grupoIds);
+    const groups = await fetchJanijGroups([janijId]);
+    if (!isJanijAllowed(janijId, groups, allowed)) {
+      throw new AccessDeniedError("Solo podes actualizar asistencia para tus propios grupos");
     }
   }
 

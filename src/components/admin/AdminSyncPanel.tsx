@@ -49,8 +49,7 @@ export function AdminSyncPanel() {
         return (await res.json()) as RolesResponse;
       })
       .then((payload) => setRoles(payload.roles))
-      .catch((err) => {
-        console.error("Error cargando roles", err);
+      .catch(() => {
         setRoles([]);
         showError("No se pudieron obtener los roles del usuario");
       })
@@ -208,9 +207,6 @@ export function AdminSyncPanel() {
     const totalBajas = result.grupos.reduce((acc, item) => acc + item.deactivated, 0);
     const totalMadAltas = result.grupos.reduce((acc, item) => acc + item.madrijInserted, 0);
     const totalMadBajas = result.grupos.reduce((acc, item) => acc + item.madrijDeactivated, 0);
-    const extrasAltas = result.extras.inserted;
-    const extrasBajas = result.extras.deleted;
-    const extrasJson = result.extras.jsonUpdated;
 
     return (
       <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
@@ -235,17 +231,6 @@ export function AdminSyncPanel() {
             <h3 className="text-sm font-semibold text-blue-900">Roles</h3>
             <p className="mt-2 text-sm text-blue-900/70">
               Coordinadores sincronizados: {result.roles.coordinadoresProyectos.upserted} enlaces nuevos, {result.roles.coordinadoresProyectos.removed} removidos.
-            </p>
-          </div>
-          <div className="rounded-lg bg-white p-4 shadow">
-            <h3 className="text-sm font-semibold text-blue-900">Otros grupos</h3>
-            <p className="mt-2 text-sm text-blue-900/70">
-              {formatCountLabel(extrasAltas, "vinculo agregado")} y {formatCountLabel(extrasBajas, "vinculo removido")} en proyectos secundarios.
-              {extrasJson > 0 && (
-                <span className="block">
-                  {formatCountLabel(extrasJson, "registro")} actualizado en el respaldo JSON.
-                </span>
-              )}
             </p>
           </div>
         </div>
@@ -381,14 +366,11 @@ export function AdminSyncPanel() {
                             {grupo.inserts.map((entry) => (
                               <li key={`insert-${grupo.grupoKey}-${entry.nombre}`} className="rounded-md bg-white/70 p-2">
                                 <div className="font-medium text-blue-900">{entry.nombre}</div>
-                                {(entry.telMadre || entry.telPadre || entry.numeroSocio || entry.otrosGrupos.length > 0) && (
+                                {(entry.telMadre || entry.telPadre || entry.numeroSocio) && (
                                   <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-blue-900/70">
                                     {entry.telMadre && <li>Tel. madre: {entry.telMadre}</li>}
                                     {entry.telPadre && <li>Tel. padre: {entry.telPadre}</li>}
                                     {entry.numeroSocio && <li>Nº socio: {entry.numeroSocio}</li>}
-                                    {entry.otrosGrupos.length > 0 && (
-                                      <li>Otros grupos: {entry.otrosGrupos.join(", ")}</li>
-                                    )}
                                   </ul>
                                 )}
                               </li>
@@ -422,21 +404,6 @@ export function AdminSyncPanel() {
                                   {update.cambios.numeroSocio && (
                                     <li>
                                       Nº socio: {update.cambios.numeroSocio.before ?? "(sin dato)"}{" -> "}{update.cambios.numeroSocio.after ?? "(sin dato)"}
-                                    </li>
-                                  )}
-                                  {update.cambios.otrosGrupos && (
-                                    <li>
-                                      Otros grupos:
-                                      <ul className="mt-1 list-disc space-y-1 pl-5">
-                                        {update.cambios.otrosGrupos.agregar.length > 0 && (
-                                          <li className="text-green-700">Agregar: {update.cambios.otrosGrupos.agregar.join(", ")}</li>
-                                        )}
-                                        {update.cambios.otrosGrupos.quitar.length > 0 && (
-                                          <li className="text-red-700">Quitar: {update.cambios.otrosGrupos.quitar.join(", ")}</li>
-                                        )}
-                                        {update.cambios.otrosGrupos.agregar.length === 0 &&
-                                          update.cambios.otrosGrupos.quitar.length === 0 && <li>(sin cambios)</li>}
-                                      </ul>
                                     </li>
                                   )}
                                   {update.reactivar && <li className="text-green-700">Se reactivara este janij</li>}
@@ -521,6 +488,10 @@ export function AdminSyncPanel() {
     </div>
   );
 }
+
+
+
+
 
 
 

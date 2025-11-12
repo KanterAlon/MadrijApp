@@ -6,17 +6,9 @@ import {
   type SheetsData,
 } from "@/lib/google/sheetData";
 import { supabase } from "@/lib/supabase";
-import { isMissingRelationError } from "@/lib/supabase/errors";
 import type { AppRole } from "@/lib/supabase/access";
-import {
-  dedupeJanijEntries,
-  syncGroupFromSheets,
-  syncJanijExtrasFromSheets,
-  type ExtrasSyncStats,
-  type SyncResult,
-} from "@/lib/sync/sheetsSync";
+import { dedupeJanijEntries, syncGroupFromSheets, type SyncResult } from "@/lib/sync/sheetsSync";
 import { syncAppRolesFromSheets, type RolesSyncResult } from "@/lib/sync/rolesSync";
-import { parseJanijExtras } from "@/lib/sync/janijExtras";
 
 const normaliseProjectName = normaliseGroupName;
 
@@ -34,10 +26,6 @@ export type JanijUpdatePreview = {
     telMadre?: FieldChange<string>;
     telPadre?: FieldChange<string>;
     numeroSocio?: FieldChange<string>;
-    otrosGrupos?: {
-      agregar: string[];
-      quitar: string[];
-    };
   };
   reactivar: boolean;
 };
@@ -47,7 +35,6 @@ export type JanijInsertPreview = {
   telMadre: string | null;
   telPadre: string | null;
   numeroSocio: string | null;
-  otrosGrupos: string[];
 };
 
 export type JanijDeactivatePreview = {
@@ -159,7 +146,6 @@ export type AdminSyncCommitResult = {
     janijimDesactivados: number;
     madrijimDesactivados: number;
   }[];
-  extras: ExtrasSyncStats;
   roles: RolesSyncResult;
 };
 
@@ -238,8 +224,6 @@ function dedupeCoordinatorEntries(entries: { email: string; nombre: string; proy
 function computeJanijDiff(
   existing: JanijRow[],
   entries: JanijSheetEntry[],
-  extrasByJanijId: Map<string, { nombre: string; key: string }[]>,
-  options?: { compareExtras?: boolean },
 ): {
   inserts: JanijInsertPreview[];
   updates: JanijUpdatePreview[];
@@ -270,13 +254,12 @@ function computeJanijDiff(
         telMadre: entry.telMadre ?? null,
         telPadre: entry.telPadre ?? null,
         numeroSocio: entry.numeroSocio ?? null,
-        otrosGrupos: entry.otrosGrupos.map((extra) => extra.nombre),
       });
       continue;
     }
     seen.add(key);
     const cambios: JanijUpdatePreview["cambios"] = {};
-    if ((existingRow.nombre ?? "") !== entry.nombre) {
+    if ((existingRow.nombre ?? '') !== entry.nombre) {
       cambios.nombre = { before: existingRow.nombre ?? null, after: entry.nombre };
     }
     if ((existingRow.tel_madre ?? null) !== (entry.telMadre ?? null)) {
@@ -297,25 +280,6 @@ function computeJanijDiff(
         after: entry.numeroSocio ?? null,
       };
     }
-
-    if (options?.compareExtras !== false) {
-      const existingExtras = extrasByJanijId.get(existingRow.id) ?? [];
-      const existingExtraKeys = new Set(existingExtras.map((extra) => extra.key));
-      const desiredExtras = entry.otrosGrupos;
-      const desiredExtraKeys = new Set(desiredExtras.map((extra) => extra.key));
-      const extrasAgregar = desiredExtras
-        .filter((extra) => !existingExtraKeys.has(extra.key))
-        .map((extra) => extra.nombre);
-      const extrasQuitar = existingExtras
-        .filter((extra) => !desiredExtraKeys.has(extra.key))
-        .map((extra) => extra.nombre);
-      if (extrasAgregar.length > 0 || extrasQuitar.length > 0) {
-        cambios.otrosGrupos = {
-          agregar: extrasAgregar,
-          quitar: extrasQuitar,
-        };
-      }
-    }
     const reactivarRegistro = existingRow.activo === false || existingRow.activo === null;
     if (Object.keys(cambios).length > 0 || reactivarRegistro) {
       if (reactivarRegistro) {
@@ -335,7 +299,7 @@ function computeJanijDiff(
     const key = row.nombre ? normaliseGroupName(row.nombre) : null;
     if (!key) continue;
     if (!seen.has(key) && row.activo !== false) {
-      deactivations.push({ id: row.id, nombre: row.nombre ?? "" });
+      deactivations.push({ id: row.id, nombre: row.nombre ?? '' });
     }
   }
 
@@ -532,7 +496,7 @@ function buildSummary(
 export async function buildSyncPreview(options?: { data?: SheetsData }): Promise<SyncPreview> {
   const sheets = options?.data ?? (await loadSheetsData());
 
-  const [proyectosRes, gruposRes, janijimRes, rolesRes, coordinatorLinksRes, grupoLinksRes, janijExtrasRes] =
+  const [proyectosRes, gruposRes, janijimRes, rolesRes, coordinatorLinksRes, grupoLinksRes] =
     await Promise.all([
       supabase.from("proyectos").select("id, nombre, grupo_id"),
       supabase.from("grupos").select("id, nombre"),
@@ -542,7 +506,6 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
       supabase.from("app_roles").select("id, email, nombre, role, activo"),
       supabase.from("proyecto_coordinadores").select("role_id, proyecto_id"),
       supabase.from("proyecto_grupos").select("proyecto_id, grupo_id"),
-      supabase.from("janijim_grupos_extra").select("janij_id, grupo_id"),
     ]);
 
   if (proyectosRes.error) throw proyectosRes.error;
@@ -551,10 +514,6 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
   if (rolesRes.error) throw rolesRes.error;
   if (coordinatorLinksRes.error) throw coordinatorLinksRes.error;
   if (grupoLinksRes.error) throw grupoLinksRes.error;
-  const extrasRelation = "janijim_grupos_extra";
-  if (janijExtrasRes.error && !isMissingRelationError(janijExtrasRes.error, extrasRelation)) {
-    throw janijExtrasRes.error;
-  }
 
   const proyectos = (proyectosRes.data ?? []) as ProyectoRow[];
   const grupos = (gruposRes.data ?? []) as GrupoRow[];
@@ -562,12 +521,6 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
   const roleRows = (rolesRes.data ?? []) as RoleRow[];
   const coordinatorLinks = coordinatorLinksRes.data ?? [];
   const proyectoGrupoLinks = grupoLinksRes.data ?? [];
-  const extrasMissing = Boolean(
-    janijExtrasRes.error && isMissingRelationError(janijExtrasRes.error, extrasRelation),
-  );
-  const janijExtraRows = extrasMissing
-    ? []
-    : ((janijExtrasRes.data ?? []) as { janij_id: string | null; grupo_id: string | null }[]);
 
   const proyectoByKey = new Map<string, ProyectoRow>();
   const proyectoById = new Map<string, ProyectoRow>();
@@ -585,44 +538,6 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
     const key = normaliseGroupName(grupo.nombre);
     grupoByKey.set(key, grupo);
     grupoById.set(grupo.id, grupo);
-  }
-
-  const extrasByJanijId = new Map<string, { nombre: string; key: string }[]>();
-  for (const extra of janijExtraRows) {
-    const janijId = extra.janij_id ?? null;
-    const grupoId = extra.grupo_id ?? null;
-    if (!janijId || !grupoId) continue;
-    const grupo = grupoById.get(grupoId);
-    const nombre = grupo?.nombre ?? grupoId;
-    const key = grupo?.nombre ? normaliseGroupName(grupo.nombre) : grupoId;
-    const list = extrasByJanijId.get(janijId) ?? [];
-    list.push({ nombre, key });
-    extrasByJanijId.set(janijId, list);
-  }
-  if (extrasMissing) {
-    for (const janij of janijRows) {
-      const janijId = janij.id ?? null;
-      if (!janijId) continue;
-      const parsedExtras = parseJanijExtras(janij.extras ?? null);
-      if (parsedExtras.length === 0) continue;
-      const seenKeys = new Set<string>();
-      const extrasList: { nombre: string; key: string }[] = [];
-      for (const extra of parsedExtras) {
-        const grupo = extra.id ? grupoById.get(extra.id) : null;
-        const nombre =
-          grupo?.nombre ??
-          extra.nombre ??
-          (typeof extra.id === "string" && extra.id.trim().length > 0 ? extra.id : null);
-        if (!nombre) continue;
-        const key = normaliseGroupName(nombre);
-        if (seenKeys.has(key)) continue;
-        seenKeys.add(key);
-        extrasList.push({ nombre, key });
-      }
-      if (extrasList.length > 0) {
-        extrasByJanijId.set(janijId, extrasList);
-      }
-    }
   }
 
   const sheetGroups = new Map<
@@ -672,53 +587,21 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
   }
 
   for (const entry of sheets.janijim) {
-    const key = entry.grupoPrincipalKey;
+    const key = entry.grupoKey;
     if (!sheetGroups.has(key)) {
       sheetGroups.set(key, {
-        nombre: entry.grupoPrincipalNombre,
+        nombre: entry.grupoNombre,
         proyectoNombre: null,
         proyectoKey: null,
       });
     }
   }
 
-  const sheetJanijPrimaryByGroup = groupBy(sheets.janijim, (entry) => entry.grupoPrincipalKey);
-  const sheetJanijExtrasByGroup = new Map<string, JanijSheetEntry[]>();
-  for (const entry of sheets.janijim) {
-    for (const extra of entry.otrosGrupos) {
-      if (!extra.key) continue;
-      let list = sheetJanijExtrasByGroup.get(extra.key);
-      if (!list) {
-        list = [];
-        sheetJanijExtrasByGroup.set(extra.key, list);
-      }
-      list.push(entry);
-    }
-  }
+  const sheetJanijByGroup = groupBy(sheets.janijim, (entry) => entry.grupoKey);
   const janijByGrupoId = groupBy(
     janijRows,
     (row) => row.grupo_id ?? "",
   );
-  const janijRowById = new Map<string, JanijRow>();
-  for (const row of janijRows) {
-    janijRowById.set(row.id, row);
-  }
-  const extrasExistingByGroupKey = new Map<string, JanijRow[]>();
-  for (const [janijId, extras] of extrasByJanijId.entries()) {
-    const row = janijRowById.get(janijId);
-    if (!row) continue;
-    for (const extra of extras) {
-      const key = extra.key;
-      let list = extrasExistingByGroupKey.get(key);
-      if (!list) {
-        list = [];
-        extrasExistingByGroupKey.set(key, list);
-      }
-      if (!list.some((existing) => existing.id === row.id)) {
-        list.push(row);
-      }
-    }
-  }
   const proyectoByGrupoId = new Map<string, ProyectoRow[]>();
   for (const link of proyectoGrupoLinks ?? []) {
     if (!link.grupo_id) continue;
@@ -761,43 +644,13 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
     if (!grupo) {
       nuevosGrupos.push({ grupo: info.nombre, proyecto: info.proyectoNombre ?? null });
     }
-    const primaryEntries = sheetJanijPrimaryByGroup.get(key) ?? [];
-    const extraEntries = sheetJanijExtrasByGroup.get(key) ?? [];
-    const existingPrimary = grupo ? janijByGrupoId.get(grupo.id) ?? [] : [];
-    const existingExtras = extrasExistingByGroupKey.get(key) ?? [];
+    const sheetEntries = sheetJanijByGroup.get(key) ?? [];
+    const existingEntries = grupo ? janijByGrupoId.get(grupo.id) ?? [] : [];
 
-    const primaryDiff = computeJanijDiff(existingPrimary, primaryEntries, extrasByJanijId, {
-      compareExtras: false,
-    });
-    const extrasDiff = computeJanijDiff(existingExtras, extraEntries, extrasByJanijId, {
-      compareExtras: true,
-    });
+    const diff = computeJanijDiff(existingEntries, sheetEntries);
 
-    const combinedInserts = [...primaryDiff.inserts, ...extrasDiff.inserts];
-    const combinedUpdates = [...primaryDiff.updates, ...extrasDiff.updates];
-    const combinedDeactivations = [...primaryDiff.deactivations, ...extrasDiff.deactivations];
-
-    const totalSheet = primaryEntries.length + extraEntries.length;
-    const activeIds = new Set<string>();
-    let totalActualActivos = 0;
-    for (const row of existingPrimary) {
-      if (row.activo !== false && row.id) {
-        const id = row.id;
-        if (!activeIds.has(id)) {
-          activeIds.add(id);
-          totalActualActivos += 1;
-        }
-      }
-    }
-    for (const row of existingExtras) {
-      if (row.activo !== false && row.id) {
-        const id = row.id;
-        if (!activeIds.has(id)) {
-          activeIds.add(id);
-          totalActualActivos += 1;
-        }
-      }
-    }
+    const totalSheet = sheetEntries.length;
+    const totalActualActivos = existingEntries.filter((row) => row.activo !== false).length;
 
     detalle.push({
       grupoKey: key,
@@ -809,9 +662,9 @@ export async function buildSyncPreview(options?: { data?: SheetsData }): Promise
       esProyectoNuevo: info.proyectoKey ? !proyecto : false,
       totalSheet,
       totalActualActivos,
-      inserts: combinedInserts,
-      updates: combinedUpdates,
-      deactivations: combinedDeactivations,
+      inserts: diff.inserts,
+      updates: diff.updates,
+      deactivations: diff.deactivations,
     });
   }
 
@@ -974,13 +827,11 @@ async function applyPreviewWithSheets(
     cleanupResults.push(cleanup);
   }
 
-  const extrasResult = await syncJanijExtrasFromSheets(sheetsData);
   const rolesResult = await syncAppRolesFromSheets(sheetsData);
 
   return {
     grupos: processedGroups,
     limpieza: cleanupResults,
-    extras: extrasResult,
     roles: rolesResult,
   };
 }

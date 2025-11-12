@@ -72,7 +72,6 @@ export default function HerramientasPage() {
         if ((err as Error).name === "AbortError") {
           return;
         }
-        console.error("Error fetching janijim", err);
         setResults([]);
         setError("No pudimos completar la búsqueda. Intentalo nuevamente.");
       } finally {

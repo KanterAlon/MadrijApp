@@ -33,26 +33,18 @@ function buildMadrijRows(entries: MadrijSheetEntry[]) {
 function buildJanijRows(entries: JanijSheetEntry[]) {
   const header = [
     "Nombre completo",
-    "Grupo Principal",
-    "Otro Grupo 1",
-    "Otro Grupo 2",
+    "Grupo",
     "TelÃ©fono madre",
     "TelÃ©fono padre",
     "NÃºmero de socio/a",
   ];
-  const rows = entries.map((entry) => {
-    const extras = entry.otrosGrupos.map((grupo) => sanitizeCell(grupo.nombre));
-    const [extra1, extra2] = extras;
-    return [
-      sanitizeCell(entry.nombre),
-      sanitizeCell(entry.grupoPrincipalNombre),
-      extra1 ?? "",
-      extra2 ?? "",
-      sanitizeCell(entry.telMadre),
-      sanitizeCell(entry.telPadre),
-      sanitizeCell(entry.numeroSocio),
-    ];
-  });
+  const rows = entries.map((entry) => [
+    sanitizeCell(entry.nombre),
+    sanitizeCell(entry.grupoNombre),
+    sanitizeCell(entry.telMadre),
+    sanitizeCell(entry.telPadre),
+    sanitizeCell(entry.numeroSocio),
+  ]);
   return [header, ...rows];
 }
 
