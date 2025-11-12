@@ -5,7 +5,7 @@ import { redirect, notFound } from "next/navigation";
 import ActiveSesionCard from "@/components/active-sesion-card";
 import { supabase } from "@/lib/supabase";
 import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-server";
-import { getGruposByProyecto } from "@/lib/supabase/grupos";
+import { getGruposQuickStats } from "@/lib/supabase/grupos";
 import { AccessDeniedError, ensureProyectoAccess, type ProyectoAccess } from "@/lib/supabase/access";
 
 interface PageProps {
@@ -52,7 +52,7 @@ export default async function ProyectoHome({ params }: PageProps) {
     throw err;
   }
 
-  const grupos = await getGruposByProyecto(proyectoId, userId);
+  const grupos = await getGruposQuickStats(proyectoId, userId);
 
   const { data: coordinadorLinks, error: coordinadorError } = await supabase
     .from("proyecto_coordinadores")
