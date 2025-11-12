@@ -1,10 +1,10 @@
-import { pipeline } from '@xenova/transformers';
+import { pipeline, type FeatureExtractionPipelineType } from '@xenova/transformers';
 import removeAccents from 'remove-accents';
 import jaroWinkler from 'jaro-winkler';
 
-let embedderPromise: ReturnType<typeof pipeline> | null = null;
+let embedderPromise: Promise<FeatureExtractionPipelineType> | null = null;
 
-export function getEmbedder() {
+export function getEmbedder(): Promise<FeatureExtractionPipelineType> {
   if (!embedderPromise) {
     embedderPromise = pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
   }
