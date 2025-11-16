@@ -49,6 +49,7 @@ import { getMadrijimPorProyecto } from "@/lib/supabase/madrijim-client";
 import { showError, confirmDialog } from "@/lib/alerts";
 import { getGruposByProyecto, type Grupo } from "@/lib/supabase/grupos";
 import { AccessDeniedError } from "@/lib/supabase/access";
+import { buildTelHref } from "@/lib/phone";
 
 
 type Janij = {
@@ -525,32 +526,13 @@ export default function JanijimPage() {
     }
   };
 
-  const callParent = (phone: string, fallbackMsg: string) => {
-    const sanitized = phone.trim();
-    if (!sanitized) {
+  const callParent = (phone: string | null | undefined, fallbackMsg: string) => {
+    const telHref = buildTelHref(phone, { privatePrefix: "#31#" });
+    if (!telHref) {
       toast.error(fallbackMsg);
       return;
     }
-
-    const cleanNumber = sanitized.replace(/[^+\d]/g, "");
-    if (!cleanNumber) {
-      toast.error(fallbackMsg);
-      return;
-    }
-
-    const normalized = cleanNumber.startsWith("+")
-      ? `+${cleanNumber.slice(1).replace(/\+/g, "")}`
-      : cleanNumber.replace(/\+/g, "");
-
-    if (!normalized || normalized === "+") {
-      toast.error(fallbackMsg);
-      return;
-    }
-
-    const PRIVATE_CALL_PREFIX = "#31#";
-    const callSequence = `${PRIVATE_CALL_PREFIX}${normalized}`;
-    const url = `tel:${encodeURIComponent(callSequence)}`;
-    window.location.assign(url);
+    window.location.href = telHref;
   };
 
   const callMother = () =>

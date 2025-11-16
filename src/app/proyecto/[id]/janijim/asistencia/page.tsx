@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/modal";
 import { AccessDeniedError } from "@/lib/supabase/access";
 import JanijDetailModal from "@/components/janij-detail-modal";
+import { buildTelHref } from "@/lib/phone";
 
 type AsistenciaRow = {
   janij_id: string;
@@ -313,16 +314,20 @@ export default function AsistenciaPage() {
     setCallDialogOpen(false);
     setCallTarget(null);
   };
-  const handleCallMother = () => {
-    if (callTarget?.tel_madre) {
-      window.location.href = `tel:${callTarget.tel_madre}`;
+  const initiateCall = (phone: string | null | undefined, fallbackMsg: string) => {
+    const telHref = buildTelHref(phone);
+    if (!telHref) {
+      toast.error(fallbackMsg);
+      return;
     }
+    window.location.href = telHref;
+  };
+  const handleCallMother = () => {
+    initiateCall(callTarget?.tel_madre, "No hay teléfono de la madre cargado");
     closeCallDialog();
   };
   const handleCallFather = () => {
-    if (callTarget?.tel_padre) {
-      window.location.href = `tel:${callTarget.tel_padre}`;
-    }
+    initiateCall(callTarget?.tel_padre, "No hay teléfono del padre cargado");
     closeCallDialog();
   };
 
